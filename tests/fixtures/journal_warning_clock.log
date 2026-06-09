@@ -1,0 +1,7 @@
+{"timestamp":"2035-01-07T23:59:58Z","event":"Commander","Name":"Cmdr Fixture Foxtrot","FID":"F0000006"}
+{"timestamp":"2035-01-07T23:59:59Z","event":"LoadGame","Commander":"Cmdr Fixture Foxtrot","Ship":"sidewinder","ShipName":"Fixture Clock","ShipIdent":"FX-06","GameMode":"Group","Group":"Fixture Test Group","Credits":1000,"Loan":0}
+{"timestamp":"2035-01-08T00:00:00Z","event":"ReceiveText","From":"npc_fixture_warning","Message":"Fixture warning: oxygen check timer reached threshold.","Channel":"npc"}
+{"timestamp":"2035-01-08T00:00:01Z","event":"Music","MusicTrack":"Supercruise"}
+{"timestamp":"2035-01-08T00:00:02Z","event":"SupercruiseDestinationDrop","Type":"SignalSource","Threat":2}
+{"timestamp":"2035-01-08T00:00:03Z","event":"ReceiveText","From":"npc_fixture_warning","Message":"Fixture warning cleared after clock rollover.","Channel":"npc"}
+{"timestamp":"2035-01-08T00:00:04Z","event":"Shutdown"}

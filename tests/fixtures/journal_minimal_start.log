@@ -1,0 +1,7 @@
+{"timestamp":"2035-01-02T03:04:05Z","event":"Commander","Name":"Cmdr Fixture Alpha","FID":"F0000001"}
+{"timestamp":"2035-01-02T03:04:06Z","event":"LoadGame","Commander":"Cmdr Fixture Alpha","Ship":"cobramkiii","ShipName":"Test Courier","ShipIdent":"FX-01","GameMode":"Open","Credits":123456,"Loan":0,"Horizons":true,"Odyssey":true}
+{"timestamp":"2035-01-02T03:04:07Z","event":"Location","StarSystem":"Test System A","SystemAddress":100000000001,"Body":"Synthetic Station","StationName":"Fixture Dock","StationType":"Coriolis","Docked":true,"Factions":[{"Name":"Fixture Cooperative","FactionState":"None"}]}
+{"timestamp":"2035-01-02T03:05:10Z","event":"SupercruiseDestinationDrop","Type":"Station","Threat":0,"MarketID":900000001}
+{"timestamp":"2035-01-02T03:05:20Z","event":"ReceiveText","From":"npc_fixture_controller","Message":"Fixture docking reminder acknowledged.","Channel":"npc"}
+{"timestamp":"2035-01-02T03:06:00Z","event":"Music","MusicTrack":"NoTrack"}
+{"timestamp":"2035-01-02T03:07:00Z","event":"Shutdown"}
