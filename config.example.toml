@@ -1,0 +1,46 @@
+[journal]
+folder = ""
+recent_files = 10
+
+[monitor]
+use_utc = false
+live_status = true
+warn_kill_rate = 15
+warn_no_kills_minutes = 10
+warn_no_kills_initial_minutes = 5
+warn_cooldown_minutes = 30
+duplicate_max = 5
+pirate_names = false
+bounty_faction = true
+bounty_value = false
+extended_stats = true
+min_scan_level = 1
+poll_interval_ms = 1000
+
+[log_levels]
+scan_incoming = 1
+scan_easy = 1
+scan_hard = 1
+kill_easy = 1
+kill_hard = 1
+fighter_hull = 2
+fighter_down = 3
+ship_shields = 3
+ship_hull = 3
+died = 3
+cargo_lost = 3
+bait_value_low = 2
+security_scan = 2
+security_attack = 3
+fuel_report = 1
+fuel_low = 2
+fuel_critical = 3
+missions = 2
+missions_all = 3
+no_kills = 3
+kill_rate = 3
+summary_kills = 2
+summary_faction = 0
+summary_scans = 0
+summary_bounties = 2
+duplicate_suppression = 1
