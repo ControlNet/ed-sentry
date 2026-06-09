@@ -1,0 +1,6 @@
+{"timestamp":"2035-01-06T16:00:00Z","event":"Commander","Name":"Cmdr Fixture Echo","FID":"F0000005"}
+{"timestamp":"2035-01-06T16:01:00Z","event":"FixtureUnknownEvent","Detail":"Valid JSON unknown event for parser tolerance."}
+{"timestamp":"2035-01-06T16:02:00Z","event":"Music","MusicTrack":"Exploration"}
+{"timestamp":"2035-01-06T16:03:00Z","event":"ReceiveText","From":"npc_fixture_beacon","Message":"Fixture beacon message only.","Channel":"npc"}
+{"timestamp":"2035-01-06T16:04:00Z","event":"MalformedFixture","Reason":"missing closing brace"
+{"timestamp":"2035-01-06T16:05:00Z","event":"Shutdown"}
