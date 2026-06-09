@@ -1,0 +1,8 @@
+{"timestamp":"2035-01-04T12:00:00Z","event":"Commander","Name":"Cmdr Fixture Gamma","FID":"F0000003"}
+{"timestamp":"2035-01-04T12:01:00Z","event":"Location","StarSystem":"Mission Test System","SystemAddress":100000000003,"StationName":"Task Board Hub","StationType":"Outpost","Docked":true,"Factions":[{"Name":"Fixture Logistics Guild","FactionState":"Boom"}]}
+{"timestamp":"2035-01-04T12:02:00Z","event":"Missions","Active":[{"MissionID":7001001,"Name":"Mission_Delivery_name","PassengerMission":false,"Expires":1800}],"Failed":[],"Complete":[]}
+{"timestamp":"2035-01-04T12:03:00Z","event":"MissionAccepted","Faction":"Fixture Logistics Guild","Name":"Mission_Delivery_name","MissionID":7001002,"DestinationSystem":"Delivery Test System","DestinationStation":"Parcel Point","Expiry":"2035-01-05T12:03:00Z","Influence":"Med","Reputation":"Med","Reward":50000}
+{"timestamp":"2035-01-04T12:04:00Z","event":"MissionRedirected","MissionID":7001002,"Name":"Mission_Delivery_name","NewDestinationStation":"Alternate Parcel Point","NewDestinationSystem":"Redirect Test System","OldDestinationStation":"Parcel Point","OldDestinationSystem":"Delivery Test System"}
+{"timestamp":"2035-01-04T12:05:00Z","event":"MissionCompleted","Faction":"Fixture Logistics Guild","Name":"Mission_Delivery_name","MissionID":7001002,"Reward":50000,"CommodityReward":[{"Name":"syntheticfabric","Count":2}]}
+{"timestamp":"2035-01-04T12:06:00Z","event":"MissionFailed","Name":"Mission_Scan_name","MissionID":7001003,"Fine":1000}
+{"timestamp":"2035-01-04T12:07:00Z","event":"MissionAbandoned","Name":"Mission_Courier_name","MissionID":7001004}

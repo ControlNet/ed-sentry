@@ -1,0 +1,7 @@
+{"timestamp":"2035-01-03T10:00:00Z","event":"Commander","Name":"Cmdr Fixture Bravo","FID":"F0000002"}
+{"timestamp":"2035-01-03T10:01:00Z","event":"Location","StarSystem":"Arena Test System","SystemAddress":100000000002,"Body":"Arena Belt","Docked":false,"Factions":[{"Name":"Fixture Security Office","FactionState":"None"},{"Name":"Practice Raiders","FactionState":"None"}]}
+{"timestamp":"2035-01-03T10:02:00Z","event":"ShipTargeted","TargetLocked":true,"Ship":"viper","ScanStage":3,"PilotName":"Fixture Raider One","PilotName_Localised":"Fixture Raider One","PilotRank":"Competent","ShieldHealth":87.5,"HullHealth":100.0,"Faction":"Practice Raiders","LegalStatus":"Wanted","Bounty":6400}
+{"timestamp":"2035-01-03T10:03:00Z","event":"Bounty","Rewards":[{"Faction":"Fixture Security Office","Reward":6400}],"Target":"viper","TotalReward":6400,"VictimFaction":"Practice Raiders"}
+{"timestamp":"2035-01-03T10:03:05Z","event":"FactionKillBond","Reward":12000,"AwardingFaction":"Fixture Navy","VictimFaction":"Practice Raiders"}
+{"timestamp":"2035-01-03T10:04:00Z","event":"EjectCargo","Type":"drones","Count":1,"Abandoned":false}
+{"timestamp":"2035-01-03T10:05:00Z","event":"ReservoirReplenished","FuelMain":16.0,"FuelReservoir":0.63}

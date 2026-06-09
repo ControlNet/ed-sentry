@@ -1,0 +1,9 @@
+{"timestamp":"2035-01-05T14:00:00Z","event":"Commander","Name":"Cmdr Fixture Delta","FID":"F0000004"}
+{"timestamp":"2035-01-05T14:01:00Z","event":"LoadGame","Commander":"Cmdr Fixture Delta","Ship":"krait_mkii","ShipName":"Fixture Defender","ShipIdent":"FX-04","GameMode":"Solo","Credits":654321,"Loan":0}
+{"timestamp":"2035-01-05T14:02:00Z","event":"ShieldState","ShieldsUp":true}
+{"timestamp":"2035-01-05T14:03:00Z","event":"HullDamage","Health":0.72,"PlayerPilot":true,"Fighter":false}
+{"timestamp":"2035-01-05T14:04:00Z","event":"LaunchFighter","Loadout":"fixedbeam","PlayerControlled":false}
+{"timestamp":"2035-01-05T14:05:00Z","event":"FighterDestroyed","ID":1}
+{"timestamp":"2035-01-05T14:06:00Z","event":"ShieldState","ShieldsUp":false}
+{"timestamp":"2035-01-05T14:07:00Z","event":"HullDamage","Health":0.0,"PlayerPilot":true,"Fighter":false}
+{"timestamp":"2035-01-05T14:08:00Z","event":"Died","KillerName":"Fixture Raider Wing","KillerShip":"vulture","KillerRank":"Dangerous"}
