@@ -21,7 +21,9 @@ pub struct JournalConfig {
 pub struct MonitorConfig {
     pub use_utc: bool,
     pub live_status: bool,
+    pub dynamic_title: bool,
     pub warn_kill_rate: u16,
+    pub warn_kill_rate_delay_minutes: u16,
     pub warn_no_kills_minutes: u16,
     pub warn_no_kills_initial_minutes: u16,
     pub warn_cooldown_minutes: u16,
@@ -55,12 +57,14 @@ pub struct LogLevelConfig {
     pub fuel_critical: u8,
     pub missions: u8,
     pub missions_all: u8,
+    pub merits: u8,
     pub no_kills: u8,
     pub kill_rate: u8,
     pub summary_kills: u8,
     pub summary_faction: u8,
     pub summary_scans: u8,
     pub summary_bounties: u8,
+    pub summary_merits: u8,
     pub duplicate_suppression: u8,
 }
 
@@ -142,15 +146,17 @@ impl Default for MonitorConfig {
         Self {
             use_utc: false,
             live_status: true,
-            warn_kill_rate: 15,
-            warn_no_kills_minutes: 10,
+            dynamic_title: true,
+            warn_kill_rate: 20,
+            warn_kill_rate_delay_minutes: 5,
+            warn_no_kills_minutes: 20,
             warn_no_kills_initial_minutes: 5,
             warn_cooldown_minutes: 30,
             duplicate_max: 5,
             pirate_names: false,
-            bounty_faction: true,
+            bounty_faction: false,
             bounty_value: false,
-            extended_stats: true,
+            extended_stats: false,
             min_scan_level: 1,
             poll_interval_ms: 1000,
         }
@@ -162,9 +168,9 @@ impl Default for LogLevelConfig {
         Self {
             scan_incoming: 1,
             scan_easy: 1,
-            scan_hard: 1,
-            kill_easy: 1,
-            kill_hard: 1,
+            scan_hard: 2,
+            kill_easy: 2,
+            kill_hard: 2,
             fighter_hull: 2,
             fighter_down: 3,
             ship_shields: 3,
@@ -179,12 +185,14 @@ impl Default for LogLevelConfig {
             fuel_critical: 3,
             missions: 2,
             missions_all: 3,
+            merits: 0,
             no_kills: 3,
             kill_rate: 3,
             summary_kills: 2,
             summary_faction: 0,
             summary_scans: 0,
             summary_bounties: 2,
+            summary_merits: 2,
             duplicate_suppression: 1,
         }
     }
@@ -284,10 +292,22 @@ impl AppConfig {
                     &mut config.monitor.live_status,
                     &mut warnings,
                 );
+                read_bool(
+                    table.get("dynamic_title"),
+                    "monitor.dynamic_title",
+                    &mut config.monitor.dynamic_title,
+                    &mut warnings,
+                );
                 read_u16(
                     table.get("warn_kill_rate"),
                     "monitor.warn_kill_rate",
                     &mut config.monitor.warn_kill_rate,
+                    &mut warnings,
+                );
+                read_u16(
+                    table.get("warn_kill_rate_delay_minutes"),
+                    "monitor.warn_kill_rate_delay_minutes",
+                    &mut config.monitor.warn_kill_rate_delay_minutes,
                     &mut warnings,
                 );
                 read_u16(
@@ -491,6 +511,12 @@ fn read_log_levels(
         warnings,
     );
     read_u8(
+        table.get("merits"),
+        "log_levels.merits",
+        &mut log_levels.merits,
+        warnings,
+    );
+    read_u8(
         table.get("no_kills"),
         "log_levels.no_kills",
         &mut log_levels.no_kills,
@@ -524,6 +550,12 @@ fn read_log_levels(
         table.get("summary_bounties"),
         "log_levels.summary_bounties",
         &mut log_levels.summary_bounties,
+        warnings,
+    );
+    read_u8(
+        table.get("summary_merits"),
+        "log_levels.summary_merits",
+        &mut log_levels.summary_merits,
         warnings,
     );
     read_u8(
@@ -609,19 +641,23 @@ mod tests {
         assert_eq!(config.journal.recent_files, 10);
         assert!(!config.monitor.use_utc);
         assert!(config.monitor.live_status);
-        assert_eq!(config.monitor.warn_kill_rate, 15);
-        assert_eq!(config.monitor.warn_no_kills_minutes, 10);
+        assert!(config.monitor.dynamic_title);
+        assert_eq!(config.monitor.warn_kill_rate, 20);
+        assert_eq!(config.monitor.warn_kill_rate_delay_minutes, 5);
+        assert_eq!(config.monitor.warn_no_kills_minutes, 20);
         assert_eq!(config.monitor.warn_no_kills_initial_minutes, 5);
         assert_eq!(config.monitor.warn_cooldown_minutes, 30);
         assert_eq!(config.monitor.duplicate_max, 5);
         assert!(!config.monitor.pirate_names);
-        assert!(config.monitor.bounty_faction);
+        assert!(!config.monitor.bounty_faction);
         assert!(!config.monitor.bounty_value);
-        assert!(config.monitor.extended_stats);
+        assert!(!config.monitor.extended_stats);
         assert_eq!(config.monitor.min_scan_level, 1);
         assert_eq!(config.monitor.poll_interval_ms, 1000);
         assert_eq!(config.log_levels.summary_faction, 0);
         assert_eq!(config.log_levels.summary_scans, 0);
+        assert_eq!(config.log_levels.merits, 0);
+        assert_eq!(config.log_levels.summary_merits, 2);
         assert_eq!(config.log_levels.duplicate_suppression, 1);
     }
 
