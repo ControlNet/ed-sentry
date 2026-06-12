@@ -1,3 +1,23 @@
 /target
 /.omo/evidence/*
 !/.omo/evidence/.gitignore
+/.omo/boulder.json
+/.omo/run-continuation/
+/.omo/drafts/
+/dist/
+*.tar.gz
+*.zip
+Journal.*.log
+/Elite Dangerous/
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+token.json
+secrets.yml
+secrets.yaml
+id_rsa
+id_ed25519
