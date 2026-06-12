@@ -1,0 +1,70 @@
+name: Release Artifacts
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.target_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target_name: x86_64-unknown-linux-gnu
+            artifact_name: ed-afk-monitor-x86_64-unknown-linux-gnu.tar.gz
+          - os: windows-latest
+            target_name: x86_64-pc-windows-msvc
+            artifact_name: ed-afk-monitor-x86_64-pc-windows-msvc.zip
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        run: rustup toolchain install stable --profile minimal
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Package Linux artifact
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/release/ed-afk-monitor dist/ed-afk-monitor
+          tar -czf ed-afk-monitor-x86_64-unknown-linux-gnu.tar.gz -C dist ed-afk-monitor
+
+      - name: Package Windows artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item target\release\ed-afk-monitor.exe dist\ed-afk-monitor.exe
+          Compress-Archive -Path dist\ed-afk-monitor.exe -DestinationPath ed-afk-monitor-x86_64-pc-windows-msvc.zip -Force
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_name }}
+          if-no-files-found: error
