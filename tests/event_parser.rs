@@ -29,9 +29,10 @@ fn event_parser_public_api_parses_known_event_for_downstream_callers() {
 
 #[test]
 fn event_parser_public_api_keeps_unknown_event_recoverable() {
-    let event =
-        parse_journal_line(r#"{"timestamp":"2035-03-04T05:06:08Z","event":"FixtureFutureEvent"}"#)
-            .unwrap();
+    let event = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:06:08Z","event":"FixtureFutureEvent","FutureField":123}"#,
+    )
+    .unwrap();
 
     assert!(matches!(
         event,
@@ -40,6 +41,10 @@ fn event_parser_public_api_keeps_unknown_event_recoverable() {
             ..
         } if event_name == "FixtureFutureEvent"
     ));
+    assert_eq!(
+        event.raw_payload().and_then(|raw| raw.get("FutureField")),
+        Some(&serde_json::json!(123))
+    );
 }
 
 #[test]

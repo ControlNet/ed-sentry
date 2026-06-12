@@ -141,6 +141,20 @@ impl SessionState {
             | JournalEvent::EjectCargo(_)
             | JournalEvent::ReservoirReplenished(_)
             | JournalEvent::ShipyardSwap(_)
+            | JournalEvent::StartupSnapshot(_)
+            | JournalEvent::Station(_)
+            | JournalEvent::Exploration(_)
+            | JournalEvent::Navigation(_)
+            | JournalEvent::CargoMaterial(_)
+            | JournalEvent::ShipModule(_)
+            | JournalEvent::MissionDetail(_)
+            | JournalEvent::CombatDetail(_)
+            | JournalEvent::Odyssey(_)
+            | JournalEvent::Social(_)
+            | JournalEvent::Powerplay(_)
+            | JournalEvent::Squadron(_)
+            | JournalEvent::Carrier(_)
+            | JournalEvent::Colonisation(_)
             | JournalEvent::Unknown { .. } => {}
         }
     }
