@@ -1,6 +1,7 @@
 pub mod config;
 pub mod event;
 pub mod journal;
+pub mod mission;
 pub mod monitor;
 pub mod notifier;
 pub mod state;
