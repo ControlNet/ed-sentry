@@ -1,6 +1,6 @@
 # Task 11 Monitor Event Handling
 
-- `ed_afk_monitor::monitor::EventMonitor<N>` owns Task 11 event processing. Construct it with `EventMonitor::new(notifier, MonitorConfig, LogLevelConfig)` or `EventMonitor::from_runtime_config(notifier, &RuntimeConfig)`.
+- `ed_afk_dashboard::monitor::EventMonitor<N>` owns Task 11 event processing. Construct it with `EventMonitor::new(notifier, MonitorConfig, LogLevelConfig)` or `EventMonitor::from_runtime_config(notifier, &RuntimeConfig)`.
 - `EventMonitor::process_event(&JournalEvent)` clones the previous state, applies `SessionState::apply_event`, then builds at most one typed `Notification` for the triggering event and sends it through `NotificationDispatcher`.
 - Level `0` log-level suppression is intentionally delegated to `NotificationDispatcher`; the monitor still updates `SessionState` before dispatch, so muted events can still affect counters and lifecycle.
 - Scan notifications are emitted when state scan count increases from `ShipTargeted` or pirate/raider ReceiveText scan evidence. `ShipTargeted` uses `scan_hard`, `security_scan`, or `scan_easy`; ReceiveText scan evidence uses `scan_incoming`.

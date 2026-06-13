@@ -1,6 +1,6 @@
 
 ## 2026-06-09T13:50:32+00:00 - Task 1: Initialize Rust project, toolchain, and baseline quality gates
-- Created the `ed-afk-monitor` Rust binary crate scaffold with the requested dependencies, toolchain pin, formatting config, ignore rules, and empty module files.
+- Created the `ed-afk-dashboard` Rust binary crate scaffold with the requested dependencies, toolchain pin, formatting config, ignore rules, and empty module files.
 - Verified `cargo metadata --format-version 1`, `cargo run -- --version`, `cargo fmt --check`, and `test -d .omo/evidence` all pass after normalizing the module stub files.
 - Captured QA evidence at `.omo/evidence/task-1-metadata.json` and `.omo/evidence/task-1-unknown-flag.txt`.
 
@@ -73,7 +73,7 @@
 
 
 ## 2026-06-09T18:05:00+00:00 - Task 15: Write README and config documentation for Phase 1 only
-- Added `README.md` as clean-room Phase 1 documentation for the independent `ed-afk-monitor` CLI, including Windows default Journal path, Linux explicit path examples, copy-pastable watch/replay/test commands, config precedence, log-level routing, and expected verification signals.
+- Added `README.md` as clean-room Phase 1 documentation for the independent `ed-afk-dashboard` CLI, including Windows default Journal path, Linux explicit path examples, copy-pastable watch/replay/test commands, config precedence, log-level routing, and expected verification signals.
 - Kept Matrix documented only as deferred Phase 2 roadmap work with no active Phase 1 config, and listed Discord, WebUI, EDMC, auto relog, key simulation, automation, and Matrix command handling as non-goals.
 - Added Phase 1 comments to `config.example.toml` while preserving locked default values; README and evidence reiterate that raw local Journals are read-only inputs and must not be committed.
 - Captured Task 15 grep evidence under `.omo/evidence/task-15-readme-commands.txt`, `.omo/evidence/task-15-matrix-roadmap.txt`, `.omo/evidence/task-15-non-goals.txt`, `.omo/evidence/task-15-artifacts.txt`, and `.omo/evidence/task-15-privacy-fixtures.txt`.

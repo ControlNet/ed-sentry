@@ -1,6 +1,6 @@
 ## 2026-06-09T14:17:20+00:00 - Task 2/4/6 parallel verification clippy failure
 - `cargo clippy --all-targets --all-features -- -D warnings` failed because the binary privately declared modules with public helper APIs not used by `main.rs`, causing dead-code errors for downstream-task APIs in `state` and `time`.
-- Fixed by adding `src/lib.rs` with public module exports and importing Task 2 config types from `ed_afk_monitor::config` in the binary instead of private `mod` declarations.
+- Fixed by adding `src/lib.rs` with public module exports and importing Task 2 config types from `ed_afk_dashboard::config` in the binary instead of private `mod` declarations.
 - Replaced the manual delegating `Default` impl for `AppConfig` with `#[derive(Default)]`; nested config defaults remain custom, preserving the locked config values.
 
 ## 2026-06-09T00:00:00+00:00 - F4: Scope fidelity privacy hardening note

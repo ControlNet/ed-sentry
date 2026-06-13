@@ -1,9 +1,9 @@
-# ed-afk-monitor Phase 1: Rust CLI AFK Journal Monitor
+# ed-afk-dashboard Phase 1: Rust CLI AFK Journal Monitor
 
 ## TL;DR
-> **Summary**: Initialize an independent Rust CLI named `ed-afk-monitor` that tails/replays Elite Dangerous Journal files, maintains AFK session state, renders terminal event/status output, and emits structured notifications through a Matrix-ready abstraction without implementing Matrix yet.
+> **Summary**: Initialize an independent Rust CLI named `ed-afk-dashboard` that tails/replays Elite Dangerous Journal files, maintains AFK session state, renders terminal event/status output, and emits structured notifications through a Matrix-ready abstraction without implementing Matrix yet.
 > **Deliverables**:
-> - Rust crate/binary `ed-afk-monitor` with clean module boundaries.
+> - Rust crate/binary `ed-afk-dashboard` with clean module boundaries.
 > - TDD parser/state/notifier/tail/replay/warning tests using sanitized fixtures plus optional read-only real Journal replay.
 > - Phase 1 CLI: default watch mode plus top-level `--replay`, with flags `--journal`, `--set-file`, `--file-select`, `--reset-session`, `--debug`.
 > - TOML config with requested `[journal]`, `[monitor]`, and `[log_levels]` defaults.
@@ -25,7 +25,7 @@ Build a lightweight Rust-based Elite Dangerous AFK session monitor inspired by `
 - Repo state: empty/new project; no `Cargo.toml`, `src/`, tests, docs, CI, commits, or project `AGENTS.md` existed before planning artifacts.
 
 ### Metis Review (gaps addressed)
-- Locked crate/package/binary/artifact prefix to `ed-afk-monitor`.
+- Locked crate/package/binary/artifact prefix to `ed-afk-dashboard`.
 - Locked CLI contract, exit codes, discovery ordering, preload/live/replay semantics, warning timing, session-start rules, kill semantics, duplicate key, TTY behavior, and artifact names.
 - Added clean-room guardrails, sanitized-fixture policy, deterministic clock requirements, and no-human-QA acceptance criteria.
 
@@ -77,15 +77,15 @@ Expected signals:
 - If `--replay` is absent, the invocation runs watch mode.
 - Exact valid examples:
   ```bash
-  ed-afk-monitor --journal "/home/ubuntu/Elite Dangerous"
-  ed-afk-monitor --journal "/home/ubuntu/Elite Dangerous" --poll-interval-ms 1000
-  ed-afk-monitor --debug --replay --set-file tests/fixtures/journal_combat_bounty.log --no-status-line
-  ed-afk-monitor --set-file tests/fixtures/journal_combat_bounty.log --replay --no-status-line
+  ed-afk-dashboard --journal "/home/ubuntu/Elite Dangerous"
+  ed-afk-dashboard --journal "/home/ubuntu/Elite Dangerous" --poll-interval-ms 1000
+  ed-afk-dashboard --debug --replay --set-file tests/fixtures/journal_combat_bounty.log --no-status-line
+  ed-afk-dashboard --set-file tests/fixtures/journal_combat_bounty.log --replay --no-status-line
   ```
 - Exact invalid examples:
   ```bash
-  ed-afk-monitor --replay --poll-interval-ms 1000
-  ed-afk-monitor --replay --journal "/home/ubuntu/Elite Dangerous"
+  ed-afk-dashboard --replay --poll-interval-ms 1000
+  ed-afk-dashboard --replay --journal "/home/ubuntu/Elite Dangerous"
   ```
   `--replay` requires `--set-file <file>` and rejects `--journal` unless a future version adds folder replay.
 - `--reset-session` applies only to `watch`: preload selected file, then clear counters before live processing. In `replay`, `--reset-session` is accepted as a global compatibility flag but ignored with one warning containing `--reset-session has no effect in replay`.
@@ -196,7 +196,7 @@ Wave 3: Tasks 13-16 — terminal rendering, integration/real replay, docs/config
 
 - [x] 1. Initialize Rust project, toolchain, and baseline quality gates
 
-  **What to do**: Create a fresh Rust binary crate named `ed-afk-monitor`. Add `Cargo.toml` with package/binary name `ed-afk-monitor`, dependencies `anyhow`, `clap` with derive, `chrono` with serde, `serde` derive, `serde_json`, `toml`, `tokio` rt-multi-thread/macros/fs/time, `reqwest` json/rustls-tls default-features=false, `crossterm`, `notify`, `uuid` v4, plus dev-dependencies `assert_cmd`, `predicates`, `tempfile`, and `insta` only if snapshot tests are used. Add `rust-toolchain.toml` pinned to stable, `rustfmt.toml`, `.gitignore`, empty module files, a minimal `main` that exits successfully for `--version`, and create local directory `.omo/evidence/` before any QA scenario writes evidence.
+  **What to do**: Create a fresh Rust binary crate named `ed-afk-dashboard`. Add `Cargo.toml` with package/binary name `ed-afk-dashboard`, dependencies `anyhow`, `clap` with derive, `chrono` with serde, `serde` derive, `serde_json`, `toml`, `tokio` rt-multi-thread/macros/fs/time, `reqwest` json/rustls-tls default-features=false, `crossterm`, `notify`, `uuid` v4, plus dev-dependencies `assert_cmd`, `predicates`, `tempfile`, and `insta` only if snapshot tests are used. Add `rust-toolchain.toml` pinned to stable, `rustfmt.toml`, `.gitignore`, empty module files, a minimal `main` that exits successfully for `--version`, and create local directory `.omo/evidence/` before any QA scenario writes evidence.
   **Must NOT do**: Do not implement monitor logic here. Do not add Matrix SDK. Do not create raw Journal fixtures. Do not commit generated `.omo/evidence/*` files.
 
   **Recommended Agent Profile**:
@@ -214,7 +214,7 @@ Wave 3: Tasks 13-16 — terminal rendering, integration/real replay, docs/config
 
   **Acceptance Criteria**:
   - [ ] `cargo metadata --format-version 1` exits `0`.
-  - [ ] `cargo run -- --version` exits `0` and stdout contains `ed-afk-monitor`.
+  - [ ] `cargo run -- --version` exits `0` and stdout contains `ed-afk-dashboard`.
   - [ ] `cargo fmt --check` exits `0`.
   - [ ] `test -d .omo/evidence` exits `0`.
 
@@ -223,7 +223,7 @@ Wave 3: Tasks 13-16 — terminal rendering, integration/real replay, docs/config
   Scenario: Fresh project builds metadata
     Tool: Bash
     Steps: cargo metadata --format-version 1 > .omo/evidence/task-1-metadata.json
-    Expected: command exits 0; evidence file contains package name "ed-afk-monitor"
+    Expected: command exits 0; evidence file contains package name "ed-afk-dashboard"
     Evidence: .omo/evidence/task-1-metadata.json
 
   Scenario: Unknown CLI flag fails through clap later-safe baseline
@@ -272,7 +272,7 @@ Wave 3: Tasks 13-16 — terminal rendering, integration/real replay, docs/config
 
   Scenario: Malformed TOML returns runtime config error
     Tool: Bash
-    Steps: printf '[monitor\n' > /tmp/opencode/ed-afk-monitor-bad.toml; cargo run -- --config /tmp/opencode/ed-afk-monitor-bad.toml watch > .omo/evidence/task-2-bad-config.txt 2>&1; test $? -eq 1
+    Steps: printf '[monitor\n' > /tmp/opencode/ed-afk-dashboard-bad.toml; cargo run -- --config /tmp/opencode/ed-afk-dashboard-bad.toml watch > .omo/evidence/task-2-bad-config.txt 2>&1; test $? -eq 1
     Expected: exit code 1; output mentions config parse failure without panic backtrace
     Evidence: .omo/evidence/task-2-bad-config.txt
   ```
@@ -774,7 +774,7 @@ Wave 3: Tasks 13-16 — terminal rendering, integration/real replay, docs/config
 
   **Acceptance Criteria**:
   - [ ] `grep -n "Discord\|WebUI\|EDMC\|auto relog\|Matrix command" README.md` only appears under non-goals or deferred roadmap.
-  - [ ] README includes exact artifact names `ed-afk-monitor-x86_64-unknown-linux-gnu.tar.gz` and `ed-afk-monitor-x86_64-pc-windows-msvc.zip`.
+  - [ ] README includes exact artifact names `ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz` and `ed-afk-dashboard-x86_64-pc-windows-msvc.zip`.
   - [ ] README includes the raw Journal privacy warning.
 
   **QA Scenarios**:
@@ -796,7 +796,7 @@ Wave 3: Tasks 13-16 — terminal rendering, integration/real replay, docs/config
 
 - [x] 16. Add GitHub Actions CI and release artifact workflows
 
-  **What to do**: Add `.github/workflows/ci.yml` running on push/PR for `ubuntu-latest` and `windows-latest`: checkout, install stable Rust, cache cargo, run `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --all`. Add `.github/workflows/release.yml` triggered by tags `v*`: build `--release` on native `ubuntu-latest` and `windows-latest`; package Linux binary as `ed-afk-monitor-x86_64-unknown-linux-gnu.tar.gz`; package Windows `.exe` as `ed-afk-monitor-x86_64-pc-windows-msvc.zip`; upload artifacts. Add tests or script checks to validate workflow YAML contains both runners and exact artifact names.
+  **What to do**: Add `.github/workflows/ci.yml` running on push/PR for `ubuntu-latest` and `windows-latest`: checkout, install stable Rust, cache cargo, run `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --all`. Add `.github/workflows/release.yml` triggered by tags `v*`: build `--release` on native `ubuntu-latest` and `windows-latest`; package Linux binary as `ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz`; package Windows `.exe` as `ed-afk-dashboard-x86_64-pc-windows-msvc.zip`; upload artifacts. Add tests or script checks to validate workflow YAML contains both runners and exact artifact names.
   **Must NOT do**: Do not require real Journal files in CI. Do not cross-compile Windows from Linux in Phase 1; use native Windows runner. Do not skip clippy warnings.
 
   **Recommended Agent Profile**:
@@ -813,7 +813,7 @@ Wave 3: Tasks 13-16 — terminal rendering, integration/real replay, docs/config
 
   **Acceptance Criteria**:
   - [ ] Workflow YAML contains `ubuntu-latest` and `windows-latest`.
-  - [ ] Workflow YAML contains exact artifact names `ed-afk-monitor-x86_64-unknown-linux-gnu.tar.gz` and `ed-afk-monitor-x86_64-pc-windows-msvc.zip`.
+  - [ ] Workflow YAML contains exact artifact names `ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz` and `ed-afk-dashboard-x86_64-pc-windows-msvc.zip`.
   - [ ] Workflow YAML does not contain `real_journal_replay -- --ignored` or any `/home/ubuntu/Elite Dangerous` dependency.
   - [ ] Local gates pass: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`, `cargo test --all`.
 
@@ -827,7 +827,7 @@ Wave 3: Tasks 13-16 — terminal rendering, integration/real replay, docs/config
 
   Scenario: Workflow artifact names are exact
     Tool: Bash
-    Steps: grep -R "ed-afk-monitor-x86_64-unknown-linux-gnu.tar.gz\|ed-afk-monitor-x86_64-pc-windows-msvc.zip" .github/workflows > .omo/evidence/task-16-artifacts.txt
+    Steps: grep -R "ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz\|ed-afk-dashboard-x86_64-pc-windows-msvc.zip" .github/workflows > .omo/evidence/task-16-artifacts.txt
     Expected: evidence contains both exact artifact names
     Evidence: .omo/evidence/task-16-artifacts.txt
 
@@ -866,8 +866,8 @@ Wave 3: Tasks 13-16 — terminal rendering, integration/real replay, docs/config
 - If hooks modify files, follow repository git safety rules; do not amend unless allowed by the Git Safety Protocol.
 
 ## Success Criteria
-- `ed-afk-monitor` can replay sanitized fixtures and emit deterministic terminal event/status output.
-- `ed-afk-monitor watch --journal /home/ubuntu/Elite Dangerous --no-status-line` can preload and tail the selected latest Journal without modifying the folder.
+- `ed-afk-dashboard` can replay sanitized fixtures and emit deterministic terminal event/status output.
+- `ed-afk-dashboard watch --journal /home/ubuntu/Elite Dangerous --no-status-line` can preload and tail the selected latest Journal without modifying the folder.
 - Parser covers all listed Phase 1 event names and safely handles unknown/malformed lines.
 - SessionState tracks kills, scans, bounties, mission active/completed, shields, hull/fighter state, system/ship/commander/mode, last kill/scan, and rates.
 - No-kill and low-kill-rate warnings are deterministic and cooldown-safe.
