@@ -1,11 +1,11 @@
 use chrono::{DateTime, Duration, TimeZone, Utc};
-use ed_afk_monitor::event::{parse_journal_line, LoadoutEvent};
-use ed_afk_monitor::event::{
+use ed_afk_dashboard::event::{parse_journal_line, LoadoutEvent};
+use ed_afk_dashboard::event::{
     BasicJournalEvent, BountyEvent, BountyReward, CommanderEvent, FactionKillBondEvent,
     HullDamageEvent, JournalEvent, LaunchFighterEvent, LoadGameEvent, LocationEvent, MissionEvent,
     MusicEvent, ShieldStateEvent, ShipTargetedEvent, SupercruiseDestinationDropEvent, TravelEvent,
 };
-use ed_afk_monitor::state::SessionState;
+use ed_afk_dashboard::state::SessionState;
 use std::fs;
 use std::path::Path;
 

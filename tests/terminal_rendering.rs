@@ -1,11 +1,11 @@
 use chrono::{DateTime, Duration, TimeZone, Utc};
-use ed_afk_monitor::config::MonitorConfig;
-use ed_afk_monitor::notifier::{AlertLevel, Notification, Notifier};
-use ed_afk_monitor::state::SessionState;
-use ed_afk_monitor::terminal::{
+use ed_afk_dashboard::config::MonitorConfig;
+use ed_afk_dashboard::notifier::{AlertLevel, Notification, Notifier};
+use ed_afk_dashboard::state::SessionState;
+use ed_afk_dashboard::terminal::{
     render_dynamic_title, render_status_line, TerminalMode, TerminalNotifier,
 };
-use ed_afk_monitor::time::TimeDisplayZone;
+use ed_afk_dashboard::time::TimeDisplayZone;
 
 fn fixed_now() -> DateTime<Utc> {
     Utc.with_ymd_and_hms(2035, 6, 9, 16, 30, 0)
@@ -91,7 +91,7 @@ fn terminal_dynamic_title_matches_upstream_active_and_reset_text() {
     let mut inactive = fixed_status_state();
     inactive.active_session = false;
     let reset = render_dynamic_title(&inactive, &MonitorConfig::default(), fixed_now(), 5, 20);
-    assert_eq!(reset, "ED AFK Monitor v260421");
+    assert_eq!(reset, "ED AFK Dashboard v260421");
 }
 
 #[test]

@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use ed_afk_monitor::event::{parse_journal_line, JournalEvent, JournalParseError};
+use ed_afk_dashboard::event::{parse_journal_line, JournalEvent, JournalParseError};
 
 #[test]
 fn event_parser_public_api_parses_known_event_for_downstream_callers() {
@@ -44,6 +44,21 @@ fn event_parser_public_api_keeps_unknown_event_recoverable() {
     assert_eq!(
         event.raw_payload().and_then(|raw| raw.get("FutureField")),
         Some(&serde_json::json!(123))
+    );
+}
+
+#[test]
+fn event_parser_public_api_parses_broad_events_into_specific_typed_variants() {
+    let event = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:06:08Z","event":"DockingGranted","LandingPad":42}"#,
+    )
+    .unwrap();
+
+    assert!(matches!(event, JournalEvent::DockingGranted(_)));
+    assert_eq!(event.event_name(), "DockingGranted");
+    assert_eq!(
+        event.raw_payload().and_then(|raw| raw.get("LandingPad")),
+        Some(&serde_json::json!(42))
     );
 }
 

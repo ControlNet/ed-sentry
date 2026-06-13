@@ -5,7 +5,7 @@ const ANSI_CLEAR_CURRENT_LINE: &str = "\u{1b}[2K";
 
 #[test]
 fn replay_combat_fixture_outputs_core_fragments() {
-    let output = Command::cargo_bin("ed-afk-monitor")
+    let output = Command::cargo_bin("ed-afk-dashboard")
         .unwrap()
         .args([
             "--replay",
@@ -20,7 +20,7 @@ fn replay_combat_fixture_outputs_core_fragments() {
     assert!(output.stderr.is_empty());
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(
-        stdout.contains("ED AFK Monitor v260421 by CMDR PSIPAB"),
+        stdout.contains("ED AFK Dashboard v260421 by CMDR PSIPAB"),
         "{stdout}"
     );
     assert!(
@@ -58,7 +58,7 @@ fn replay_combat_fixture_outputs_core_fragments() {
 
 #[test]
 fn replay_malformed_fixture_warns_and_continues_to_summary() {
-    let output = Command::cargo_bin("ed-afk-monitor")
+    let output = Command::cargo_bin("ed-afk-dashboard")
         .unwrap()
         .args([
             "--replay",
@@ -81,8 +81,50 @@ fn replay_malformed_fixture_warns_and_continues_to_summary() {
 }
 
 #[test]
+fn replay_broad_events_stay_low_noise_and_malformed_lines_continue() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let journal_path = temp_dir.path().join("Journal.broad-low-noise.log");
+    std::fs::write(
+        &journal_path,
+        concat!(
+            r#"{"timestamp":"2035-01-09T10:00:00Z","event":"Commander","Name":"Cmdr Broad Fixture"}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-09T10:01:00Z","event":"DockingGranted","LandingPad":42,"FixtureField":"quiet"}"#,
+            "\n",
+            "not-json\n",
+            r#"{"timestamp":"2035-01-09T10:02:00Z","event":"ShipTargeted","TargetLocked":true,"ScanStage":3,"Ship":"viper","Ship_Localised":"Viper Mk III","LegalStatus":"Wanted"}"#,
+            "\n"
+        ),
+    )
+    .unwrap();
+
+    let output = Command::cargo_bin("ed-afk-dashboard")
+        .unwrap()
+        .args([
+            "--replay",
+            "--set-file",
+            journal_path.to_str().unwrap(),
+            "--no-status-line",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("Malformed journal line"), "{stderr}");
+    assert!(
+        stdout.contains("Commander name: Cmdr Broad Fixture"),
+        "{stdout}"
+    );
+    assert!(stdout.contains("Scan: Viper Mk III"), "{stdout}");
+    assert!(!stdout.contains("DockingGranted"), "{stdout}");
+    assert!(!stdout.contains("FixtureField"), "{stdout}");
+}
+
+#[test]
 fn replay_reset_session_warning_is_printed_once() {
-    let output = Command::cargo_bin("ed-afk-monitor")
+    let output = Command::cargo_bin("ed-afk-dashboard")
         .unwrap()
         .args([
             "--replay",
@@ -125,7 +167,7 @@ fn replay_config_output_options_are_observable() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-afk-monitor")
+    let output = Command::cargo_bin("ed-afk-dashboard")
         .unwrap()
         .args([
             "--replay",
@@ -171,7 +213,7 @@ fn replay_summary_log_levels_control_summary_fragments() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-afk-monitor")
+    let output = Command::cargo_bin("ed-afk-dashboard")
         .unwrap()
         .args([
             "--replay",
@@ -213,7 +255,7 @@ fn replay_does_not_emit_live_idle_warnings() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-afk-monitor")
+    let output = Command::cargo_bin("ed-afk-dashboard")
         .unwrap()
         .args([
             "--replay",

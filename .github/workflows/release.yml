@@ -18,10 +18,10 @@ jobs:
         include:
           - os: ubuntu-latest
             target_name: x86_64-unknown-linux-gnu
-            artifact_name: ed-afk-monitor-x86_64-unknown-linux-gnu.tar.gz
+            artifact_name: ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz
           - os: windows-latest
             target_name: x86_64-pc-windows-msvc
-            artifact_name: ed-afk-monitor-x86_64-pc-windows-msvc.zip
+            artifact_name: ed-afk-dashboard-x86_64-pc-windows-msvc.zip
 
     steps:
       - name: Check out repository
@@ -51,16 +51,16 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp target/release/ed-afk-monitor dist/ed-afk-monitor
-          tar -czf ed-afk-monitor-x86_64-unknown-linux-gnu.tar.gz -C dist ed-afk-monitor
+          cp target/release/ed-afk-dashboard dist/ed-afk-dashboard
+          tar -czf ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz -C dist ed-afk-dashboard
 
       - name: Package Windows artifact
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist
-          Copy-Item target\release\ed-afk-monitor.exe dist\ed-afk-monitor.exe
-          Compress-Archive -Path dist\ed-afk-monitor.exe -DestinationPath ed-afk-monitor-x86_64-pc-windows-msvc.zip -Force
+          Copy-Item target\release\ed-afk-dashboard.exe dist\ed-afk-dashboard.exe
+          Compress-Archive -Path dist\ed-afk-dashboard.exe -DestinationPath ed-afk-dashboard-x86_64-pc-windows-msvc.zip -Force
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4

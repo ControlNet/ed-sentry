@@ -1,12 +1,12 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ed_afk_monitor::config::{JournalConfig, RuntimeConfig};
-use ed_afk_monitor::journal::{
+use ed_afk_dashboard::config::{JournalConfig, RuntimeConfig};
+use ed_afk_dashboard::journal::{
     discover_journal_files, journal_folder_from_saved_games, parse_journal_filename_timestamp,
     preload_journal_file, preload_journal_file_with_options, recent_journal_file_choices,
     resolve_journal_folder, select_configured_journal_file, select_newest_journal_file,
-    JournalError, PreloadOptions,
+    stream_journal_file, JournalError, PreloadOptions,
 };
 use serde_json::Value;
 
@@ -106,6 +106,65 @@ fn journal_discovery_preload_records_parse_failures_and_reset_hook_flag() {
     assert!(preload.records[0].result.is_ok());
     assert!(preload.records[1].result.is_err());
     assert!(preload.reset_session_after_preload);
+}
+
+#[test]
+fn journal_discovery_streams_records_without_returning_collection() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let path = temp_dir.path().join("Journal.2026-06-09T140000.01.log");
+    let contents = concat!(
+        r#"{"timestamp":"2026-06-09T14:00:00Z","event":"Fileheader"}"#,
+        "\n",
+        "not-json\n",
+        r#"{"timestamp":"2026-06-09T14:02:00Z","event":"Bounty"}"#,
+        "\n"
+    );
+    fs::write(&path, contents).unwrap();
+    let mut visited = Vec::new();
+
+    let result = stream_journal_file(
+        &path,
+        |line| serde_json::from_str::<Value>(line),
+        |record| {
+            visited.push((
+                record.line_number,
+                record.start_offset,
+                record.result.is_ok(),
+            ));
+            Ok::<(), std::convert::Infallible>(())
+        },
+    )
+    .unwrap();
+
+    assert_eq!(result.eof_offset, contents.len() as u64);
+    assert_eq!(visited, [(1, 0, true), (2, 58, false), (3, 67, true),]);
+}
+
+#[test]
+fn journal_discovery_streaming_callback_error_stops_before_next_record() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let path = temp_dir.path().join("Journal.2026-06-09T140000.01.log");
+    fs::write(&path, "one\ntwo\nthree\n").unwrap();
+    let mut visited = Vec::new();
+
+    let error = stream_journal_file(
+        &path,
+        |line| Ok::<_, std::convert::Infallible>(line.to_string()),
+        |record| {
+            visited.push(record.result.unwrap());
+            if visited.len() == 2 {
+                return Err("stop after second line");
+            }
+            Ok(())
+        },
+    )
+    .unwrap_err();
+
+    assert!(
+        error.to_string().contains("stop after second line"),
+        "{error}"
+    );
+    assert_eq!(visited, ["one", "two"]);
 }
 
 #[test]

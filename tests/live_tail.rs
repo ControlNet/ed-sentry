@@ -3,13 +3,13 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::time::Duration;
 
-use ed_afk_monitor::config::{AppConfig, CliConfigOverrides, LogLevelConfig, MonitorConfig};
-use ed_afk_monitor::event::parse_journal_line;
-use ed_afk_monitor::journal::{
+use ed_afk_dashboard::config::{AppConfig, CliConfigOverrides, LogLevelConfig, MonitorConfig};
+use ed_afk_dashboard::event::parse_journal_line;
+use ed_afk_dashboard::journal::{
     live_poll_interval, preload_journal_file, LiveTail, LiveTailWarning,
 };
-use ed_afk_monitor::monitor::EventMonitor;
-use ed_afk_monitor::notifier::FakeNotifier;
+use ed_afk_dashboard::monitor::EventMonitor;
+use ed_afk_dashboard::notifier::FakeNotifier;
 
 #[test]
 fn live_tail_no_preload_duplicate() {
@@ -211,7 +211,7 @@ fn append_bytes(path: &std::path::Path, bytes: &[u8]) {
     file.write_all(bytes).unwrap();
 }
 
-fn ok_lines(poll: &ed_afk_monitor::journal::LiveTailPoll<String>) -> Vec<&str> {
+fn ok_lines(poll: &ed_afk_dashboard::journal::LiveTailPoll<String>) -> Vec<&str> {
     poll.records
         .iter()
         .map(|record| record.result.as_ref().unwrap().as_str())

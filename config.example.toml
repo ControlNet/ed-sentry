@@ -1,4 +1,4 @@
-# Phase 1 example config for ed-afk-monitor.
+# Phase 1 example config for ed-afk-dashboard.
 # CLI flags override this file. Missing keys keep the defaults shown here.
 # Matrix, Discord, WebUI, EDMC, and automation settings are not active Phase 1 config.
 

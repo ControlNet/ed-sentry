@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use ed_afk_monitor::notifier::{AlertLevel, FakeNotifier, Notification, NotificationDispatcher};
+use ed_afk_dashboard::notifier::{AlertLevel, FakeNotifier, Notification, NotificationDispatcher};
 
 #[test]
 fn notifier_public_api_driver_dispatches_through_fake_notifier() {

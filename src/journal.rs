@@ -35,6 +35,11 @@ pub struct PreloadResult<T> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StreamJournalResult {
+    pub eof_offset: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PreloadRecord<T> {
     pub line_number: usize,
     pub start_offset: u64,
@@ -83,6 +88,7 @@ pub enum JournalError {
     NoJournalFiles { folder: PathBuf },
     FileOpen { path: PathBuf, source: io::Error },
     FileRead { path: PathBuf, source: io::Error },
+    Callback { message: String },
 }
 
 impl fmt::Display for JournalError {
@@ -117,6 +123,7 @@ impl fmt::Display for JournalError {
                 "failed to read journal file {}: {source}",
                 path.display()
             ),
+            Self::Callback { message } => write!(formatter, "journal stream callback failed: {message}"),
         }
     }
 }
@@ -331,11 +338,53 @@ where
 pub fn preload_journal_file_with_options<T, E, F>(
     path: impl AsRef<Path>,
     options: PreloadOptions,
-    mut parser: F,
+    parser: F,
 ) -> Result<PreloadResult<T>, JournalError>
 where
     F: FnMut(&str) -> Result<T, E>,
     E: fmt::Display,
+{
+    let mut records = Vec::new();
+    let stream = read_journal_records(path, parser, |record| {
+        records.push(PreloadRecord {
+            line_number: record.line_number,
+            start_offset: record.start_offset,
+            result: record.result,
+        });
+        Ok::<(), std::convert::Infallible>(())
+    })?;
+
+    Ok(PreloadResult {
+        records,
+        eof_offset: stream.eof_offset,
+        reset_session_after_preload: options.reset_session_after_preload,
+    })
+}
+
+pub fn stream_journal_file<T, E, F, C, CE>(
+    path: impl AsRef<Path>,
+    parser: F,
+    on_record: C,
+) -> Result<StreamJournalResult, JournalError>
+where
+    F: FnMut(&str) -> Result<T, E>,
+    E: fmt::Display,
+    C: FnMut(PreloadRecord<T>) -> Result<(), CE>,
+    CE: fmt::Display,
+{
+    read_journal_records(path, parser, on_record)
+}
+
+fn read_journal_records<T, E, F, C, CE>(
+    path: impl AsRef<Path>,
+    mut parser: F,
+    mut on_record: C,
+) -> Result<StreamJournalResult, JournalError>
+where
+    F: FnMut(&str) -> Result<T, E>,
+    E: fmt::Display,
+    C: FnMut(PreloadRecord<T>) -> Result<(), CE>,
+    CE: fmt::Display,
 {
     let path = path.as_ref();
     let file = File::open(path).map_err(|source| JournalError::FileOpen {
@@ -343,7 +392,6 @@ where
         source,
     })?;
     let mut reader = BufReader::new(file);
-    let mut records = Vec::new();
     let mut offset = 0_u64;
     let mut line_number = 1_usize;
     let mut buffer = Vec::new();
@@ -367,19 +415,18 @@ where
             |error| Err(JournalLineError::new(error.to_string())),
             |line| parser(line).map_err(|error| JournalLineError::new(error.to_string())),
         );
-        records.push(PreloadRecord {
+        on_record(PreloadRecord {
             line_number,
             start_offset,
             result,
-        });
+        })
+        .map_err(|error| JournalError::Callback {
+            message: error.to_string(),
+        })?;
         line_number += 1;
     }
 
-    Ok(PreloadResult {
-        records,
-        eof_offset: offset,
-        reset_session_after_preload: options.reset_session_after_preload,
-    })
+    Ok(StreamJournalResult { eof_offset: offset })
 }
 
 pub fn live_poll_interval(config: &RuntimeConfig) -> Duration {

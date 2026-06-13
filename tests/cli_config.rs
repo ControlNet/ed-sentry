@@ -6,7 +6,7 @@ use std::time::Duration;
 
 #[test]
 fn cli_config_help_lists_required_flags() {
-    let mut command = Command::cargo_bin("ed-afk-monitor").unwrap();
+    let mut command = Command::cargo_bin("ed-afk-dashboard").unwrap();
 
     command
         .arg("--help")
@@ -25,7 +25,7 @@ fn cli_config_help_lists_required_flags() {
 
 #[test]
 fn cli_config_bad_flag_exits_clap_code_2() {
-    let mut command = Command::cargo_bin("ed-afk-monitor").unwrap();
+    let mut command = Command::cargo_bin("ed-afk-dashboard").unwrap();
 
     command
         .arg("--definitely-not-a-flag")
@@ -36,7 +36,7 @@ fn cli_config_bad_flag_exits_clap_code_2() {
 
 #[test]
 fn cli_config_replay_rejects_poll_interval_ms_as_no_effect() {
-    let mut command = Command::cargo_bin("ed-afk-monitor").unwrap();
+    let mut command = Command::cargo_bin("ed-afk-dashboard").unwrap();
 
     command
         .args([
@@ -55,7 +55,7 @@ fn cli_config_replay_rejects_poll_interval_ms_as_no_effect() {
 
 #[test]
 fn cli_config_replay_requires_set_file() {
-    let mut command = Command::cargo_bin("ed-afk-monitor").unwrap();
+    let mut command = Command::cargo_bin("ed-afk-dashboard").unwrap();
 
     command
         .arg("--replay")
@@ -68,7 +68,7 @@ fn cli_config_replay_requires_set_file() {
 
 #[test]
 fn cli_config_replay_rejects_journal() {
-    let mut command = Command::cargo_bin("ed-afk-monitor").unwrap();
+    let mut command = Command::cargo_bin("ed-afk-dashboard").unwrap();
 
     command
         .args([
@@ -85,7 +85,7 @@ fn cli_config_replay_rejects_journal() {
 
 #[test]
 fn cli_config_replay_flag_and_default_watch_mode() {
-    let mut before = Command::cargo_bin("ed-afk-monitor").unwrap();
+    let mut before = Command::cargo_bin("ed-afk-dashboard").unwrap();
     before
         .args([
             "--replay",
@@ -96,7 +96,7 @@ fn cli_config_replay_flag_and_default_watch_mode() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "ED AFK Monitor v260421 by CMDR PSIPAB",
+            "ED AFK Dashboard v260421 by CMDR PSIPAB",
         ))
         .stdout(predicate::str::contains(
             "Journal file: journal_combat_bounty.log",
@@ -130,7 +130,7 @@ fn cli_config_default_watch_mode_binary() {
         .arg("--no-status-line");
 
     let stdout = capture_watch_startup(command);
-    assert!(stdout.contains("ED AFK Monitor v260421 by CMDR PSIPAB"));
+    assert!(stdout.contains("ED AFK Dashboard v260421 by CMDR PSIPAB"));
     assert!(stdout.contains(&format!("Journal folder: {}", temp_dir.path().display())));
     assert!(stdout.contains("Starting... (Press Ctrl+C to stop)"));
 }
@@ -235,7 +235,7 @@ fn cli_config_file_select_chooses_recent_journal_from_stdin() {
 
 #[test]
 fn cli_config_debug_prints_runtime_diagnostics() {
-    let mut command = Command::cargo_bin("ed-afk-monitor").unwrap();
+    let mut command = Command::cargo_bin("ed-afk-dashboard").unwrap();
 
     command
         .args([
@@ -264,7 +264,7 @@ fn cli_config_startup_sanitizes_untrusted_commander_text() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-afk-monitor")
+    let output = Command::cargo_bin("ed-afk-dashboard")
         .unwrap()
         .args([
             "--replay",
@@ -322,7 +322,7 @@ fn cli_config_cli_overrides_toml_file() {
 }
 
 fn binary_command() -> std::process::Command {
-    std::process::Command::new(assert_cmd::cargo::cargo_bin("ed-afk-monitor"))
+    std::process::Command::new(assert_cmd::cargo::cargo_bin("ed-afk-dashboard"))
 }
 
 fn write_minimal_journal(folder: &std::path::Path) -> std::path::PathBuf {
@@ -371,7 +371,7 @@ fn cli_config_malformed_toml_exits_app_code_1() {
     let config_path = temp_dir.path().join("bad.toml");
     std::fs::write(&config_path, "[monitor\n").unwrap();
 
-    let mut command = Command::cargo_bin("ed-afk-monitor").unwrap();
+    let mut command = Command::cargo_bin("ed-afk-dashboard").unwrap();
     command
         .arg("--config")
         .arg(&config_path)

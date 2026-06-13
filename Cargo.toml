@@ -1,5 +1,5 @@
 [package]
-name = "ed-afk-monitor"
+name = "ed-afk-dashboard"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,10 +1,10 @@
 use chrono::{DateTime, Duration, Utc};
-use ed_afk_monitor::config::{LogLevelConfig, MonitorConfig};
-use ed_afk_monitor::event::{
+use ed_afk_dashboard::config::{LogLevelConfig, MonitorConfig};
+use ed_afk_dashboard::event::{
     parse_journal_line, JournalEvent, ReceiveTextEvent, ReservoirReplenishedEvent,
 };
-use ed_afk_monitor::monitor::EventMonitor;
-use ed_afk_monitor::notifier::{FakeNotifier, Notification};
+use ed_afk_dashboard::monitor::EventMonitor;
+use ed_afk_dashboard::notifier::{FakeNotifier, Notification};
 use std::fs;
 use std::path::Path;
 

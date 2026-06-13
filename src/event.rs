@@ -5,6 +5,233 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::Value;
 
+macro_rules! known_raw_journal_events {
+    ($macro:ident) => {
+        $macro! {
+        Fileheader => "Fileheader",
+        Statistics => "Statistics",
+        Materials => "Materials",
+        Passengers => "Passengers",
+        Cargo => "Cargo",
+        StoredShips => "StoredShips",
+        StoredModules => "StoredModules",
+        Powerplay => "Powerplay",
+        DockingRequested => "DockingRequested",
+        DockingGranted => "DockingGranted",
+        DockingDenied => "DockingDenied",
+        DockingCancelled => "DockingCancelled",
+        DockingTimeout => "DockingTimeout",
+        Docked => "Docked",
+        Undocked => "Undocked",
+        Market => "Market",
+        MarketBuy => "MarketBuy",
+        MarketSell => "MarketSell",
+        BuyTradeData => "BuyTradeData",
+        Outfitting => "Outfitting",
+        Shipyard => "Shipyard",
+        Repair => "Repair",
+        RepairAll => "RepairAll",
+        RefuelAll => "RefuelAll",
+        RefuelPartial => "RefuelPartial",
+        RestockVehicle => "RestockVehicle",
+        SellDrones => "SellDrones",
+        SearchAndRescue => "SearchAndRescue",
+        DiscoveryScan => "DiscoveryScan",
+        FSSDiscoveryScan => "FSSDiscoveryScan",
+        FSSBodySignals => "FSSBodySignals",
+        FSSSignalDiscovered => "FSSSignalDiscovered",
+        FSSAllBodiesFound => "FSSAllBodiesFound",
+        SAASignalsFound => "SAASignalsFound",
+        SAAScanComplete => "SAAScanComplete",
+        Scan => "Scan",
+        ScanBaryCentre => "ScanBaryCentre",
+        ScanOrganic => "ScanOrganic",
+        SellExplorationData => "SellExplorationData",
+        MultiSellExplorationData => "MultiSellExplorationData",
+        BuyExplorationData => "BuyExplorationData",
+        SellOrganicData => "SellOrganicData",
+        DataScanned => "DataScanned",
+        DatalinkScan => "DatalinkScan",
+        DatalinkVoucher => "DatalinkVoucher",
+        CodexEntry => "CodexEntry",
+        NavBeaconScan => "NavBeaconScan",
+        FSDTarget => "FSDTarget",
+        SupercruiseExit => "SupercruiseExit",
+        ApproachBody => "ApproachBody",
+        LeaveBody => "LeaveBody",
+        NavRoute => "NavRoute",
+        NavRouteClear => "NavRouteClear",
+        Touchdown => "Touchdown",
+        Liftoff => "Liftoff",
+        CargoDepot => "CargoDepot",
+        CargoTransfer => "CargoTransfer",
+        CollectCargo => "CollectCargo",
+        CollectItems => "CollectItems",
+        DropItems => "DropItems",
+        MiningRefined => "MiningRefined",
+        MaterialCollected => "MaterialCollected",
+        MaterialDiscarded => "MaterialDiscarded",
+        MaterialDiscovered => "MaterialDiscovered",
+        MaterialTrade => "MaterialTrade",
+        Backpack => "Backpack",
+        BackpackChange => "BackpackChange",
+        ShipLocker => "ShipLocker",
+        ShipLockerMaterials => "ShipLockerMaterials",
+        TransferMicroResources => "TransferMicroResources",
+        BuyMicroResources => "BuyMicroResources",
+        SellMicroResources => "SellMicroResources",
+        RequestPowerMicroResources => "RequestPowerMicroResources",
+        DeliverPowerMicroResources => "DeliverPowerMicroResources",
+        FCMaterials => "FCMaterials",
+        UseConsumable => "UseConsumable",
+        AfmuRepairs => "AfmuRepairs",
+        ModuleBuy => "ModuleBuy",
+        ModuleBuyAndStore => "ModuleBuyAndStore",
+        ModuleStore => "ModuleStore",
+        ModuleRetrieve => "ModuleRetrieve",
+        ModuleSell => "ModuleSell",
+        ModuleSellRemote => "ModuleSellRemote",
+        ModuleSwap => "ModuleSwap",
+        MassModuleStore => "MassModuleStore",
+        FetchRemoteModule => "FetchRemoteModule",
+        EngineerContribution => "EngineerContribution",
+        EngineerCraft => "EngineerCraft",
+        EngineerLegacyConvert => "EngineerLegacyConvert",
+        EngineerProgress => "EngineerProgress",
+        TechnologyBroker => "TechnologyBroker",
+        ShipyardBuy => "ShipyardBuy",
+        ShipyardSell => "ShipyardSell",
+        ShipyardNew => "ShipyardNew",
+        ShipyardTransfer => "ShipyardTransfer",
+        MissionFactionEffects => "MissionFactionEffects",
+        CommunityGoal => "CommunityGoal",
+        CommunityGoalJoin => "CommunityGoalJoin",
+        CommunityGoalDiscard => "CommunityGoalDiscard",
+        CommunityGoalReward => "CommunityGoalReward",
+        ScientificResearch => "ScientificResearch",
+        CapShipBond => "CapShipBond",
+        PVPKill => "PVPKill",
+        EscapeInterdiction => "EscapeInterdiction",
+        Interdicted => "Interdicted",
+        Interdiction => "Interdiction",
+        UnderAttack => "UnderAttack",
+        HeatDamage => "HeatDamage",
+        HeatWarning => "HeatWarning",
+        CommitCrime => "CommitCrime",
+        CrimeVictim => "CrimeVictim",
+        PayBounties => "PayBounties",
+        PayFines => "PayFines",
+        RedeemVoucher => "RedeemVoucher",
+        SelfDestruct => "SelfDestruct",
+        RebootRepair => "RebootRepair",
+        FighterRebuilt => "FighterRebuilt",
+        CockpitBreached => "CockpitBreached",
+        SystemsShutdown => "SystemsShutdown",
+        Resurrect => "Resurrect",
+        SRVDestroyed => "SRVDestroyed",
+        Scanned => "Scanned",
+        Embark => "Embark",
+        Disembark => "Disembark",
+        ApproachSettlement => "ApproachSettlement",
+        BookDropship => "BookDropship",
+        CancelDropship => "CancelDropship",
+        BookTaxi => "BookTaxi",
+        CancelTaxi => "CancelTaxi",
+        DropshipDeploy => "DropshipDeploy",
+        LaunchSRV => "LaunchSRV",
+        DockSRV => "DockSRV",
+        VehicleSwitch => "VehicleSwitch",
+        CreateSuitLoadout => "CreateSuitLoadout",
+        DeleteSuitLoadout => "DeleteSuitLoadout",
+        RenameSuitLoadout => "RenameSuitLoadout",
+        SuitLoadout => "SuitLoadout",
+        SwitchSuitLoadout => "SwitchSuitLoadout",
+        LoadoutEquipModule => "LoadoutEquipModule",
+        LoadoutRemoveModule => "LoadoutRemoveModule",
+        BuySuit => "BuySuit",
+        BuyWeapon => "BuyWeapon",
+        BuyAmmo => "BuyAmmo",
+        BuyDrones => "BuyDrones",
+        SellSuit => "SellSuit",
+        SellWeapon => "SellWeapon",
+        UpgradeSuit => "UpgradeSuit",
+        UpgradeWeapon => "UpgradeWeapon",
+        USSDrop => "USSDrop",
+        SendText => "SendText",
+        Friends => "Friends",
+        WingJoin => "WingJoin",
+        WingLeave => "WingLeave",
+        WingAdd => "WingAdd",
+        WingInvite => "WingInvite",
+        JoinACrew => "JoinACrew",
+        QuitACrew => "QuitACrew",
+        EndCrewSession => "EndCrewSession",
+        CrewAssign => "CrewAssign",
+        CrewHire => "CrewHire",
+        CrewFire => "CrewFire",
+        ChangeCrewRole => "ChangeCrewRole",
+        CrewMemberJoins => "CrewMemberJoins",
+        CrewMemberQuits => "CrewMemberQuits",
+        CrewMemberRoleChange => "CrewMemberRoleChange",
+        CrewLaunchFighter => "CrewLaunchFighter",
+        PowerplayJoin => "PowerplayJoin",
+        PowerplayLeave => "PowerplayLeave",
+        PowerplayDefect => "PowerplayDefect",
+        PowerplayCollect => "PowerplayCollect",
+        PowerplayDeliver => "PowerplayDeliver",
+        PowerplayFastTrack => "PowerplayFastTrack",
+        PowerplayRank => "PowerplayRank",
+        PowerplaySalary => "PowerplaySalary",
+        PowerplayVote => "PowerplayVote",
+        PowerplayVoucher => "PowerplayVoucher",
+        InvitedToSquadron => "InvitedToSquadron",
+        JoinedSquadron => "JoinedSquadron",
+        LeftSquadron => "LeftSquadron",
+        KickedFromSquadron => "KickedFromSquadron",
+        AppliedToSquadron => "AppliedToSquadron",
+        CancelledSquadronApplication => "CancelledSquadronApplication",
+        SquadronCreated => "SquadronCreated",
+        SquadronDemotion => "SquadronDemotion",
+        SquadronPromotion => "SquadronPromotion",
+        SquadronStartup => "SquadronStartup",
+        SharedBookmarkToSquadron => "SharedBookmarkToSquadron",
+        SquadronApplicationApproved => "SquadronApplicationApproved",
+        CarrierBankTransfer => "CarrierBankTransfer",
+        CarrierBuy => "CarrierBuy",
+        CarrierCancelDecommission => "CarrierCancelDecommission",
+        CarrierCrewServices => "CarrierCrewServices",
+        CarrierDecommission => "CarrierDecommission",
+        CarrierDepositFuel => "CarrierDepositFuel",
+        CarrierDockingPermission => "CarrierDockingPermission",
+        CarrierFinance => "CarrierFinance",
+        CarrierJump => "CarrierJump",
+        CarrierJumpCancelled => "CarrierJumpCancelled",
+        CarrierJumpRequest => "CarrierJumpRequest",
+        CarrierLocation => "CarrierLocation",
+        CarrierModulePack => "CarrierModulePack",
+        CarrierNameChange => "CarrierNameChange",
+        CarrierShipPack => "CarrierShipPack",
+        CarrierStats => "CarrierStats",
+        CarrierTradeOrder => "CarrierTradeOrder",
+        ColonisationBeaconDeployed => "ColonisationBeaconDeployed",
+        ColonisationConstructionDepot => "ColonisationConstructionDepot",
+        ColonisationContribution => "ColonisationContribution",
+        ColonisationSystemClaim => "ColonisationSystemClaim",
+        ColonisationSystemClaimRelease => "ColonisationSystemClaimRelease",
+        }
+    };
+}
+
+#[cfg(test)]
+macro_rules! known_raw_event_names {
+    ($($variant:ident => $event:literal,)*) => {
+        &[
+            $(
+                $event,
+            )*
+        ]
+    };
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BasicJournalEvent {
     pub timestamp: DateTime<Utc>,
@@ -225,60 +452,56 @@ pub struct RawJournalEvent {
     pub raw: Value,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum JournalEvent {
-    Commander(CommanderEvent),
-    LoadGame(LoadGameEvent),
-    Loadout(LoadoutEvent),
-    Rank(RankEvent),
-    Progress(ProgressEvent),
-    Location(LocationEvent),
-    SupercruiseDestinationDrop(SupercruiseDestinationDropEvent),
-    SupercruiseEntry(TravelEvent),
-    FSDJump(TravelEvent),
-    ReceiveText(ReceiveTextEvent),
-    ShipTargeted(ShipTargetedEvent),
-    Bounty(BountyEvent),
-    FactionKillBond(FactionKillBondEvent),
-    MissionRedirected(MissionEvent),
-    Missions(MissionsEvent),
-    MissionAccepted(MissionEvent),
-    MissionCompleted(MissionEvent),
-    MissionFailed(MissionEvent),
-    MissionAbandoned(MissionEvent),
-    ShieldState(ShieldStateEvent),
-    HullDamage(HullDamageEvent),
-    FighterDestroyed(BasicJournalEvent),
-    LaunchFighter(LaunchFighterEvent),
-    StartJump(BasicJournalEvent),
-    EjectCargo(EjectCargoEvent),
-    ReservoirReplenished(ReservoirReplenishedEvent),
-    PowerplayMerits(PowerplayMeritsEvent),
-    Music(MusicEvent),
-    ShipyardSwap(ShipyardSwapEvent),
-    Shutdown(BasicJournalEvent),
-    Died(BasicJournalEvent),
-    StartupSnapshot(RawJournalEvent),
-    Station(RawJournalEvent),
-    Exploration(RawJournalEvent),
-    Navigation(RawJournalEvent),
-    CargoMaterial(RawJournalEvent),
-    ShipModule(RawJournalEvent),
-    MissionDetail(RawJournalEvent),
-    CombatDetail(RawJournalEvent),
-    Odyssey(RawJournalEvent),
-    Social(RawJournalEvent),
-    Powerplay(RawJournalEvent),
-    Squadron(RawJournalEvent),
-    Carrier(RawJournalEvent),
-    Colonisation(RawJournalEvent),
-    Unknown {
-        timestamp: DateTime<Utc>,
-        event: String,
-        raw: Value,
-    },
+pub type TypedJournalEvent = RawJournalEvent;
+
+macro_rules! define_journal_event {
+    ($($variant:ident => $event:literal,)*) => {
+        #[derive(Clone, Debug, PartialEq)]
+        pub enum JournalEvent {
+            Commander(CommanderEvent),
+            LoadGame(LoadGameEvent),
+            Loadout(LoadoutEvent),
+            Rank(RankEvent),
+            Progress(ProgressEvent),
+            Location(LocationEvent),
+            SupercruiseDestinationDrop(SupercruiseDestinationDropEvent),
+            SupercruiseEntry(TravelEvent),
+            FSDJump(TravelEvent),
+            ReceiveText(ReceiveTextEvent),
+            ShipTargeted(ShipTargetedEvent),
+            Bounty(BountyEvent),
+            FactionKillBond(FactionKillBondEvent),
+            MissionRedirected(MissionEvent),
+            Missions(MissionsEvent),
+            MissionAccepted(MissionEvent),
+            MissionCompleted(MissionEvent),
+            MissionFailed(MissionEvent),
+            MissionAbandoned(MissionEvent),
+            ShieldState(ShieldStateEvent),
+            HullDamage(HullDamageEvent),
+            FighterDestroyed(BasicJournalEvent),
+            LaunchFighter(LaunchFighterEvent),
+            StartJump(BasicJournalEvent),
+            EjectCargo(EjectCargoEvent),
+            ReservoirReplenished(ReservoirReplenishedEvent),
+            PowerplayMerits(PowerplayMeritsEvent),
+            Music(MusicEvent),
+            ShipyardSwap(ShipyardSwapEvent),
+            Shutdown(BasicJournalEvent),
+            Died(BasicJournalEvent),
+            $(
+                $variant(TypedJournalEvent),
+            )*
+            Unknown {
+                timestamp: DateTime<Utc>,
+                event: String,
+                raw: Value,
+            },
+        }
+    };
 }
 
+known_raw_journal_events!(define_journal_event);
 #[derive(Debug)]
 pub enum JournalParseError {
     MalformedJson {
@@ -298,6 +521,10 @@ pub enum JournalParseError {
 
 impl JournalEvent {
     pub fn timestamp(&self) -> DateTime<Utc> {
+        if let Some(event) = self.known_raw_event() {
+            return event.timestamp;
+        }
+
         match self {
             Self::Commander(event) => event.timestamp,
             Self::LoadGame(event) => event.timestamp,
@@ -330,25 +557,16 @@ impl JournalEvent {
             Self::PowerplayMerits(event) => event.timestamp,
             Self::Music(event) => event.timestamp,
             Self::ShipyardSwap(event) => event.timestamp,
-            Self::StartupSnapshot(event)
-            | Self::Station(event)
-            | Self::Exploration(event)
-            | Self::Navigation(event)
-            | Self::CargoMaterial(event)
-            | Self::ShipModule(event)
-            | Self::MissionDetail(event)
-            | Self::CombatDetail(event)
-            | Self::Odyssey(event)
-            | Self::Social(event)
-            | Self::Powerplay(event)
-            | Self::Squadron(event)
-            | Self::Carrier(event)
-            | Self::Colonisation(event) => event.timestamp,
             Self::Unknown { timestamp, .. } => *timestamp,
+            _ => self.known_raw_event().expect("known raw event").timestamp,
         }
     }
 
     pub fn event_name(&self) -> &str {
+        if let Some(event) = self.known_raw_event() {
+            return &event.event;
+        }
+
         match self {
             Self::Commander(event) => &event.event,
             Self::LoadGame(event) => &event.event,
@@ -381,46 +599,39 @@ impl JournalEvent {
             Self::PowerplayMerits(event) => &event.event,
             Self::Music(event) => &event.event,
             Self::ShipyardSwap(event) => &event.event,
-            Self::StartupSnapshot(event)
-            | Self::Station(event)
-            | Self::Exploration(event)
-            | Self::Navigation(event)
-            | Self::CargoMaterial(event)
-            | Self::ShipModule(event)
-            | Self::MissionDetail(event)
-            | Self::CombatDetail(event)
-            | Self::Odyssey(event)
-            | Self::Social(event)
-            | Self::Powerplay(event)
-            | Self::Squadron(event)
-            | Self::Carrier(event)
-            | Self::Colonisation(event) => &event.event,
             Self::Unknown { event, .. } => event,
+            _ => &self.known_raw_event().expect("known raw event").event,
         }
     }
 
     pub fn raw_payload(&self) -> Option<&Value> {
-        match self {
-            Self::StartupSnapshot(event)
-            | Self::Station(event)
-            | Self::Exploration(event)
-            | Self::Navigation(event)
-            | Self::CargoMaterial(event)
-            | Self::ShipModule(event)
-            | Self::MissionDetail(event)
-            | Self::CombatDetail(event)
-            | Self::Odyssey(event)
-            | Self::Social(event)
-            | Self::Powerplay(event)
-            | Self::Squadron(event)
-            | Self::Carrier(event)
-            | Self::Colonisation(event) => Some(&event.raw),
-            Self::Unknown { raw, .. } => Some(raw),
-            _ => None,
+        self.known_raw_event()
+            .map(|event| &event.raw)
+            .or(match self {
+                Self::Unknown { raw, .. } => Some(raw),
+                _ => None,
+            })
+    }
+
+    pub fn is_known_raw_event(&self) -> bool {
+        self.known_raw_event().is_some()
+    }
+
+    fn known_raw_event(&self) -> Option<&TypedJournalEvent> {
+        macro_rules! match_known_raw_event {
+            ($($variant:ident => $event:literal,)*) => {
+                match self {
+                    $(
+                        Self::$variant(event) => Some(event),
+                    )*
+                    _ => None,
+                }
+            };
         }
+
+        known_raw_journal_events!(match_known_raw_event)
     }
 }
-
 impl fmt::Display for JournalParseError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -450,258 +661,6 @@ impl std::error::Error for JournalParseError {
         }
     }
 }
-
-const STARTUP_SNAPSHOT_EVENTS: &[&str] = &[
-    "Fileheader",
-    "Statistics",
-    "Materials",
-    "Passengers",
-    "Cargo",
-    "StoredShips",
-    "StoredModules",
-    "Powerplay",
-];
-
-const STATION_EVENTS: &[&str] = &[
-    "DockingRequested",
-    "DockingGranted",
-    "DockingDenied",
-    "DockingCancelled",
-    "DockingTimeout",
-    "Docked",
-    "Undocked",
-    "Market",
-    "MarketBuy",
-    "MarketSell",
-    "BuyTradeData",
-    "Outfitting",
-    "Shipyard",
-    "Repair",
-    "RepairAll",
-    "RefuelAll",
-    "RefuelPartial",
-    "RestockVehicle",
-    "SellDrones",
-    "SearchAndRescue",
-];
-
-const EXPLORATION_EVENTS: &[&str] = &[
-    "DiscoveryScan",
-    "FSSDiscoveryScan",
-    "FSSBodySignals",
-    "FSSSignalDiscovered",
-    "FSSAllBodiesFound",
-    "SAASignalsFound",
-    "SAAScanComplete",
-    "Scan",
-    "ScanBaryCentre",
-    "ScanOrganic",
-    "SellExplorationData",
-    "MultiSellExplorationData",
-    "BuyExplorationData",
-    "SellOrganicData",
-    "DataScanned",
-    "DatalinkScan",
-    "DatalinkVoucher",
-    "CodexEntry",
-    "NavBeaconScan",
-];
-
-const NAVIGATION_EVENTS: &[&str] = &[
-    "FSDTarget",
-    "SupercruiseExit",
-    "ApproachBody",
-    "LeaveBody",
-    "NavRoute",
-    "NavRouteClear",
-    "Touchdown",
-    "Liftoff",
-];
-
-const CARGO_MATERIAL_EVENTS: &[&str] = &[
-    "CargoDepot",
-    "CargoTransfer",
-    "CollectCargo",
-    "CollectItems",
-    "DropItems",
-    "MiningRefined",
-    "MaterialCollected",
-    "MaterialDiscarded",
-    "MaterialDiscovered",
-    "MaterialTrade",
-    "Backpack",
-    "BackpackChange",
-    "ShipLocker",
-    "ShipLockerMaterials",
-    "TransferMicroResources",
-    "BuyMicroResources",
-    "SellMicroResources",
-    "RequestPowerMicroResources",
-    "DeliverPowerMicroResources",
-    "FCMaterials",
-    "UseConsumable",
-];
-
-const SHIP_MODULE_EVENTS: &[&str] = &[
-    "AfmuRepairs",
-    "ModuleBuy",
-    "ModuleBuyAndStore",
-    "ModuleStore",
-    "ModuleRetrieve",
-    "ModuleSell",
-    "ModuleSellRemote",
-    "ModuleSwap",
-    "MassModuleStore",
-    "FetchRemoteModule",
-    "EngineerContribution",
-    "EngineerCraft",
-    "EngineerLegacyConvert",
-    "EngineerProgress",
-    "TechnologyBroker",
-    "ShipyardBuy",
-    "ShipyardSell",
-    "ShipyardNew",
-    "ShipyardTransfer",
-];
-
-const MISSION_DETAIL_EVENTS: &[&str] = &[
-    "MissionFactionEffects",
-    "CommunityGoal",
-    "CommunityGoalJoin",
-    "CommunityGoalDiscard",
-    "CommunityGoalReward",
-    "ScientificResearch",
-];
-
-const COMBAT_DETAIL_EVENTS: &[&str] = &[
-    "CapShipBond",
-    "PVPKill",
-    "EscapeInterdiction",
-    "Interdicted",
-    "Interdiction",
-    "UnderAttack",
-    "HeatDamage",
-    "HeatWarning",
-    "CommitCrime",
-    "CrimeVictim",
-    "PayBounties",
-    "PayFines",
-    "RedeemVoucher",
-    "SelfDestruct",
-    "RebootRepair",
-    "FighterRebuilt",
-    "CockpitBreached",
-    "SystemsShutdown",
-    "Resurrect",
-    "SRVDestroyed",
-    "Scanned",
-];
-
-const ODYSSEY_EVENTS: &[&str] = &[
-    "Embark",
-    "Disembark",
-    "ApproachSettlement",
-    "BookDropship",
-    "CancelDropship",
-    "BookTaxi",
-    "CancelTaxi",
-    "DropshipDeploy",
-    "LaunchSRV",
-    "DockSRV",
-    "VehicleSwitch",
-    "CreateSuitLoadout",
-    "DeleteSuitLoadout",
-    "RenameSuitLoadout",
-    "SuitLoadout",
-    "SwitchSuitLoadout",
-    "LoadoutEquipModule",
-    "LoadoutRemoveModule",
-    "BuySuit",
-    "BuyWeapon",
-    "BuyAmmo",
-    "BuyDrones",
-    "SellSuit",
-    "SellWeapon",
-    "UpgradeSuit",
-    "UpgradeWeapon",
-    "USSDrop",
-];
-
-const SOCIAL_EVENTS: &[&str] = &[
-    "SendText",
-    "Friends",
-    "WingJoin",
-    "WingLeave",
-    "WingAdd",
-    "WingInvite",
-    "JoinACrew",
-    "QuitACrew",
-    "EndCrewSession",
-    "CrewAssign",
-    "CrewHire",
-    "CrewFire",
-    "ChangeCrewRole",
-    "CrewMemberJoins",
-    "CrewMemberQuits",
-    "CrewMemberRoleChange",
-    "CrewLaunchFighter",
-];
-
-const POWERPLAY_EVENTS: &[&str] = &[
-    "PowerplayJoin",
-    "PowerplayLeave",
-    "PowerplayDefect",
-    "PowerplayCollect",
-    "PowerplayDeliver",
-    "PowerplayFastTrack",
-    "PowerplayRank",
-    "PowerplaySalary",
-    "PowerplayVote",
-    "PowerplayVoucher",
-];
-
-const SQUADRON_EVENTS: &[&str] = &[
-    "InvitedToSquadron",
-    "JoinedSquadron",
-    "LeftSquadron",
-    "KickedFromSquadron",
-    "AppliedToSquadron",
-    "CancelledSquadronApplication",
-    "SquadronCreated",
-    "SquadronDemotion",
-    "SquadronPromotion",
-    "SquadronStartup",
-    "SharedBookmarkToSquadron",
-    "SquadronApplicationApproved",
-];
-
-const CARRIER_EVENTS: &[&str] = &[
-    "CarrierBankTransfer",
-    "CarrierBuy",
-    "CarrierCancelDecommission",
-    "CarrierCrewServices",
-    "CarrierDecommission",
-    "CarrierDepositFuel",
-    "CarrierDockingPermission",
-    "CarrierFinance",
-    "CarrierJump",
-    "CarrierJumpCancelled",
-    "CarrierJumpRequest",
-    "CarrierLocation",
-    "CarrierModulePack",
-    "CarrierNameChange",
-    "CarrierShipPack",
-    "CarrierStats",
-    "CarrierTradeOrder",
-];
-
-const COLONISATION_EVENTS: &[&str] = &[
-    "ColonisationBeaconDeployed",
-    "ColonisationConstructionDepot",
-    "ColonisationContribution",
-    "ColonisationSystemClaim",
-    "ColonisationSystemClaimRelease",
-];
 
 pub fn parse_journal_line(line: &str) -> Result<JournalEvent, JournalParseError> {
     let value = serde_json::from_str::<Value>(line)
@@ -757,54 +716,31 @@ pub fn parse_journal_value(value: &Value) -> Result<JournalEvent, JournalParseEr
         "ShipyardSwap" => shipyard_swap_event(value, timestamp, event),
         "Shutdown" => Ok(JournalEvent::Shutdown(basic_event(timestamp, event))),
         "Died" => Ok(JournalEvent::Died(basic_event(timestamp, event))),
-        name if STARTUP_SNAPSHOT_EVENTS.contains(&name) => Ok(JournalEvent::StartupSnapshot(
-            raw_event(value, timestamp, event),
-        )),
-        name if STATION_EVENTS.contains(&name) => {
-            Ok(JournalEvent::Station(raw_event(value, timestamp, event)))
-        }
-        name if EXPLORATION_EVENTS.contains(&name) => Ok(JournalEvent::Exploration(raw_event(
-            value, timestamp, event,
-        ))),
-        name if NAVIGATION_EVENTS.contains(&name) => {
-            Ok(JournalEvent::Navigation(raw_event(value, timestamp, event)))
-        }
-        name if CARGO_MATERIAL_EVENTS.contains(&name) => Ok(JournalEvent::CargoMaterial(
-            raw_event(value, timestamp, event),
-        )),
-        name if SHIP_MODULE_EVENTS.contains(&name) => {
-            Ok(JournalEvent::ShipModule(raw_event(value, timestamp, event)))
-        }
-        name if MISSION_DETAIL_EVENTS.contains(&name) => Ok(JournalEvent::MissionDetail(
-            raw_event(value, timestamp, event),
-        )),
-        name if COMBAT_DETAIL_EVENTS.contains(&name) => Ok(JournalEvent::CombatDetail(raw_event(
-            value, timestamp, event,
-        ))),
-        name if ODYSSEY_EVENTS.contains(&name) => {
-            Ok(JournalEvent::Odyssey(raw_event(value, timestamp, event)))
-        }
-        name if SOCIAL_EVENTS.contains(&name) => {
-            Ok(JournalEvent::Social(raw_event(value, timestamp, event)))
-        }
-        name if POWERPLAY_EVENTS.contains(&name) => {
-            Ok(JournalEvent::Powerplay(raw_event(value, timestamp, event)))
-        }
-        name if SQUADRON_EVENTS.contains(&name) => {
-            Ok(JournalEvent::Squadron(raw_event(value, timestamp, event)))
-        }
-        name if CARRIER_EVENTS.contains(&name) => {
-            Ok(JournalEvent::Carrier(raw_event(value, timestamp, event)))
-        }
-        name if COLONISATION_EVENTS.contains(&name) => Ok(JournalEvent::Colonisation(raw_event(
-            value, timestamp, event,
-        ))),
-        _ => Ok(JournalEvent::Unknown {
-            timestamp,
-            event,
-            raw: value.clone(),
-        }),
+        _ => Ok(
+            known_raw_event(value, timestamp, event.clone()).unwrap_or_else(|| {
+                JournalEvent::Unknown {
+                    timestamp,
+                    event,
+                    raw: value.clone(),
+                }
+            }),
+        ),
     }
+}
+
+fn known_raw_event(value: &Value, timestamp: DateTime<Utc>, event: String) -> Option<JournalEvent> {
+    macro_rules! match_known_raw_event_name {
+        ($($variant:ident => $event_name:literal,)*) => {
+            match event.as_str() {
+                $(
+                    $event_name => Some(JournalEvent::$variant(typed_event(value, timestamp, event))),
+                )*
+                _ => None,
+            }
+        };
+    }
+
+    known_raw_journal_events!(match_known_raw_event_name)
 }
 
 fn parse_timestamp(value: &Value) -> Result<DateTime<Utc>, JournalParseError> {
@@ -830,6 +766,10 @@ fn parse_event_name(value: &Value) -> Result<&str, JournalParseError> {
 
 fn basic_event(timestamp: DateTime<Utc>, event: String) -> BasicJournalEvent {
     BasicJournalEvent { timestamp, event }
+}
+
+fn typed_event(value: &Value, timestamp: DateTime<Utc>, event: String) -> TypedJournalEvent {
+    raw_event(value, timestamp, event)
 }
 
 fn raw_event(value: &Value, timestamp: DateTime<Utc>, event: String) -> RawJournalEvent {
@@ -1598,55 +1538,13 @@ mod event_parser {
     }
 
     #[test]
-    fn event_parser_categorizes_broad_journal_events_with_raw_payload() {
-        assert_raw_event_category(STARTUP_SNAPSHOT_EVENTS, |event| {
-            matches!(event, JournalEvent::StartupSnapshot(_))
-        });
-        assert_raw_event_category(STATION_EVENTS, |event| {
-            matches!(event, JournalEvent::Station(_))
-        });
-        assert_raw_event_category(EXPLORATION_EVENTS, |event| {
-            matches!(event, JournalEvent::Exploration(_))
-        });
-        assert_raw_event_category(NAVIGATION_EVENTS, |event| {
-            matches!(event, JournalEvent::Navigation(_))
-        });
-        assert_raw_event_category(CARGO_MATERIAL_EVENTS, |event| {
-            matches!(event, JournalEvent::CargoMaterial(_))
-        });
-        assert_raw_event_category(SHIP_MODULE_EVENTS, |event| {
-            matches!(event, JournalEvent::ShipModule(_))
-        });
-        assert_raw_event_category(MISSION_DETAIL_EVENTS, |event| {
-            matches!(event, JournalEvent::MissionDetail(_))
-        });
-        assert_raw_event_category(COMBAT_DETAIL_EVENTS, |event| {
-            matches!(event, JournalEvent::CombatDetail(_))
-        });
-        assert_raw_event_category(ODYSSEY_EVENTS, |event| {
-            matches!(event, JournalEvent::Odyssey(_))
-        });
-        assert_raw_event_category(SOCIAL_EVENTS, |event| {
-            matches!(event, JournalEvent::Social(_))
-        });
-        assert_raw_event_category(POWERPLAY_EVENTS, |event| {
-            matches!(event, JournalEvent::Powerplay(_))
-        });
-        assert_raw_event_category(SQUADRON_EVENTS, |event| {
-            matches!(event, JournalEvent::Squadron(_))
-        });
-        assert_raw_event_category(CARRIER_EVENTS, |event| {
-            matches!(event, JournalEvent::Carrier(_))
-        });
-        assert_raw_event_category(COLONISATION_EVENTS, |event| {
-            matches!(event, JournalEvent::Colonisation(_))
-        });
+    fn event_parser_parses_broad_journal_events_as_specific_typed_variants() {
+        let event_names: &[&str] = known_raw_journal_events!(known_raw_event_names);
+        assert!(event_names.len() >= 200);
+        assert_specific_typed_events(event_names);
     }
 
-    fn assert_raw_event_category(
-        event_names: &[&str],
-        matches_category: impl Fn(&JournalEvent) -> bool,
-    ) {
+    fn assert_specific_typed_events(event_names: &[&str]) {
         for event_name in event_names {
             let line = json!({
                 "timestamp": "2035-02-03T04:05:06Z",
@@ -1662,8 +1560,8 @@ mod event_parser {
                 Utc.with_ymd_and_hms(2035, 2, 3, 4, 5, 6).single().unwrap()
             );
             assert!(
-                matches_category(&parsed),
-                "{event_name} parsed into {parsed:?}"
+                !matches!(parsed, JournalEvent::Unknown { .. }),
+                "{event_name} parsed as unknown"
             );
             assert_eq!(
                 parsed
@@ -1673,7 +1571,6 @@ mod event_parser {
             );
         }
     }
-
     #[test]
     fn event_parser_missing_required_event_returns_error() {
         let error = parse_journal_line(r#"{"timestamp":"2035-01-02T03:04:05Z"}"#)

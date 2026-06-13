@@ -1,10 +1,10 @@
 use chrono::{DateTime, Duration, TimeZone, Utc};
-use ed_afk_monitor::config::{LogLevelConfig, MonitorConfig};
-use ed_afk_monitor::event::{
+use ed_afk_dashboard::config::{LogLevelConfig, MonitorConfig};
+use ed_afk_dashboard::event::{
     BountyEvent, BountyReward, JournalEvent, SupercruiseDestinationDropEvent,
 };
-use ed_afk_monitor::monitor::EventMonitor;
-use ed_afk_monitor::notifier::{FakeNotifier, Notification};
+use ed_afk_dashboard::monitor::EventMonitor;
+use ed_afk_dashboard::notifier::{FakeNotifier, Notification};
 
 fn timestamp(minutes: i64) -> DateTime<Utc> {
     Utc.with_ymd_and_hms(2035, 4, 12, 8, 0, 0).single().unwrap() + Duration::minutes(minutes)

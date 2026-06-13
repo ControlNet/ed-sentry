@@ -1,6 +1,6 @@
-# ed-afk-monitor
+# ed-afk-dashboard
 
-`ed-afk-monitor` is an independent Rust CLI for Elite Dangerous Journal AFK monitoring use cases. It reads local Journal files, tracks Phase 1 combat and session signals, and prints terminal output for live watch and replay runs.
+`ed-afk-dashboard` is an independent Rust CLI for Elite Dangerous Journal AFK monitoring use cases. It reads local Journal files, tracks Phase 1 combat and session signals, and prints terminal output for live watch and replay runs.
 
 This project is not a fork, port, or copy of another monitor. The implementation, code structure, messages, and docs are written for this repository while following Elite Dangerous Journal semantics and the Phase 1 plan.
 
@@ -41,7 +41,7 @@ cargo run -- --journal "/home/ubuntu/Elite Dangerous"
 cargo run -- --replay --set-file tests/fixtures/journal_combat_bounty.log --no-status-line
 ```
 
-By default, `ed-afk-monitor` runs in watch mode and accepts `--journal <folder>` or `--set-file <file>`. Passing `--replay` switches to replay mode; replay requires `--set-file <file>` and rejects `--journal` in Phase 1.
+By default, `ed-afk-dashboard` runs in watch mode and accepts `--journal <folder>` or `--set-file <file>`. Passing `--replay` switches to replay mode; replay requires `--set-file <file>` and rejects `--journal` in Phase 1.
 
 ## CLI Usage
 
@@ -140,8 +140,8 @@ See `tests/fixtures/README.md` for the fixture policy.
 
 The tag release workflow publishes these Phase 1 artifact names:
 
-- `ed-afk-monitor-x86_64-unknown-linux-gnu.tar.gz`
-- `ed-afk-monitor-x86_64-pc-windows-msvc.zip`
+- `ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz`
+- `ed-afk-dashboard-x86_64-pc-windows-msvc.zip`
 
 CI runs the normal sanitized test suite on Linux and Windows. Optional ignored real Journal regression tests remain local-only and are not part of CI or release workflows.
 

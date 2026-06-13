@@ -4,18 +4,18 @@ use std::process::ExitCode;
 use std::thread;
 
 use clap::Parser;
-use ed_afk_monitor::config::{AppConfig, CliConfigOverrides, RuntimeConfig};
-use ed_afk_monitor::event::{parse_journal_line, JournalEvent};
-use ed_afk_monitor::journal::{
+use ed_afk_dashboard::config::{AppConfig, CliConfigOverrides, RuntimeConfig};
+use ed_afk_dashboard::event::{parse_journal_line, JournalEvent};
+use ed_afk_dashboard::journal::{
     configured_recent_journal_file_choices, default_journal_folder, live_poll_interval,
-    preload_journal_file, select_configured_journal_file, LiveTail,
+    preload_journal_file, select_configured_journal_file, stream_journal_file, LiveTail,
 };
-use ed_afk_monitor::monitor::EventMonitor;
-use ed_afk_monitor::terminal::{render_banner, set_platform_window_title, TerminalNotifier};
-use ed_afk_monitor::text::line_safe;
+use ed_afk_dashboard::monitor::EventMonitor;
+use ed_afk_dashboard::terminal::{render_banner, set_platform_window_title, TerminalNotifier};
+use ed_afk_dashboard::text::line_safe;
 
 #[derive(Clone, Debug, Parser)]
-#[command(name = "ed-afk-monitor", version)]
+#[command(name = "ed-afk-dashboard", version)]
 struct Cli {
     #[arg(long, value_name = "folder", global = true)]
     journal: Option<PathBuf>,
@@ -127,7 +127,10 @@ fn run_command(command: RuntimeCommand) -> Result<(), AppError> {
         eprintln!("Warning: --reset-session has no effect in replay");
     }
 
-    println!("{}", render_banner("ED AFK Monitor v260421 by CMDR PSIPAB"));
+    println!(
+        "{}",
+        render_banner("ED AFK Dashboard v260421 by CMDR PSIPAB")
+    );
     println!();
 
     match command.mode {
@@ -182,10 +185,10 @@ fn run_watch(config: &RuntimeConfig) -> Result<(), AppError> {
         monitor.state_mut().reset_session_counters();
         monitor
             .dispatcher_mut()
-            .dispatch(ed_afk_monitor::notifier::Notification::new(
+            .dispatch(ed_afk_dashboard::notifier::Notification::new(
                 "session_reset",
                 1,
-                ed_afk_monitor::notifier::AlertLevel::Info,
+                ed_afk_dashboard::notifier::AlertLevel::Info,
                 Some("🔄".to_string()),
                 "Session stats reset",
                 "Session stats reset",
@@ -314,33 +317,40 @@ fn run_replay(config: &RuntimeConfig) -> Result<(), AppError> {
             line_safe(&set_file.display().to_string())
         );
     }
-    let preload =
-        preload_journal_file(&set_file, parse_journal_line).map_err(|error| AppError {
-            message: error.to_string(),
-        })?;
-    print_startup(
-        config,
-        &set_file,
-        startup_commander(&preload.records).as_deref(),
-    );
+    let mut replay_lines = 0_usize;
+    let mut commander = None;
+    let scan = stream_journal_file(&set_file, parse_journal_line, |record| {
+        replay_lines += 1;
+        if commander.is_none() {
+            commander = match record.result.as_ref().ok() {
+                Some(JournalEvent::Commander(event)) => event.name.clone(),
+                Some(JournalEvent::LoadGame(event)) => event.commander.clone(),
+                _ => None,
+            };
+        }
+        Ok::<(), std::convert::Infallible>(())
+    })
+    .map_err(|error| AppError {
+        message: error.to_string(),
+    })?;
+    print_startup(config, &set_file, commander.as_deref());
     if config.debug {
         eprintln!(
             "Debug: replay loaded {} lines to byte offset {}",
-            preload.records.len(),
-            preload.eof_offset
+            replay_lines, scan.eof_offset
         );
     }
     let mut monitor =
         EventMonitor::from_runtime_config(TerminalNotifier::stdout(&config.monitor), config);
     let mut last_timestamp = None;
 
-    for record in preload.records {
+    stream_journal_file(&set_file, parse_journal_line, |record| {
         match record.result {
             Ok(event) => {
                 last_timestamp = Some(event.timestamp());
-                monitor.process_event(&event).map_err(|error| AppError {
-                    message: error.to_string(),
-                })?;
+                monitor
+                    .process_event(&event)
+                    .map_err(|error| error.to_string())?;
             }
             Err(error) => {
                 eprintln!(
@@ -350,7 +360,11 @@ fn run_replay(config: &RuntimeConfig) -> Result<(), AppError> {
                 );
             }
         }
-    }
+        Ok::<(), String>(())
+    })
+    .map_err(|error| AppError {
+        message: error.to_string(),
+    })?;
 
     if let Some(timestamp) = last_timestamp {
         monitor
@@ -383,7 +397,7 @@ fn print_startup(config: &RuntimeConfig, set_file: &std::path::Path, commander: 
 }
 
 fn startup_commander(
-    records: &[ed_afk_monitor::journal::PreloadRecord<JournalEvent>],
+    records: &[ed_afk_dashboard::journal::PreloadRecord<JournalEvent>],
 ) -> Option<String> {
     records
         .iter()
@@ -435,7 +449,7 @@ mod tests {
     #[test]
     fn cli_config_watch_accepts_poll_interval() {
         let cli = Cli::try_parse_from([
-            "ed-afk-monitor",
+            "ed-afk-dashboard",
             "--journal",
             "/journals",
             "--poll-interval-ms",
@@ -452,7 +466,7 @@ mod tests {
     #[test]
     fn cli_config_replay_flag_enables_replay_mode() {
         let cli = Cli::try_parse_from([
-            "ed-afk-monitor",
+            "ed-afk-dashboard",
             "--replay",
             "--set-file",
             "tests/fixtures/journal_combat_bounty.log",
@@ -472,7 +486,7 @@ mod tests {
     #[test]
     fn cli_config_without_replay_defaults_to_watch() {
         let cli = Cli::try_parse_from([
-            "ed-afk-monitor",
+            "ed-afk-dashboard",
             "--journal",
             "/journals",
             "--set-file",
@@ -489,7 +503,7 @@ mod tests {
     #[test]
     fn cli_config_watch_display_uses_explicit_folder() {
         let config = RuntimeConfig {
-            journal: ed_afk_monitor::config::JournalConfig {
+            journal: ed_afk_dashboard::config::JournalConfig {
                 folder: "/journals".to_string(),
                 recent_files: 10,
             },
@@ -526,7 +540,7 @@ mod tests {
     #[test]
     fn cli_config_replay_rejects_poll_interval_ms() {
         let cli = Cli::try_parse_from([
-            "ed-afk-monitor",
+            "ed-afk-dashboard",
             "--replay",
             "--poll-interval-ms",
             "1000",
@@ -541,7 +555,7 @@ mod tests {
 
     #[test]
     fn cli_config_replay_requires_set_file() {
-        let cli = Cli::try_parse_from(["ed-afk-monitor", "--replay"]).unwrap();
+        let cli = Cli::try_parse_from(["ed-afk-dashboard", "--replay"]).unwrap();
         let error = build_runtime_command(cli).unwrap_err();
 
         assert!(error.message.contains("replay requires --set-file"));
@@ -550,7 +564,7 @@ mod tests {
     #[test]
     fn cli_config_replay_rejects_journal_folder() {
         let cli = Cli::try_parse_from([
-            "ed-afk-monitor",
+            "ed-afk-dashboard",
             "--replay",
             "--journal",
             "/journals",
