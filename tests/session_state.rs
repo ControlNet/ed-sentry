@@ -28,9 +28,13 @@ fn location(minutes: i64, body_type: Option<&str>, body: Option<&str>) -> Journa
         timestamp: timestamp(minutes),
         event: "Location".to_string(),
         star_system: Some("Fixture Ring System".to_string()),
+        system_address: Some(100),
         body: body.map(str::to_string),
         body_type: body_type.map(str::to_string),
         docked: Some(false),
+        station_name: None,
+        station_name_localised: None,
+        market_id: None,
     })
 }
 
@@ -48,6 +52,7 @@ fn travel(event: &str, minutes: i64) -> TravelEvent {
         timestamp: timestamp(minutes),
         event: event.to_string(),
         star_system: Some("Fixture System".to_string()),
+        system_address: Some(200),
     }
 }
 
@@ -110,6 +115,28 @@ fn mission(event: &str, minutes: i64, mission_id: u64, name: &str) -> MissionEve
         mission_id: Some(mission_id),
         name: Some(name.to_string()),
         localised_name: None,
+        faction: None,
+        target_faction: None,
+        target: None,
+        target_type: None,
+        destination_system: None,
+        destination_station: None,
+        destination_settlement: None,
+        new_destination_system: None,
+        new_destination_station: None,
+        old_destination_system: None,
+        old_destination_station: None,
+        expiry: None,
+        influence: None,
+        reputation: None,
+        reward: None,
+        donated: None,
+        fine: None,
+        wing: None,
+        commodity: None,
+        commodity_localised: None,
+        count: None,
+        kill_count: None,
     }
 }
 
@@ -129,6 +156,7 @@ fn session_state_tracks_identity_status_and_damage_from_typed_events() {
         ship: Some("krait_mkii".to_string()),
         ship_localised: Some("Krait Mk II".to_string()),
         game_mode: Some("Open".to_string()),
+        odyssey: Some(true),
     }));
     state.apply_event(&JournalEvent::Loadout(LoadoutEvent {
         timestamp: timestamp(2),

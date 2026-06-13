@@ -21,8 +21,6 @@ macro_rules! known_raw_journal_events {
         DockingDenied => "DockingDenied",
         DockingCancelled => "DockingCancelled",
         DockingTimeout => "DockingTimeout",
-        Docked => "Docked",
-        Undocked => "Undocked",
         Market => "Market",
         MarketBuy => "MarketBuy",
         MarketSell => "MarketSell",
@@ -63,7 +61,6 @@ macro_rules! known_raw_journal_events {
         NavRouteClear => "NavRouteClear",
         Touchdown => "Touchdown",
         Liftoff => "Liftoff",
-        CargoDepot => "CargoDepot",
         CargoTransfer => "CargoTransfer",
         CollectCargo => "CollectCargo",
         CollectItems => "CollectItems",
@@ -253,6 +250,7 @@ pub struct LoadGameEvent {
     pub ship: Option<String>,
     pub ship_localised: Option<String>,
     pub game_mode: Option<String>,
+    pub odyssey: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -283,9 +281,24 @@ pub struct LocationEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
     pub star_system: Option<String>,
+    pub system_address: Option<i64>,
     pub body: Option<String>,
     pub body_type: Option<String>,
     pub docked: Option<bool>,
+    pub station_name: Option<String>,
+    pub station_name_localised: Option<String>,
+    pub market_id: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DockedEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub star_system: Option<String>,
+    pub system_address: Option<i64>,
+    pub station_name: Option<String>,
+    pub station_name_localised: Option<String>,
+    pub market_id: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -301,6 +314,7 @@ pub struct TravelEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
     pub star_system: Option<String>,
+    pub system_address: Option<i64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -372,6 +386,28 @@ pub struct MissionEvent {
     pub mission_id: Option<u64>,
     pub name: Option<String>,
     pub localised_name: Option<String>,
+    pub faction: Option<String>,
+    pub target_faction: Option<String>,
+    pub target: Option<String>,
+    pub target_type: Option<String>,
+    pub destination_system: Option<String>,
+    pub destination_station: Option<String>,
+    pub destination_settlement: Option<String>,
+    pub new_destination_system: Option<String>,
+    pub new_destination_station: Option<String>,
+    pub old_destination_system: Option<String>,
+    pub old_destination_station: Option<String>,
+    pub expiry: Option<DateTime<Utc>>,
+    pub influence: Option<String>,
+    pub reputation: Option<String>,
+    pub reward: Option<i64>,
+    pub donated: Option<i64>,
+    pub fine: Option<i64>,
+    pub wing: Option<bool>,
+    pub commodity: Option<String>,
+    pub commodity_localised: Option<String>,
+    pub count: Option<u64>,
+    pub kill_count: Option<u64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -379,6 +415,7 @@ pub struct MissionListItem {
     pub mission_id: Option<u64>,
     pub name: Option<String>,
     pub expires: Option<u64>,
+    pub passenger_mission: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -386,6 +423,7 @@ pub struct MissionsEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
     pub active: Vec<MissionListItem>,
+    pub active_present: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -412,6 +450,21 @@ pub struct EjectCargoEvent {
     pub cargo_type_localised: Option<String>,
     pub count: Option<u64>,
     pub abandoned: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CargoDepotEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub mission_id: Option<u64>,
+    pub update_type: Option<String>,
+    pub cargo_type: Option<String>,
+    pub cargo_type_localised: Option<String>,
+    pub count: Option<u64>,
+    pub items_collected: Option<u64>,
+    pub items_delivered: Option<u64>,
+    pub total_items_to_deliver: Option<u64>,
+    pub progress: Option<f64>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -464,6 +517,8 @@ macro_rules! define_journal_event {
             Rank(RankEvent),
             Progress(ProgressEvent),
             Location(LocationEvent),
+            Docked(DockedEvent),
+            Undocked(BasicJournalEvent),
             SupercruiseDestinationDrop(SupercruiseDestinationDropEvent),
             SupercruiseEntry(TravelEvent),
             FSDJump(TravelEvent),
@@ -483,6 +538,7 @@ macro_rules! define_journal_event {
             LaunchFighter(LaunchFighterEvent),
             StartJump(BasicJournalEvent),
             EjectCargo(EjectCargoEvent),
+            CargoDepot(CargoDepotEvent),
             ReservoirReplenished(ReservoirReplenishedEvent),
             PowerplayMerits(PowerplayMeritsEvent),
             Music(MusicEvent),
@@ -530,6 +586,8 @@ impl JournalEvent {
             Self::LoadGame(event) => event.timestamp,
             Self::Loadout(event) => event.timestamp,
             Self::Location(event) => event.timestamp,
+            Self::Docked(event) => event.timestamp,
+            Self::Undocked(event) => event.timestamp,
             Self::SupercruiseDestinationDrop(event) => event.timestamp,
             Self::Rank(event) => event.timestamp,
             Self::Progress(event) => event.timestamp,
@@ -553,6 +611,7 @@ impl JournalEvent {
             Self::ShieldState(event) => event.timestamp,
             Self::HullDamage(event) => event.timestamp,
             Self::EjectCargo(event) => event.timestamp,
+            Self::CargoDepot(event) => event.timestamp,
             Self::ReservoirReplenished(event) => event.timestamp,
             Self::PowerplayMerits(event) => event.timestamp,
             Self::Music(event) => event.timestamp,
@@ -572,6 +631,8 @@ impl JournalEvent {
             Self::LoadGame(event) => &event.event,
             Self::Loadout(event) => &event.event,
             Self::Location(event) => &event.event,
+            Self::Docked(event) => &event.event,
+            Self::Undocked(event) => &event.event,
             Self::SupercruiseDestinationDrop(event) => &event.event,
             Self::Rank(event) => &event.event,
             Self::Progress(event) => &event.event,
@@ -595,6 +656,7 @@ impl JournalEvent {
             Self::ShieldState(event) => &event.event,
             Self::HullDamage(event) => &event.event,
             Self::EjectCargo(event) => &event.event,
+            Self::CargoDepot(event) => &event.event,
             Self::ReservoirReplenished(event) => &event.event,
             Self::PowerplayMerits(event) => &event.event,
             Self::Music(event) => &event.event,
@@ -679,6 +741,8 @@ pub fn parse_journal_value(value: &Value) -> Result<JournalEvent, JournalParseEr
         "Rank" => rank_event(value, timestamp, event),
         "Progress" => progress_event(value, timestamp, event),
         "Location" => location_event(value, timestamp, event),
+        "Docked" => docked_event(value, timestamp, event),
+        "Undocked" => Ok(JournalEvent::Undocked(basic_event(timestamp, event))),
         "SupercruiseDestinationDrop" => supercruise_destination_drop_event(value, timestamp, event),
         "SupercruiseEntry" => {
             travel_event(value, timestamp, event).map(JournalEvent::SupercruiseEntry)
@@ -710,6 +774,7 @@ pub fn parse_journal_value(value: &Value) -> Result<JournalEvent, JournalParseEr
         "LaunchFighter" => launch_fighter_event(value, timestamp, event),
         "StartJump" => Ok(JournalEvent::StartJump(basic_event(timestamp, event))),
         "EjectCargo" => eject_cargo_event(value, timestamp, event),
+        "CargoDepot" => cargo_depot_event(value, timestamp, event),
         "ReservoirReplenished" => reservoir_replenished_event(value, timestamp, event),
         "PowerplayMerits" => powerplay_merits_event(value, timestamp, event),
         "Music" => music_event(value, timestamp, event),
@@ -813,6 +878,7 @@ fn load_game_event(
         ship: fields.ship,
         ship_localised: fields.ship_localised,
         game_mode: fields.game_mode,
+        odyssey: fields.odyssey,
     }))
 }
 
@@ -867,9 +933,30 @@ fn location_event(
         timestamp,
         event,
         star_system: fields.star_system,
+        system_address: fields.system_address,
         body: fields.body,
         body_type: fields.body_type,
         docked: fields.docked,
+        station_name: fields.station_name,
+        station_name_localised: fields.station_name_localised,
+        market_id: fields.market_id,
+    }))
+}
+
+fn docked_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<DockedFields>(value, &event)?;
+    Ok(JournalEvent::Docked(DockedEvent {
+        timestamp,
+        event,
+        star_system: fields.star_system,
+        system_address: fields.system_address,
+        station_name: fields.station_name,
+        station_name_localised: fields.station_name_localised,
+        market_id: fields.market_id,
     }))
 }
 
@@ -899,6 +986,7 @@ fn travel_event(
         timestamp,
         event,
         star_system: fields.star_system,
+        system_address: fields.system_address,
     })
 }
 
@@ -985,6 +1073,28 @@ fn mission_event(
         mission_id: fields.mission_id,
         name: fields.name,
         localised_name: fields.localised_name,
+        faction: fields.faction,
+        target_faction: fields.target_faction,
+        target: fields.target,
+        target_type: fields.target_type,
+        destination_system: fields.destination_system,
+        destination_station: fields.destination_station,
+        destination_settlement: fields.destination_settlement,
+        new_destination_system: fields.new_destination_system,
+        new_destination_station: fields.new_destination_station,
+        old_destination_system: fields.old_destination_system,
+        old_destination_station: fields.old_destination_station,
+        expiry: fields.expiry,
+        influence: fields.influence,
+        reputation: fields.reputation,
+        reward: fields.reward,
+        donated: fields.donated,
+        fine: fields.fine,
+        wing: fields.wing,
+        commodity: fields.commodity,
+        commodity_localised: fields.commodity_localised,
+        count: fields.count,
+        kill_count: fields.kill_count,
     })
 }
 
@@ -994,6 +1104,7 @@ fn missions_event(
     event: String,
 ) -> Result<JournalEvent, JournalParseError> {
     let fields = event_fields::<MissionsFields>(value, &event)?;
+    let active_present = fields.active.is_some();
     Ok(JournalEvent::Missions(MissionsEvent {
         timestamp,
         event,
@@ -1005,8 +1116,31 @@ fn missions_event(
                 mission_id: item.mission_id,
                 name: item.name,
                 expires: item.expires,
+                passenger_mission: item.passenger_mission,
             })
             .collect(),
+        active_present,
+    }))
+}
+
+fn cargo_depot_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<CargoDepotFields>(value, &event)?;
+    Ok(JournalEvent::CargoDepot(CargoDepotEvent {
+        timestamp,
+        event,
+        mission_id: fields.mission_id,
+        update_type: fields.update_type,
+        cargo_type: fields.cargo_type,
+        cargo_type_localised: fields.cargo_type_localised,
+        count: fields.count,
+        items_collected: fields.items_collected,
+        items_delivered: fields.items_delivered,
+        total_items_to_deliver: fields.total_items_to_deliver,
+        progress: fields.progress,
     }))
 }
 
@@ -1140,6 +1274,8 @@ struct LoadGameFields {
     ship_localised: Option<String>,
     #[serde(rename = "GameMode")]
     game_mode: Option<String>,
+    #[serde(rename = "Odyssey")]
+    odyssey: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -1174,12 +1310,34 @@ struct ProgressFields {
 struct LocationFields {
     #[serde(rename = "StarSystem")]
     star_system: Option<String>,
+    #[serde(rename = "SystemAddress")]
+    system_address: Option<i64>,
     #[serde(rename = "Body")]
     body: Option<String>,
     #[serde(rename = "BodyType")]
     body_type: Option<String>,
     #[serde(rename = "Docked")]
     docked: Option<bool>,
+    #[serde(rename = "StationName")]
+    station_name: Option<String>,
+    #[serde(rename = "StationName_Localised")]
+    station_name_localised: Option<String>,
+    #[serde(rename = "MarketID")]
+    market_id: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct DockedFields {
+    #[serde(rename = "StarSystem")]
+    star_system: Option<String>,
+    #[serde(rename = "SystemAddress")]
+    system_address: Option<i64>,
+    #[serde(rename = "StationName")]
+    station_name: Option<String>,
+    #[serde(rename = "StationName_Localised")]
+    station_name_localised: Option<String>,
+    #[serde(rename = "MarketID")]
+    market_id: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -1194,6 +1352,8 @@ struct SupercruiseDestinationDropFields {
 struct TravelFields {
     #[serde(rename = "StarSystem")]
     star_system: Option<String>,
+    #[serde(rename = "SystemAddress")]
+    system_address: Option<i64>,
 }
 
 #[derive(Deserialize)]
@@ -1272,6 +1432,50 @@ struct MissionFields {
     name: Option<String>,
     #[serde(rename = "LocalisedName")]
     localised_name: Option<String>,
+    #[serde(rename = "Faction")]
+    faction: Option<String>,
+    #[serde(rename = "TargetFaction")]
+    target_faction: Option<String>,
+    #[serde(rename = "Target")]
+    target: Option<String>,
+    #[serde(rename = "TargetType")]
+    target_type: Option<String>,
+    #[serde(rename = "DestinationSystem")]
+    destination_system: Option<String>,
+    #[serde(rename = "DestinationStation")]
+    destination_station: Option<String>,
+    #[serde(rename = "DestinationSettlement")]
+    destination_settlement: Option<String>,
+    #[serde(rename = "NewDestinationSystem")]
+    new_destination_system: Option<String>,
+    #[serde(rename = "NewDestinationStation")]
+    new_destination_station: Option<String>,
+    #[serde(rename = "OldDestinationSystem")]
+    old_destination_system: Option<String>,
+    #[serde(rename = "OldDestinationStation")]
+    old_destination_station: Option<String>,
+    #[serde(rename = "Expiry")]
+    expiry: Option<DateTime<Utc>>,
+    #[serde(rename = "Influence")]
+    influence: Option<String>,
+    #[serde(rename = "Reputation")]
+    reputation: Option<String>,
+    #[serde(rename = "Reward")]
+    reward: Option<i64>,
+    #[serde(rename = "Donated")]
+    donated: Option<i64>,
+    #[serde(rename = "Fine")]
+    fine: Option<i64>,
+    #[serde(rename = "Wing")]
+    wing: Option<bool>,
+    #[serde(rename = "Commodity")]
+    commodity: Option<String>,
+    #[serde(rename = "Commodity_Localised")]
+    commodity_localised: Option<String>,
+    #[serde(rename = "Count")]
+    count: Option<u64>,
+    #[serde(rename = "KillCount")]
+    kill_count: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -1288,6 +1492,30 @@ struct MissionItemFields {
     name: Option<String>,
     #[serde(rename = "Expires")]
     expires: Option<u64>,
+    #[serde(rename = "PassengerMission")]
+    passenger_mission: Option<bool>,
+}
+
+#[derive(Deserialize)]
+struct CargoDepotFields {
+    #[serde(rename = "MissionID")]
+    mission_id: Option<u64>,
+    #[serde(rename = "UpdateType")]
+    update_type: Option<String>,
+    #[serde(rename = "CargoType")]
+    cargo_type: Option<String>,
+    #[serde(rename = "CargoType_Localised")]
+    cargo_type_localised: Option<String>,
+    #[serde(rename = "Count")]
+    count: Option<u64>,
+    #[serde(rename = "ItemsCollected")]
+    items_collected: Option<u64>,
+    #[serde(rename = "ItemsDelivered")]
+    items_delivered: Option<u64>,
+    #[serde(rename = "TotalItemsToDeliver")]
+    total_items_to_deliver: Option<u64>,
+    #[serde(rename = "Progress")]
+    progress: Option<f64>,
 }
 
 #[derive(Deserialize)]

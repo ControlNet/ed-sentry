@@ -134,6 +134,8 @@ impl SessionState {
             JournalEvent::ReceiveText(_) => {}
             JournalEvent::Rank(_)
             | JournalEvent::Progress(_)
+            | JournalEvent::Docked(_)
+            | JournalEvent::Undocked(_)
             | JournalEvent::Missions(_)
             | JournalEvent::LaunchFighter(_)
             | JournalEvent::StartJump(_)
