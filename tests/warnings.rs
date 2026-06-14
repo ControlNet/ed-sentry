@@ -25,6 +25,7 @@ fn res_drop(minutes: i64) -> JournalEvent {
     JournalEvent::SupercruiseDestinationDrop(SupercruiseDestinationDropEvent {
         timestamp: timestamp(minutes),
         event: "SupercruiseDestinationDrop".to_string(),
+        raw: None,
         destination_type: Some("ResourceExtraction".to_string()),
         destination_type_localised: Some("Resource Extraction Site".to_string()),
     })
@@ -34,6 +35,7 @@ fn bounty(minutes: i64) -> JournalEvent {
     JournalEvent::Bounty(BountyEvent {
         timestamp: timestamp(minutes),
         event: "Bounty".to_string(),
+        raw: None,
         total_reward: Some(4_200),
         rewards: Some(vec![BountyReward {
             faction: Some("Fixture Security".to_string()),

@@ -12,7 +12,6 @@ macro_rules! known_raw_journal_events {
         Statistics => "Statistics",
         Materials => "Materials",
         Passengers => "Passengers",
-        Cargo => "Cargo",
         StoredShips => "StoredShips",
         StoredModules => "StoredModules",
         Powerplay => "Powerplay",
@@ -22,8 +21,6 @@ macro_rules! known_raw_journal_events {
         DockingCancelled => "DockingCancelled",
         DockingTimeout => "DockingTimeout",
         Market => "Market",
-        MarketBuy => "MarketBuy",
-        MarketSell => "MarketSell",
         BuyTradeData => "BuyTradeData",
         Outfitting => "Outfitting",
         Shipyard => "Shipyard",
@@ -62,7 +59,6 @@ macro_rules! known_raw_journal_events {
         Touchdown => "Touchdown",
         Liftoff => "Liftoff",
         CargoTransfer => "CargoTransfer",
-        CollectCargo => "CollectCargo",
         CollectItems => "CollectItems",
         DropItems => "DropItems",
         MiningRefined => "MiningRefined",
@@ -112,7 +108,6 @@ macro_rules! known_raw_journal_events {
         CrimeVictim => "CrimeVictim",
         PayBounties => "PayBounties",
         PayFines => "PayFines",
-        RedeemVoucher => "RedeemVoucher",
         FighterRebuilt => "FighterRebuilt",
         Resurrect => "Resurrect",
         SRVDestroyed => "SRVDestroyed",
@@ -223,12 +218,14 @@ macro_rules! known_raw_event_names {
 pub struct BasicJournalEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommanderEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub name: Option<String>,
 }
 
@@ -236,6 +233,7 @@ pub struct CommanderEvent {
 pub struct LoadGameEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub commander: Option<String>,
     pub ship: Option<String>,
     pub ship_localised: Option<String>,
@@ -247,6 +245,7 @@ pub struct LoadGameEvent {
 pub struct LoadoutEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub ship: Option<String>,
     pub ship_localised: Option<String>,
     pub fuel_capacity_main: Option<f64>,
@@ -256,6 +255,7 @@ pub struct LoadoutEvent {
 pub struct RankEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub combat: Option<u8>,
 }
 
@@ -263,6 +263,7 @@ pub struct RankEvent {
 pub struct ProgressEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub combat: Option<u8>,
 }
 
@@ -270,6 +271,7 @@ pub struct ProgressEvent {
 pub struct LocationEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub star_system: Option<String>,
     pub system_address: Option<i64>,
     pub body: Option<String>,
@@ -284,6 +286,7 @@ pub struct LocationEvent {
 pub struct DockedEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub star_system: Option<String>,
     pub system_address: Option<i64>,
     pub station_name: Option<String>,
@@ -295,6 +298,7 @@ pub struct DockedEvent {
 pub struct SupercruiseDestinationDropEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub destination_type: Option<String>,
     pub destination_type_localised: Option<String>,
 }
@@ -303,6 +307,7 @@ pub struct SupercruiseDestinationDropEvent {
 pub struct TravelEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub star_system: Option<String>,
     pub system_address: Option<i64>,
 }
@@ -311,6 +316,7 @@ pub struct TravelEvent {
 pub struct LaunchFighterEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub player_controlled: Option<bool>,
 }
 
@@ -318,6 +324,7 @@ pub struct LaunchFighterEvent {
 pub struct ReceiveTextEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub from: Option<String>,
     pub from_localised: Option<String>,
     pub message: Option<String>,
@@ -328,6 +335,7 @@ pub struct ReceiveTextEvent {
 pub struct ShipTargetedEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub target_locked: Option<bool>,
     pub scan_stage: Option<u8>,
     pub ship: Option<String>,
@@ -350,6 +358,7 @@ pub struct BountyReward {
 pub struct BountyEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub total_reward: Option<u64>,
     pub rewards: Option<Vec<BountyReward>>,
     pub victim_faction: Option<String>,
@@ -363,6 +372,7 @@ pub struct BountyEvent {
 pub struct FactionKillBondEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub reward: Option<u64>,
     pub awarding_faction: Option<String>,
     pub victim_faction: Option<String>,
@@ -373,6 +383,7 @@ pub struct FactionKillBondEvent {
 pub struct InterdictedEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub submitted: Option<bool>,
     pub interdictor: Option<String>,
     pub is_player: Option<bool>,
@@ -383,6 +394,7 @@ pub struct InterdictedEvent {
 pub struct InterdictionEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub success: Option<bool>,
     pub interdicted: Option<String>,
     pub is_player: Option<bool>,
@@ -395,6 +407,7 @@ pub struct InterdictionEvent {
 pub struct EscapeInterdictionEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub interdictor: Option<String>,
     pub is_player: Option<bool>,
 }
@@ -403,6 +416,7 @@ pub struct EscapeInterdictionEvent {
 pub struct UnderAttackEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub target: Option<String>,
 }
 
@@ -410,6 +424,7 @@ pub struct UnderAttackEvent {
 pub struct MissionEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub mission_id: Option<u64>,
     pub name: Option<String>,
     pub localised_name: Option<String>,
@@ -449,6 +464,7 @@ pub struct MissionListItem {
 pub struct MissionsEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub active: Vec<MissionListItem>,
     pub active_present: bool,
 }
@@ -457,6 +473,7 @@ pub struct MissionsEvent {
 pub struct ShieldStateEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub shields_up: Option<bool>,
 }
 
@@ -464,6 +481,7 @@ pub struct ShieldStateEvent {
 pub struct HullDamageEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub health: Option<f64>,
     pub player_pilot: Option<bool>,
     pub fighter: Option<bool>,
@@ -473,16 +491,99 @@ pub struct HullDamageEvent {
 pub struct EjectCargoEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub cargo_type: Option<String>,
     pub cargo_type_localised: Option<String>,
     pub count: Option<u64>,
     pub abandoned: Option<bool>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+pub struct CargoInventoryItem {
+    #[serde(rename = "Name")]
+    pub name: Option<String>,
+    #[serde(rename = "Name_Localised")]
+    pub name_localised: Option<String>,
+    #[serde(rename = "Count")]
+    pub count: Option<u64>,
+    #[serde(rename = "Stolen")]
+    pub stolen: Option<u64>,
+    #[serde(rename = "MissionID")]
+    pub mission_id: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CargoEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub raw: Option<Value>,
+    pub vessel: Option<String>,
+    pub count: Option<u64>,
+    pub inventory: Vec<CargoInventoryItem>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CollectCargoEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub raw: Option<Value>,
+    pub cargo_type: Option<String>,
+    pub cargo_type_localised: Option<String>,
+    pub count: Option<u64>,
+    pub stolen: Option<bool>,
+    pub mission_id: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MarketBuyEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub raw: Option<Value>,
+    pub cargo_type: Option<String>,
+    pub cargo_type_localised: Option<String>,
+    pub count: Option<u64>,
+    pub buy_price: Option<u64>,
+    pub total_cost: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MarketSellEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub raw: Option<Value>,
+    pub cargo_type: Option<String>,
+    pub cargo_type_localised: Option<String>,
+    pub count: Option<u64>,
+    pub sell_price: Option<u64>,
+    pub total_sale: Option<u64>,
+    pub avg_price_paid: Option<u64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+pub struct RedeemVoucherFaction {
+    #[serde(rename = "Faction")]
+    pub faction: Option<String>,
+    #[serde(rename = "Amount")]
+    pub amount: Option<u64>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RedeemVoucherEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub raw: Option<Value>,
+    pub voucher_type: Option<String>,
+    pub amount: Option<u64>,
+    pub faction: Option<String>,
+    pub factions: Option<Vec<RedeemVoucherFaction>>,
+    pub broker_percentage: Option<u64>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct CargoDepotEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub mission_id: Option<u64>,
     pub update_type: Option<String>,
     pub cargo_type: Option<String>,
@@ -498,6 +599,7 @@ pub struct CargoDepotEvent {
 pub struct ShipyardSwapEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub ship_type: Option<String>,
     pub ship_type_localised: Option<String>,
 }
@@ -506,6 +608,7 @@ pub struct ShipyardSwapEvent {
 pub struct ReservoirReplenishedEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub fuel_main: Option<f64>,
     pub fuel_reservoir: Option<f64>,
 }
@@ -514,6 +617,7 @@ pub struct ReservoirReplenishedEvent {
 pub struct PowerplayMeritsEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub merits_gained: Option<u64>,
     pub power: Option<String>,
 }
@@ -522,6 +626,7 @@ pub struct PowerplayMeritsEvent {
 pub struct MusicEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
+    pub raw: Option<Value>,
     pub music_track: Option<String>,
 }
 
@@ -575,6 +680,11 @@ macro_rules! define_journal_event {
             LaunchFighter(LaunchFighterEvent),
             StartJump(BasicJournalEvent),
             EjectCargo(EjectCargoEvent),
+            Cargo(CargoEvent),
+            CollectCargo(CollectCargoEvent),
+            MarketBuy(MarketBuyEvent),
+            MarketSell(MarketSellEvent),
+            RedeemVoucher(RedeemVoucherEvent),
             CargoDepot(CargoDepotEvent),
             ReservoirReplenished(ReservoirReplenishedEvent),
             PowerplayMerits(PowerplayMeritsEvent),
@@ -658,6 +768,11 @@ impl JournalEvent {
             Self::ShieldState(event) => event.timestamp,
             Self::HullDamage(event) => event.timestamp,
             Self::EjectCargo(event) => event.timestamp,
+            Self::Cargo(event) => event.timestamp,
+            Self::CollectCargo(event) => event.timestamp,
+            Self::MarketBuy(event) => event.timestamp,
+            Self::MarketSell(event) => event.timestamp,
+            Self::RedeemVoucher(event) => event.timestamp,
             Self::CargoDepot(event) => event.timestamp,
             Self::ReservoirReplenished(event) => event.timestamp,
             Self::PowerplayMerits(event) => event.timestamp,
@@ -713,6 +828,11 @@ impl JournalEvent {
             Self::ShieldState(event) => &event.event,
             Self::HullDamage(event) => &event.event,
             Self::EjectCargo(event) => &event.event,
+            Self::Cargo(event) => &event.event,
+            Self::CollectCargo(event) => &event.event,
+            Self::MarketBuy(event) => &event.event,
+            Self::MarketSell(event) => &event.event,
+            Self::RedeemVoucher(event) => &event.event,
             Self::CargoDepot(event) => &event.event,
             Self::ReservoirReplenished(event) => &event.event,
             Self::PowerplayMerits(event) => &event.event,
@@ -723,10 +843,65 @@ impl JournalEvent {
         }
     }
 
+    /// Returns the complete original Journal JSON for parser-created events.
+    ///
+    /// Treat this as private local Journal data: it can include commander names,
+    /// chat text, paths, and future unmodelled fields. Default monitor output
+    /// should continue to use explicit modeled fields instead of dumping raw
+    /// payloads.
     pub fn raw_payload(&self) -> Option<&Value> {
         self.known_raw_event()
             .map(|event| &event.raw)
             .or(match self {
+                Self::Commander(event) => event.raw.as_ref(),
+                Self::LoadGame(event) => event.raw.as_ref(),
+                Self::Loadout(event) => event.raw.as_ref(),
+                Self::Location(event) => event.raw.as_ref(),
+                Self::Docked(event) => event.raw.as_ref(),
+                Self::Undocked(event) => event.raw.as_ref(),
+                Self::SupercruiseDestinationDrop(event) => event.raw.as_ref(),
+                Self::Rank(event) => event.raw.as_ref(),
+                Self::Progress(event) => event.raw.as_ref(),
+                Self::SupercruiseEntry(event) => event.raw.as_ref(),
+                Self::FSDJump(event) => event.raw.as_ref(),
+                Self::FighterDestroyed(event)
+                | Self::StartJump(event)
+                | Self::Shutdown(event)
+                | Self::Died(event) => event.raw.as_ref(),
+                Self::LaunchFighter(event) => event.raw.as_ref(),
+                Self::Missions(event) => event.raw.as_ref(),
+                Self::ReceiveText(event) => event.raw.as_ref(),
+                Self::ShipTargeted(event) => event.raw.as_ref(),
+                Self::Bounty(event) => event.raw.as_ref(),
+                Self::FactionKillBond(event) => event.raw.as_ref(),
+                Self::Interdicted(event) => event.raw.as_ref(),
+                Self::Interdiction(event) => event.raw.as_ref(),
+                Self::EscapeInterdiction(event) => event.raw.as_ref(),
+                Self::UnderAttack(event) => event.raw.as_ref(),
+                Self::HeatWarning(event)
+                | Self::HeatDamage(event)
+                | Self::CockpitBreached(event)
+                | Self::SystemsShutdown(event)
+                | Self::RebootRepair(event)
+                | Self::SelfDestruct(event) => event.raw.as_ref(),
+                Self::MissionRedirected(event)
+                | Self::MissionAccepted(event)
+                | Self::MissionCompleted(event)
+                | Self::MissionFailed(event)
+                | Self::MissionAbandoned(event) => event.raw.as_ref(),
+                Self::ShieldState(event) => event.raw.as_ref(),
+                Self::HullDamage(event) => event.raw.as_ref(),
+                Self::EjectCargo(event) => event.raw.as_ref(),
+                Self::Cargo(event) => event.raw.as_ref(),
+                Self::CollectCargo(event) => event.raw.as_ref(),
+                Self::MarketBuy(event) => event.raw.as_ref(),
+                Self::MarketSell(event) => event.raw.as_ref(),
+                Self::RedeemVoucher(event) => event.raw.as_ref(),
+                Self::CargoDepot(event) => event.raw.as_ref(),
+                Self::ReservoirReplenished(event) => event.raw.as_ref(),
+                Self::PowerplayMerits(event) => event.raw.as_ref(),
+                Self::Music(event) => event.raw.as_ref(),
+                Self::ShipyardSwap(event) => event.raw.as_ref(),
                 Self::Unknown { raw, .. } => Some(raw),
                 _ => None,
             })
@@ -799,7 +974,7 @@ pub fn parse_journal_value(value: &Value) -> Result<JournalEvent, JournalParseEr
         "Progress" => progress_event(value, timestamp, event),
         "Location" => location_event(value, timestamp, event),
         "Docked" => docked_event(value, timestamp, event),
-        "Undocked" => Ok(JournalEvent::Undocked(basic_event(timestamp, event))),
+        "Undocked" => Ok(JournalEvent::Undocked(basic_event(value, timestamp, event))),
         "SupercruiseDestinationDrop" => supercruise_destination_drop_event(value, timestamp, event),
         "SupercruiseEntry" => {
             travel_event(value, timestamp, event).map(JournalEvent::SupercruiseEntry)
@@ -813,12 +988,24 @@ pub fn parse_journal_value(value: &Value) -> Result<JournalEvent, JournalParseEr
         "Interdiction" => interdiction_event(value, timestamp, event),
         "EscapeInterdiction" => escape_interdiction_event(value, timestamp, event),
         "UnderAttack" => under_attack_event(value, timestamp, event),
-        "HeatWarning" => Ok(JournalEvent::HeatWarning(basic_event(timestamp, event))),
-        "HeatDamage" => Ok(JournalEvent::HeatDamage(basic_event(timestamp, event))),
-        "CockpitBreached" => Ok(JournalEvent::CockpitBreached(basic_event(timestamp, event))),
-        "SystemsShutdown" => Ok(JournalEvent::SystemsShutdown(basic_event(timestamp, event))),
-        "RebootRepair" => Ok(JournalEvent::RebootRepair(basic_event(timestamp, event))),
-        "SelfDestruct" => Ok(JournalEvent::SelfDestruct(basic_event(timestamp, event))),
+        "HeatWarning" => Ok(JournalEvent::HeatWarning(basic_event(
+            value, timestamp, event,
+        ))),
+        "HeatDamage" => Ok(JournalEvent::HeatDamage(basic_event(
+            value, timestamp, event,
+        ))),
+        "CockpitBreached" => Ok(JournalEvent::CockpitBreached(basic_event(
+            value, timestamp, event,
+        ))),
+        "SystemsShutdown" => Ok(JournalEvent::SystemsShutdown(basic_event(
+            value, timestamp, event,
+        ))),
+        "RebootRepair" => Ok(JournalEvent::RebootRepair(basic_event(
+            value, timestamp, event,
+        ))),
+        "SelfDestruct" => Ok(JournalEvent::SelfDestruct(basic_event(
+            value, timestamp, event,
+        ))),
         "MissionRedirected" => {
             mission_event(value, timestamp, event).map(JournalEvent::MissionRedirected)
         }
@@ -836,18 +1023,25 @@ pub fn parse_journal_value(value: &Value) -> Result<JournalEvent, JournalParseEr
         "ShieldState" => shield_state_event(value, timestamp, event),
         "HullDamage" => hull_damage_event(value, timestamp, event),
         "FighterDestroyed" => Ok(JournalEvent::FighterDestroyed(basic_event(
-            timestamp, event,
+            value, timestamp, event,
         ))),
         "LaunchFighter" => launch_fighter_event(value, timestamp, event),
-        "StartJump" => Ok(JournalEvent::StartJump(basic_event(timestamp, event))),
+        "StartJump" => Ok(JournalEvent::StartJump(basic_event(
+            value, timestamp, event,
+        ))),
         "EjectCargo" => eject_cargo_event(value, timestamp, event),
+        "Cargo" => cargo_event(value, timestamp, event),
+        "CollectCargo" => collect_cargo_event(value, timestamp, event),
+        "MarketBuy" => market_buy_event(value, timestamp, event),
+        "MarketSell" => market_sell_event(value, timestamp, event),
+        "RedeemVoucher" => redeem_voucher_event(value, timestamp, event),
         "CargoDepot" => cargo_depot_event(value, timestamp, event),
         "ReservoirReplenished" => reservoir_replenished_event(value, timestamp, event),
         "PowerplayMerits" => powerplay_merits_event(value, timestamp, event),
         "Music" => music_event(value, timestamp, event),
         "ShipyardSwap" => shipyard_swap_event(value, timestamp, event),
-        "Shutdown" => Ok(JournalEvent::Shutdown(basic_event(timestamp, event))),
-        "Died" => Ok(JournalEvent::Died(basic_event(timestamp, event))),
+        "Shutdown" => Ok(JournalEvent::Shutdown(basic_event(value, timestamp, event))),
+        "Died" => Ok(JournalEvent::Died(basic_event(value, timestamp, event))),
         _ => Ok(
             known_raw_event(value, timestamp, event.clone()).unwrap_or_else(|| {
                 JournalEvent::Unknown {
@@ -896,8 +1090,12 @@ fn parse_event_name(value: &Value) -> Result<&str, JournalParseError> {
         .ok_or(JournalParseError::MissingEvent)
 }
 
-fn basic_event(timestamp: DateTime<Utc>, event: String) -> BasicJournalEvent {
-    BasicJournalEvent { timestamp, event }
+fn basic_event(value: &Value, timestamp: DateTime<Utc>, event: String) -> BasicJournalEvent {
+    BasicJournalEvent {
+        timestamp,
+        event,
+        raw: Some(value.clone()),
+    }
 }
 
 fn typed_event(value: &Value, timestamp: DateTime<Utc>, event: String) -> TypedJournalEvent {
@@ -928,6 +1126,7 @@ fn commander_event(
     Ok(JournalEvent::Commander(CommanderEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         name: fields.name,
     }))
 }
@@ -941,6 +1140,7 @@ fn load_game_event(
     Ok(JournalEvent::LoadGame(LoadGameEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         commander: fields.commander,
         ship: fields.ship,
         ship_localised: fields.ship_localised,
@@ -958,6 +1158,7 @@ fn loadout_event(
     Ok(JournalEvent::Loadout(LoadoutEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         ship: fields.ship,
         ship_localised: fields.ship_localised,
         fuel_capacity_main: fields.fuel_capacity.and_then(|capacity| capacity.main),
@@ -973,6 +1174,7 @@ fn rank_event(
     Ok(JournalEvent::Rank(RankEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         combat: fields.combat,
     }))
 }
@@ -986,6 +1188,7 @@ fn progress_event(
     Ok(JournalEvent::Progress(ProgressEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         combat: fields.combat,
     }))
 }
@@ -999,6 +1202,7 @@ fn location_event(
     Ok(JournalEvent::Location(LocationEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         star_system: fields.star_system,
         system_address: fields.system_address,
         body: fields.body,
@@ -1019,6 +1223,7 @@ fn docked_event(
     Ok(JournalEvent::Docked(DockedEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         star_system: fields.star_system,
         system_address: fields.system_address,
         station_name: fields.station_name,
@@ -1037,6 +1242,7 @@ fn supercruise_destination_drop_event(
         SupercruiseDestinationDropEvent {
             timestamp,
             event,
+            raw: Some(value.clone()),
             destination_type: fields.destination_type,
             destination_type_localised: fields.destination_type_localised,
         },
@@ -1052,6 +1258,7 @@ fn travel_event(
     Ok(TravelEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         star_system: fields.star_system,
         system_address: fields.system_address,
     })
@@ -1066,6 +1273,7 @@ fn receive_text_event(
     Ok(JournalEvent::ReceiveText(ReceiveTextEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         from: fields.from,
         from_localised: fields.from_localised,
         message: fields.message,
@@ -1082,6 +1290,7 @@ fn ship_targeted_event(
     Ok(JournalEvent::ShipTargeted(ShipTargetedEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         target_locked: fields.target_locked,
         scan_stage: fields.scan_stage,
         ship: fields.ship,
@@ -1102,6 +1311,7 @@ fn bounty_event(
     Ok(JournalEvent::Bounty(BountyEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         total_reward: fields.total_reward,
         rewards: fields.rewards,
         victim_faction: fields.victim_faction,
@@ -1121,6 +1331,7 @@ fn faction_kill_bond_event(
     Ok(JournalEvent::FactionKillBond(FactionKillBondEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         reward: fields.reward,
         awarding_faction: fields.awarding_faction,
         victim_faction: fields.victim_faction,
@@ -1137,6 +1348,7 @@ fn interdicted_event(
     Ok(JournalEvent::Interdicted(InterdictedEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         submitted: fields.submitted,
         interdictor: fields.interdictor,
         is_player: fields.is_player,
@@ -1153,6 +1365,7 @@ fn interdiction_event(
     Ok(JournalEvent::Interdiction(InterdictionEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         success: fields.success,
         interdicted: fields.interdicted,
         is_player: fields.is_player,
@@ -1171,6 +1384,7 @@ fn escape_interdiction_event(
     Ok(JournalEvent::EscapeInterdiction(EscapeInterdictionEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         interdictor: fields.interdictor,
         is_player: fields.is_player,
     }))
@@ -1185,6 +1399,7 @@ fn under_attack_event(
     Ok(JournalEvent::UnderAttack(UnderAttackEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         target: fields.target,
     }))
 }
@@ -1198,6 +1413,7 @@ fn mission_event(
     Ok(MissionEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         mission_id: fields.mission_id,
         name: fields.name,
         localised_name: fields.localised_name,
@@ -1236,6 +1452,7 @@ fn missions_event(
     Ok(JournalEvent::Missions(MissionsEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         active: fields
             .active
             .unwrap_or_default()
@@ -1260,6 +1477,7 @@ fn cargo_depot_event(
     Ok(JournalEvent::CargoDepot(CargoDepotEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         mission_id: fields.mission_id,
         update_type: fields.update_type,
         cargo_type: fields.cargo_type,
@@ -1281,6 +1499,7 @@ fn shield_state_event(
     Ok(JournalEvent::ShieldState(ShieldStateEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         shields_up: fields.shields_up,
     }))
 }
@@ -1294,6 +1513,7 @@ fn hull_damage_event(
     Ok(JournalEvent::HullDamage(HullDamageEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         health: fields.health,
         player_pilot: fields.player_pilot,
         fighter: fields.fighter,
@@ -1309,10 +1529,100 @@ fn eject_cargo_event(
     Ok(JournalEvent::EjectCargo(EjectCargoEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         cargo_type: fields.cargo_type,
         cargo_type_localised: fields.cargo_type_localised,
         count: fields.count,
         abandoned: fields.abandoned,
+    }))
+}
+
+fn cargo_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<CargoFields>(value, &event)?;
+    Ok(JournalEvent::Cargo(CargoEvent {
+        timestamp,
+        event,
+        raw: Some(value.clone()),
+        vessel: fields.vessel,
+        count: fields.count,
+        inventory: fields.inventory.unwrap_or_default(),
+    }))
+}
+
+fn collect_cargo_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<CollectCargoFields>(value, &event)?;
+    Ok(JournalEvent::CollectCargo(CollectCargoEvent {
+        timestamp,
+        event,
+        raw: Some(value.clone()),
+        cargo_type: fields.cargo_type,
+        cargo_type_localised: fields.cargo_type_localised,
+        count: fields.count,
+        stolen: fields.stolen,
+        mission_id: fields.mission_id,
+    }))
+}
+
+fn market_buy_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<MarketBuyFields>(value, &event)?;
+    Ok(JournalEvent::MarketBuy(MarketBuyEvent {
+        timestamp,
+        event,
+        raw: Some(value.clone()),
+        cargo_type: fields.cargo_type,
+        cargo_type_localised: fields.cargo_type_localised,
+        count: fields.count,
+        buy_price: fields.buy_price,
+        total_cost: fields.total_cost,
+    }))
+}
+
+fn market_sell_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<MarketSellFields>(value, &event)?;
+    Ok(JournalEvent::MarketSell(MarketSellEvent {
+        timestamp,
+        event,
+        raw: Some(value.clone()),
+        cargo_type: fields.cargo_type,
+        cargo_type_localised: fields.cargo_type_localised,
+        count: fields.count,
+        sell_price: fields.sell_price,
+        total_sale: fields.total_sale,
+        avg_price_paid: fields.avg_price_paid,
+    }))
+}
+
+fn redeem_voucher_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<RedeemVoucherFields>(value, &event)?;
+    Ok(JournalEvent::RedeemVoucher(RedeemVoucherEvent {
+        timestamp,
+        event,
+        raw: Some(value.clone()),
+        voucher_type: fields.voucher_type,
+        amount: fields.amount,
+        faction: fields.faction,
+        factions: fields.factions,
+        broker_percentage: fields.broker_percentage,
     }))
 }
 
@@ -1326,6 +1636,7 @@ fn reservoir_replenished_event(
         ReservoirReplenishedEvent {
             timestamp,
             event,
+            raw: Some(value.clone()),
             fuel_main: fields.fuel_main,
             fuel_reservoir: fields.fuel_reservoir,
         },
@@ -1341,6 +1652,7 @@ fn launch_fighter_event(
     Ok(JournalEvent::LaunchFighter(LaunchFighterEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         player_controlled: fields.player_controlled,
     }))
 }
@@ -1354,6 +1666,7 @@ fn powerplay_merits_event(
     Ok(JournalEvent::PowerplayMerits(PowerplayMeritsEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         merits_gained: fields.merits_gained,
         power: fields.power,
     }))
@@ -1368,6 +1681,7 @@ fn shipyard_swap_event(
     Ok(JournalEvent::ShipyardSwap(ShipyardSwapEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         ship_type: fields.ship_type,
         ship_type_localised: fields.ship_type_localised,
     }))
@@ -1382,6 +1696,7 @@ fn music_event(
     Ok(JournalEvent::Music(MusicEvent {
         timestamp,
         event,
+        raw: Some(value.clone()),
         music_track: fields.music_track,
     }))
 }
@@ -1717,6 +2032,74 @@ struct EjectCargoFields {
 }
 
 #[derive(Deserialize)]
+struct CargoFields {
+    #[serde(rename = "Vessel")]
+    vessel: Option<String>,
+    #[serde(rename = "Count")]
+    count: Option<u64>,
+    #[serde(rename = "Inventory")]
+    inventory: Option<Vec<CargoInventoryItem>>,
+}
+
+#[derive(Deserialize)]
+struct CollectCargoFields {
+    #[serde(rename = "Type")]
+    cargo_type: Option<String>,
+    #[serde(rename = "Type_Localised")]
+    cargo_type_localised: Option<String>,
+    #[serde(rename = "Count")]
+    count: Option<u64>,
+    #[serde(rename = "Stolen")]
+    stolen: Option<bool>,
+    #[serde(rename = "MissionID")]
+    mission_id: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct MarketBuyFields {
+    #[serde(rename = "Type")]
+    cargo_type: Option<String>,
+    #[serde(rename = "Type_Localised")]
+    cargo_type_localised: Option<String>,
+    #[serde(rename = "Count")]
+    count: Option<u64>,
+    #[serde(rename = "BuyPrice")]
+    buy_price: Option<u64>,
+    #[serde(rename = "TotalCost")]
+    total_cost: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct MarketSellFields {
+    #[serde(rename = "Type")]
+    cargo_type: Option<String>,
+    #[serde(rename = "Type_Localised")]
+    cargo_type_localised: Option<String>,
+    #[serde(rename = "Count")]
+    count: Option<u64>,
+    #[serde(rename = "SellPrice")]
+    sell_price: Option<u64>,
+    #[serde(rename = "TotalSale")]
+    total_sale: Option<u64>,
+    #[serde(rename = "AvgPricePaid")]
+    avg_price_paid: Option<u64>,
+}
+
+#[derive(Deserialize)]
+struct RedeemVoucherFields {
+    #[serde(rename = "Type")]
+    voucher_type: Option<String>,
+    #[serde(rename = "Amount")]
+    amount: Option<u64>,
+    #[serde(rename = "Faction")]
+    faction: Option<String>,
+    #[serde(rename = "Factions")]
+    factions: Option<Vec<RedeemVoucherFaction>>,
+    #[serde(rename = "BrokerPercentage")]
+    broker_percentage: Option<u64>,
+}
+
+#[derive(Deserialize)]
 struct ShipyardSwapFields {
     #[serde(rename = "ShipType")]
     ship_type: Option<String>,
@@ -1790,6 +2173,11 @@ mod event_parser {
         "LaunchFighter",
         "StartJump",
         "EjectCargo",
+        "Cargo",
+        "CollectCargo",
+        "MarketBuy",
+        "MarketSell",
+        "RedeemVoucher",
         "ReservoirReplenished",
         "PowerplayMerits",
         "Music",
@@ -1876,6 +2264,32 @@ mod event_parser {
                 value["Count"] = json!(1);
                 value["Abandoned"] = json!(false);
             }
+            "Cargo" => {
+                value["Vessel"] = json!("Ship");
+                value["Count"] = json!(1);
+                value["Inventory"] = json!([{ "Name": "drones", "Count": 1 }]);
+            }
+            "CollectCargo" => {
+                value["Type"] = json!("drones");
+                value["Count"] = json!(1);
+                value["Stolen"] = json!(false);
+            }
+            "MarketBuy" => {
+                value["Type"] = json!("drones");
+                value["Count"] = json!(1);
+                value["BuyPrice"] = json!(101);
+                value["TotalCost"] = json!(101);
+            }
+            "MarketSell" => {
+                value["Type"] = json!("gold");
+                value["Count"] = json!(1);
+                value["SellPrice"] = json!(12000);
+                value["TotalSale"] = json!(12000);
+            }
+            "RedeemVoucher" => {
+                value["Type"] = json!("bounty");
+                value["Amount"] = json!(18000);
+            }
             "ReservoirReplenished" => {
                 value["FuelMain"] = json!(16.0);
                 value["FuelReservoir"] = json!(0.63);
@@ -1944,7 +2358,7 @@ mod event_parser {
             }
         }
 
-        assert!(parsed_valid_lines > PHASE_ONE_EVENTS.len());
+        assert!(parsed_valid_lines > FIXTURES.len());
         assert_eq!(malformed_lines, 1);
         assert!(saw_unknown_event);
     }

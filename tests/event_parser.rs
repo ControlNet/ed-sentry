@@ -28,6 +28,23 @@ fn event_parser_public_api_parses_known_event_for_downstream_callers() {
 }
 
 #[test]
+fn event_parser_public_api_preserves_raw_payload_for_typed_events() {
+    let event = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:06:08Z","event":"Cargo","Vessel":"Ship","Count":7,"Inventory":[],"FixtureUnmodelledField":{"Nested":123}}"#,
+    )
+    .unwrap();
+
+    assert!(matches!(event, JournalEvent::Cargo(_)));
+    assert_eq!(
+        event
+            .raw_payload()
+            .and_then(|raw| raw.get("FixtureUnmodelledField"))
+            .and_then(|field| field.get("Nested")),
+        Some(&serde_json::json!(123))
+    );
+}
+
+#[test]
 fn event_parser_public_api_keeps_unknown_event_recoverable() {
     let event = parse_journal_line(
         r#"{"timestamp":"2035-03-04T05:06:08Z","event":"FixtureFutureEvent","FutureField":123}"#,
@@ -171,6 +188,112 @@ fn event_parser_public_api_extracts_afk_risk_event_fields() {
     match under_attack {
         JournalEvent::UnderAttack(event) => assert_eq!(event.target.as_deref(), Some("You")),
         other => panic!("expected UnderAttack, got {other:?}"),
+    }
+}
+
+#[test]
+fn event_parser_public_api_extracts_cargo_and_reward_ingest_fields() {
+    let cargo = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:06:08Z","event":"Cargo","Vessel":"Ship","Count":7,"Inventory":[{"Name":"drones","Name_Localised":"Limpet","Count":5,"Stolen":0},{"Name":"gold","Count":2,"Stolen":1,"MissionID":42}]}"#,
+    )
+    .unwrap();
+
+    match cargo {
+        JournalEvent::Cargo(event) => {
+            assert_eq!(event.vessel.as_deref(), Some("Ship"));
+            assert_eq!(event.count, Some(7));
+            assert_eq!(event.inventory.len(), 2);
+            assert_eq!(event.inventory[0].name.as_deref(), Some("drones"));
+            assert_eq!(event.inventory[0].name_localised.as_deref(), Some("Limpet"));
+            assert_eq!(event.inventory[0].count, Some(5));
+            assert_eq!(event.inventory[0].stolen, Some(0));
+            assert_eq!(event.inventory[1].mission_id, Some(42));
+        }
+        other => panic!("expected Cargo, got {other:?}"),
+    }
+
+    let collect = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:07:08Z","event":"CollectCargo","Type":"gold","Type_Localised":"Gold","Count":2,"Stolen":false,"MissionID":42}"#,
+    )
+    .unwrap();
+
+    match collect {
+        JournalEvent::CollectCargo(event) => {
+            assert_eq!(event.cargo_type.as_deref(), Some("gold"));
+            assert_eq!(event.cargo_type_localised.as_deref(), Some("Gold"));
+            assert_eq!(event.count, Some(2));
+            assert_eq!(event.stolen, Some(false));
+            assert_eq!(event.mission_id, Some(42));
+        }
+        other => panic!("expected CollectCargo, got {other:?}"),
+    }
+
+    let buy = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:08:08Z","event":"MarketBuy","Type":"drones","Type_Localised":"Limpet","Count":4,"BuyPrice":101,"TotalCost":404}"#,
+    )
+    .unwrap();
+
+    match buy {
+        JournalEvent::MarketBuy(event) => {
+            assert_eq!(event.cargo_type.as_deref(), Some("drones"));
+            assert_eq!(event.cargo_type_localised.as_deref(), Some("Limpet"));
+            assert_eq!(event.count, Some(4));
+            assert_eq!(event.buy_price, Some(101));
+            assert_eq!(event.total_cost, Some(404));
+        }
+        other => panic!("expected MarketBuy, got {other:?}"),
+    }
+
+    let sell = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:09:08Z","event":"MarketSell","Type":"gold","Type_Localised":"Gold","Count":2,"SellPrice":12000,"TotalSale":24000,"AvgPricePaid":9000}"#,
+    )
+    .unwrap();
+
+    match sell {
+        JournalEvent::MarketSell(event) => {
+            assert_eq!(event.cargo_type.as_deref(), Some("gold"));
+            assert_eq!(event.cargo_type_localised.as_deref(), Some("Gold"));
+            assert_eq!(event.count, Some(2));
+            assert_eq!(event.sell_price, Some(12000));
+            assert_eq!(event.total_sale, Some(24000));
+            assert_eq!(event.avg_price_paid, Some(9000));
+        }
+        other => panic!("expected MarketSell, got {other:?}"),
+    }
+
+    let redeem = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:10:08Z","event":"RedeemVoucher","Type":"bounty","Amount":18000,"Faction":"Fixture Security","BrokerPercentage":25,"Factions":[{"Faction":"Fixture Security","Amount":12000},{"Faction":"Fixture Navy","Amount":6000}]}"#,
+    )
+    .unwrap();
+
+    match redeem {
+        JournalEvent::RedeemVoucher(event) => {
+            assert_eq!(event.voucher_type.as_deref(), Some("bounty"));
+            assert_eq!(event.amount, Some(18000));
+            assert_eq!(event.faction.as_deref(), Some("Fixture Security"));
+            assert_eq!(event.broker_percentage, Some(25));
+            let factions = event.factions.as_ref().expect("faction breakdown");
+            assert_eq!(factions.len(), 2);
+            assert_eq!(factions[0].faction.as_deref(), Some("Fixture Security"));
+            assert_eq!(factions[0].amount, Some(12000));
+            assert_eq!(factions[1].faction.as_deref(), Some("Fixture Navy"));
+            assert_eq!(factions[1].amount, Some(6000));
+        }
+        other => panic!("expected RedeemVoucher, got {other:?}"),
+    }
+}
+
+#[test]
+fn event_parser_public_api_accepts_sparse_cargo_ingest_events() {
+    for line in [
+        r#"{"timestamp":"2035-03-04T05:06:08Z","event":"Cargo"}"#,
+        r#"{"timestamp":"2035-03-04T05:07:08Z","event":"CollectCargo"}"#,
+        r#"{"timestamp":"2035-03-04T05:08:08Z","event":"MarketBuy"}"#,
+        r#"{"timestamp":"2035-03-04T05:09:08Z","event":"MarketSell"}"#,
+        r#"{"timestamp":"2035-03-04T05:10:08Z","event":"RedeemVoucher"}"#,
+    ] {
+        let event = parse_journal_line(line).unwrap();
+        assert!(!matches!(event, JournalEvent::Unknown { .. }), "{event:?}");
     }
 }
 

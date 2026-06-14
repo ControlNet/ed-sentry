@@ -20,6 +20,7 @@ fn basic(event: &str, minutes: i64) -> BasicJournalEvent {
     BasicJournalEvent {
         timestamp: timestamp(minutes),
         event: event.to_string(),
+        raw: None,
     }
 }
 
@@ -27,6 +28,7 @@ fn location(minutes: i64, body_type: Option<&str>, body: Option<&str>) -> Journa
     JournalEvent::Location(LocationEvent {
         timestamp: timestamp(minutes),
         event: "Location".to_string(),
+        raw: None,
         star_system: Some("Fixture Ring System".to_string()),
         system_address: Some(100),
         body: body.map(str::to_string),
@@ -42,6 +44,7 @@ fn res_drop(minutes: i64, destination_type: &str) -> JournalEvent {
     JournalEvent::SupercruiseDestinationDrop(SupercruiseDestinationDropEvent {
         timestamp: timestamp(minutes),
         event: "SupercruiseDestinationDrop".to_string(),
+        raw: None,
         destination_type: Some(destination_type.to_string()),
         destination_type_localised: Some(destination_type.to_string()),
     })
@@ -51,6 +54,7 @@ fn travel(event: &str, minutes: i64) -> TravelEvent {
     TravelEvent {
         timestamp: timestamp(minutes),
         event: event.to_string(),
+        raw: None,
         star_system: Some("Fixture System".to_string()),
         system_address: Some(200),
     }
@@ -64,6 +68,7 @@ fn incomplete_targeted(
     JournalEvent::ShipTargeted(ShipTargetedEvent {
         timestamp: timestamp(minutes),
         event: "ShipTargeted".to_string(),
+        raw: None,
         target_locked: Some(true),
         scan_stage: Some(0),
         ship: Some("hauler".to_string()),
@@ -79,6 +84,7 @@ fn bounty(minutes: i64, total_reward: Option<u64>, reward_items: &[u64]) -> Jour
     JournalEvent::Bounty(BountyEvent {
         timestamp: timestamp(minutes),
         event: "Bounty".to_string(),
+        raw: None,
         total_reward,
         rewards: Some(
             reward_items
@@ -101,6 +107,7 @@ fn kill_bond(minutes: i64, reward: u64) -> JournalEvent {
     JournalEvent::FactionKillBond(FactionKillBondEvent {
         timestamp: timestamp(minutes),
         event: "FactionKillBond".to_string(),
+        raw: None,
         reward: Some(reward),
         awarding_faction: Some("Fixture Navy".to_string()),
         victim_faction: Some("Fixture Raiders".to_string()),
@@ -112,6 +119,7 @@ fn mission(event: &str, minutes: i64, mission_id: u64, name: &str) -> MissionEve
     MissionEvent {
         timestamp: timestamp(minutes),
         event: event.to_string(),
+        raw: None,
         mission_id: Some(mission_id),
         name: Some(name.to_string()),
         localised_name: None,
@@ -147,11 +155,13 @@ fn session_state_tracks_identity_status_and_damage_from_typed_events() {
     state.apply_event(&JournalEvent::Commander(CommanderEvent {
         timestamp: timestamp(0),
         event: "Commander".to_string(),
+        raw: None,
         name: Some("Cmdr Fixture State".to_string()),
     }));
     state.apply_event(&JournalEvent::LoadGame(LoadGameEvent {
         timestamp: timestamp(1),
         event: "LoadGame".to_string(),
+        raw: None,
         commander: Some("Cmdr Fixture State".to_string()),
         ship: Some("krait_mkii".to_string()),
         ship_localised: Some("Krait Mk II".to_string()),
@@ -161,6 +171,7 @@ fn session_state_tracks_identity_status_and_damage_from_typed_events() {
     state.apply_event(&JournalEvent::Loadout(LoadoutEvent {
         timestamp: timestamp(2),
         event: "Loadout".to_string(),
+        raw: None,
         ship: Some("python".to_string()),
         ship_localised: Some("Python".to_string()),
         fuel_capacity_main: Some(32.0),
@@ -169,11 +180,13 @@ fn session_state_tracks_identity_status_and_damage_from_typed_events() {
     state.apply_event(&JournalEvent::ShieldState(ShieldStateEvent {
         timestamp: timestamp(4),
         event: "ShieldState".to_string(),
+        raw: None,
         shields_up: Some(false),
     }));
     state.apply_event(&JournalEvent::HullDamage(HullDamageEvent {
         timestamp: timestamp(5),
         event: "HullDamage".to_string(),
+        raw: None,
         health: Some(0.72),
         player_pilot: Some(true),
         fighter: Some(false),
@@ -181,11 +194,13 @@ fn session_state_tracks_identity_status_and_damage_from_typed_events() {
     state.apply_event(&JournalEvent::LaunchFighter(LaunchFighterEvent {
         timestamp: timestamp(6),
         event: "LaunchFighter".to_string(),
+        raw: None,
         player_controlled: Some(false),
     }));
     state.apply_event(&JournalEvent::HullDamage(HullDamageEvent {
         timestamp: timestamp(7),
         event: "HullDamage".to_string(),
+        raw: None,
         health: Some(0.44),
         player_pilot: Some(false),
         fighter: Some(true),
@@ -298,6 +313,7 @@ fn session_state_start_end_rules() {
         JournalEvent::Music(MusicEvent {
             timestamp: timestamp(1),
             event: "Music".to_string(),
+            raw: None,
             music_track: Some("MainMenu".to_string()),
         }),
         JournalEvent::Shutdown(basic("Shutdown", 1)),
@@ -346,6 +362,7 @@ fn session_state_non_afk_boundaries_do_not_start_or_end_session() {
     state.apply_event(&JournalEvent::Music(MusicEvent {
         timestamp: timestamp(4),
         event: "Music".to_string(),
+        raw: None,
         music_track: Some("Combat".to_string()),
     }));
 

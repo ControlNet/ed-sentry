@@ -97,6 +97,12 @@ fn replay_broad_events_stay_low_noise_and_malformed_lines_continue() {
             "\n",
             r#"{"timestamp":"2035-01-09T10:01:30Z","event":"HeatWarning"}"#,
             "\n",
+            r#"{"timestamp":"2035-01-09T10:01:40Z","event":"Cargo","Count":1,"Inventory":[{"Name":"gold","Count":1}]}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-09T10:01:50Z","event":"MarketBuy","Type":"drones","Count":4,"BuyPrice":101,"TotalCost":404}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-09T10:01:55Z","event":"RedeemVoucher","Type":"bounty","Amount":18000,"Faction":"Fixture Security"}"#,
+            "\n",
             "not-json\n",
             r#"{"timestamp":"2035-01-09T10:02:00Z","event":"ShipTargeted","TargetLocked":true,"ScanStage":3,"Ship":"viper","Ship_Localised":"Viper Mk III","LegalStatus":"Wanted"}"#,
             "\n"
@@ -128,6 +134,9 @@ fn replay_broad_events_stay_low_noise_and_malformed_lines_continue() {
     assert!(!stdout.contains("Interdicted"), "{stdout}");
     assert!(!stdout.contains("UnderAttack"), "{stdout}");
     assert!(!stdout.contains("HeatWarning"), "{stdout}");
+    assert!(!stdout.contains("MarketBuy"), "{stdout}");
+    assert!(!stdout.contains("RedeemVoucher"), "{stdout}");
+    assert!(!stdout.contains("Fixture Security"), "{stdout}");
     assert!(!stdout.contains("FixtureField"), "{stdout}");
 }
 

@@ -56,6 +56,7 @@ fn reservoir_replenished_event(fuel_main: f64) -> JournalEvent {
     JournalEvent::ReservoirReplenished(ReservoirReplenishedEvent {
         timestamp: timestamp(),
         event: "ReservoirReplenished".to_string(),
+        raw: None,
         fuel_main: Some(fuel_main),
         fuel_reservoir: Some(0.5),
     })
@@ -65,6 +66,7 @@ fn timed_reservoir_replenished_event(timestamp: DateTime<Utc>, fuel_main: f64) -
     JournalEvent::ReservoirReplenished(ReservoirReplenishedEvent {
         timestamp,
         event: "ReservoirReplenished".to_string(),
+        raw: None,
         fuel_main: Some(fuel_main),
         fuel_reservoir: Some(0.5),
     })
@@ -454,6 +456,7 @@ fn monitor_events_receive_text_pirate_scan_updates_state_and_notifies() {
     let event = JournalEvent::ReceiveText(ReceiveTextEvent {
         timestamp: timestamp(),
         event: "ReceiveText".to_string(),
+        raw: None,
         from: Some("npc_fixture_pirate".to_string()),
         from_localised: Some("Fixture Pirate".to_string()),
         message: Some("$Pirate_OnStartScanCargo".to_string()),
