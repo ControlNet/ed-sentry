@@ -117,6 +117,64 @@ fn event_parser_public_api_extracts_mission_modeling_fields() {
 }
 
 #[test]
+fn event_parser_public_api_extracts_afk_risk_event_fields() {
+    let interdicted = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:06:08Z","event":"Interdicted","Submitted":false,"Interdictor":"Fixture Interdictor","IsPlayer":false,"CombatRank":5}"#,
+    )
+    .unwrap();
+
+    match interdicted {
+        JournalEvent::Interdicted(event) => {
+            assert_eq!(event.submitted, Some(false));
+            assert_eq!(event.interdictor.as_deref(), Some("Fixture Interdictor"));
+            assert_eq!(event.is_player, Some(false));
+            assert_eq!(event.combat_rank, Some(5));
+        }
+        other => panic!("expected Interdicted, got {other:?}"),
+    }
+
+    let interdiction = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:07:08Z","event":"Interdiction","Success":true,"Interdicted":"Fixture Target","IsPlayer":false,"CombatRank":4,"Faction":"Fixture Faction","Power":"Fixture Power"}"#,
+    )
+    .unwrap();
+
+    match interdiction {
+        JournalEvent::Interdiction(event) => {
+            assert_eq!(event.success, Some(true));
+            assert_eq!(event.interdicted.as_deref(), Some("Fixture Target"));
+            assert_eq!(event.is_player, Some(false));
+            assert_eq!(event.combat_rank, Some(4));
+            assert_eq!(event.faction.as_deref(), Some("Fixture Faction"));
+            assert_eq!(event.power.as_deref(), Some("Fixture Power"));
+        }
+        other => panic!("expected Interdiction, got {other:?}"),
+    }
+
+    let escaped = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:08:08Z","event":"EscapeInterdiction","Interdictor":"Fixture Interdictor","IsPlayer":true}"#,
+    )
+    .unwrap();
+
+    match escaped {
+        JournalEvent::EscapeInterdiction(event) => {
+            assert_eq!(event.interdictor.as_deref(), Some("Fixture Interdictor"));
+            assert_eq!(event.is_player, Some(true));
+        }
+        other => panic!("expected EscapeInterdiction, got {other:?}"),
+    }
+
+    let under_attack = parse_journal_line(
+        r#"{"timestamp":"2035-03-04T05:09:08Z","event":"UnderAttack","Target":"You"}"#,
+    )
+    .unwrap();
+
+    match under_attack {
+        JournalEvent::UnderAttack(event) => assert_eq!(event.target.as_deref(), Some("You")),
+        other => panic!("expected UnderAttack, got {other:?}"),
+    }
+}
+
+#[test]
 fn event_parser_public_api_returns_recoverable_malformed_error() {
     let error =
         parse_journal_line(r#"{"timestamp":"2035-03-04T05:06:09Z","event":"MalformedFixture""#)

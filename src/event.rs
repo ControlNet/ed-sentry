@@ -108,22 +108,12 @@ macro_rules! known_raw_journal_events {
         ScientificResearch => "ScientificResearch",
         CapShipBond => "CapShipBond",
         PVPKill => "PVPKill",
-        EscapeInterdiction => "EscapeInterdiction",
-        Interdicted => "Interdicted",
-        Interdiction => "Interdiction",
-        UnderAttack => "UnderAttack",
-        HeatDamage => "HeatDamage",
-        HeatWarning => "HeatWarning",
         CommitCrime => "CommitCrime",
         CrimeVictim => "CrimeVictim",
         PayBounties => "PayBounties",
         PayFines => "PayFines",
         RedeemVoucher => "RedeemVoucher",
-        SelfDestruct => "SelfDestruct",
-        RebootRepair => "RebootRepair",
         FighterRebuilt => "FighterRebuilt",
-        CockpitBreached => "CockpitBreached",
-        SystemsShutdown => "SystemsShutdown",
         Resurrect => "Resurrect",
         SRVDestroyed => "SRVDestroyed",
         Scanned => "Scanned",
@@ -380,6 +370,43 @@ pub struct FactionKillBondEvent {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InterdictedEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub submitted: Option<bool>,
+    pub interdictor: Option<String>,
+    pub is_player: Option<bool>,
+    pub combat_rank: Option<u8>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InterdictionEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub success: Option<bool>,
+    pub interdicted: Option<String>,
+    pub is_player: Option<bool>,
+    pub combat_rank: Option<u8>,
+    pub faction: Option<String>,
+    pub power: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EscapeInterdictionEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub interdictor: Option<String>,
+    pub is_player: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UnderAttackEvent {
+    pub timestamp: DateTime<Utc>,
+    pub event: String,
+    pub target: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MissionEvent {
     pub timestamp: DateTime<Utc>,
     pub event: String,
@@ -526,6 +553,16 @@ macro_rules! define_journal_event {
             ShipTargeted(ShipTargetedEvent),
             Bounty(BountyEvent),
             FactionKillBond(FactionKillBondEvent),
+            Interdicted(InterdictedEvent),
+            Interdiction(InterdictionEvent),
+            EscapeInterdiction(EscapeInterdictionEvent),
+            UnderAttack(UnderAttackEvent),
+            HeatWarning(BasicJournalEvent),
+            HeatDamage(BasicJournalEvent),
+            CockpitBreached(BasicJournalEvent),
+            SystemsShutdown(BasicJournalEvent),
+            RebootRepair(BasicJournalEvent),
+            SelfDestruct(BasicJournalEvent),
             MissionRedirected(MissionEvent),
             Missions(MissionsEvent),
             MissionAccepted(MissionEvent),
@@ -603,6 +640,16 @@ impl JournalEvent {
             Self::ShipTargeted(event) => event.timestamp,
             Self::Bounty(event) => event.timestamp,
             Self::FactionKillBond(event) => event.timestamp,
+            Self::Interdicted(event) => event.timestamp,
+            Self::Interdiction(event) => event.timestamp,
+            Self::EscapeInterdiction(event) => event.timestamp,
+            Self::UnderAttack(event) => event.timestamp,
+            Self::HeatWarning(event)
+            | Self::HeatDamage(event)
+            | Self::CockpitBreached(event)
+            | Self::SystemsShutdown(event)
+            | Self::RebootRepair(event)
+            | Self::SelfDestruct(event) => event.timestamp,
             Self::MissionRedirected(event)
             | Self::MissionAccepted(event)
             | Self::MissionCompleted(event)
@@ -648,6 +695,16 @@ impl JournalEvent {
             Self::ShipTargeted(event) => &event.event,
             Self::Bounty(event) => &event.event,
             Self::FactionKillBond(event) => &event.event,
+            Self::Interdicted(event) => &event.event,
+            Self::Interdiction(event) => &event.event,
+            Self::EscapeInterdiction(event) => &event.event,
+            Self::UnderAttack(event) => &event.event,
+            Self::HeatWarning(event)
+            | Self::HeatDamage(event)
+            | Self::CockpitBreached(event)
+            | Self::SystemsShutdown(event)
+            | Self::RebootRepair(event)
+            | Self::SelfDestruct(event) => &event.event,
             Self::MissionRedirected(event)
             | Self::MissionAccepted(event)
             | Self::MissionCompleted(event)
@@ -752,6 +809,16 @@ pub fn parse_journal_value(value: &Value) -> Result<JournalEvent, JournalParseEr
         "ShipTargeted" => ship_targeted_event(value, timestamp, event),
         "Bounty" => bounty_event(value, timestamp, event),
         "FactionKillBond" => faction_kill_bond_event(value, timestamp, event),
+        "Interdicted" => interdicted_event(value, timestamp, event),
+        "Interdiction" => interdiction_event(value, timestamp, event),
+        "EscapeInterdiction" => escape_interdiction_event(value, timestamp, event),
+        "UnderAttack" => under_attack_event(value, timestamp, event),
+        "HeatWarning" => Ok(JournalEvent::HeatWarning(basic_event(timestamp, event))),
+        "HeatDamage" => Ok(JournalEvent::HeatDamage(basic_event(timestamp, event))),
+        "CockpitBreached" => Ok(JournalEvent::CockpitBreached(basic_event(timestamp, event))),
+        "SystemsShutdown" => Ok(JournalEvent::SystemsShutdown(basic_event(timestamp, event))),
+        "RebootRepair" => Ok(JournalEvent::RebootRepair(basic_event(timestamp, event))),
+        "SelfDestruct" => Ok(JournalEvent::SelfDestruct(basic_event(timestamp, event))),
         "MissionRedirected" => {
             mission_event(value, timestamp, event).map(JournalEvent::MissionRedirected)
         }
@@ -1058,6 +1125,67 @@ fn faction_kill_bond_event(
         awarding_faction: fields.awarding_faction,
         victim_faction: fields.victim_faction,
         victim_faction_localised: fields.victim_faction_localised,
+    }))
+}
+
+fn interdicted_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<InterdictedFields>(value, &event)?;
+    Ok(JournalEvent::Interdicted(InterdictedEvent {
+        timestamp,
+        event,
+        submitted: fields.submitted,
+        interdictor: fields.interdictor,
+        is_player: fields.is_player,
+        combat_rank: fields.combat_rank,
+    }))
+}
+
+fn interdiction_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<InterdictionFields>(value, &event)?;
+    Ok(JournalEvent::Interdiction(InterdictionEvent {
+        timestamp,
+        event,
+        success: fields.success,
+        interdicted: fields.interdicted,
+        is_player: fields.is_player,
+        combat_rank: fields.combat_rank,
+        faction: fields.faction,
+        power: fields.power,
+    }))
+}
+
+fn escape_interdiction_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<EscapeInterdictionFields>(value, &event)?;
+    Ok(JournalEvent::EscapeInterdiction(EscapeInterdictionEvent {
+        timestamp,
+        event,
+        interdictor: fields.interdictor,
+        is_player: fields.is_player,
+    }))
+}
+
+fn under_attack_event(
+    value: &Value,
+    timestamp: DateTime<Utc>,
+    event: String,
+) -> Result<JournalEvent, JournalParseError> {
+    let fields = event_fields::<UnderAttackFields>(value, &event)?;
+    Ok(JournalEvent::UnderAttack(UnderAttackEvent {
+        timestamp,
+        event,
+        target: fields.target,
     }))
 }
 
@@ -1425,6 +1553,48 @@ struct FactionKillBondFields {
 }
 
 #[derive(Deserialize)]
+struct InterdictedFields {
+    #[serde(rename = "Submitted")]
+    submitted: Option<bool>,
+    #[serde(rename = "Interdictor")]
+    interdictor: Option<String>,
+    #[serde(rename = "IsPlayer")]
+    is_player: Option<bool>,
+    #[serde(rename = "CombatRank")]
+    combat_rank: Option<u8>,
+}
+
+#[derive(Deserialize)]
+struct InterdictionFields {
+    #[serde(rename = "Success")]
+    success: Option<bool>,
+    #[serde(rename = "Interdicted")]
+    interdicted: Option<String>,
+    #[serde(rename = "IsPlayer")]
+    is_player: Option<bool>,
+    #[serde(rename = "CombatRank")]
+    combat_rank: Option<u8>,
+    #[serde(rename = "Faction")]
+    faction: Option<String>,
+    #[serde(rename = "Power")]
+    power: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct EscapeInterdictionFields {
+    #[serde(rename = "Interdictor")]
+    interdictor: Option<String>,
+    #[serde(rename = "IsPlayer")]
+    is_player: Option<bool>,
+}
+
+#[derive(Deserialize)]
+struct UnderAttackFields {
+    #[serde(rename = "Target")]
+    target: Option<String>,
+}
+
+#[derive(Deserialize)]
 struct MissionFields {
     #[serde(rename = "MissionID")]
     mission_id: Option<u64>,
@@ -1598,6 +1768,16 @@ mod event_parser {
         "ShipTargeted",
         "Bounty",
         "FactionKillBond",
+        "Interdicted",
+        "Interdiction",
+        "EscapeInterdiction",
+        "UnderAttack",
+        "HeatWarning",
+        "HeatDamage",
+        "CockpitBreached",
+        "SystemsShutdown",
+        "RebootRepair",
+        "SelfDestruct",
         "MissionRedirected",
         "Missions",
         "MissionAccepted",
@@ -1660,6 +1840,25 @@ mod event_parser {
                 value["AwardingFaction"] = json!("Fixture Navy");
                 value["VictimFaction"] = json!("Fixture Raiders");
             }
+            "Interdicted" => {
+                value["Submitted"] = json!(false);
+                value["Interdictor"] = json!("Fixture Interdictor");
+                value["IsPlayer"] = json!(false);
+                value["CombatRank"] = json!(4);
+            }
+            "Interdiction" => {
+                value["Success"] = json!(true);
+                value["Interdicted"] = json!("Fixture Target");
+                value["IsPlayer"] = json!(false);
+                value["CombatRank"] = json!(3);
+                value["Faction"] = json!("Fixture Faction");
+                value["Power"] = json!("Fixture Power");
+            }
+            "EscapeInterdiction" => {
+                value["Interdictor"] = json!("Fixture Interdictor");
+                value["IsPlayer"] = json!(false);
+            }
+            "UnderAttack" => value["Target"] = json!("You"),
             "MissionRedirected" | "MissionAccepted" | "MissionCompleted" | "MissionFailed"
             | "MissionAbandoned" => {
                 value["MissionID"] = json!(7001002);
@@ -1768,7 +1967,7 @@ mod event_parser {
     #[test]
     fn event_parser_parses_broad_journal_events_as_specific_typed_variants() {
         let event_names: &[&str] = known_raw_journal_events!(known_raw_event_names);
-        assert!(event_names.len() >= 200);
+        assert!(event_names.len() >= 190);
         assert_specific_typed_events(event_names);
     }
 
