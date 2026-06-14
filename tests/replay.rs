@@ -91,6 +91,12 @@ fn replay_broad_events_stay_low_noise_and_malformed_lines_continue() {
             "\n",
             r#"{"timestamp":"2035-01-09T10:01:00Z","event":"DockingGranted","LandingPad":42,"FixtureField":"quiet"}"#,
             "\n",
+            r#"{"timestamp":"2035-01-09T10:01:10Z","event":"Interdicted","Submitted":false,"Interdictor":"Fixture Interdictor","IsPlayer":false,"CombatRank":5}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-09T10:01:20Z","event":"UnderAttack","Target":"You"}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-09T10:01:30Z","event":"HeatWarning"}"#,
+            "\n",
             "not-json\n",
             r#"{"timestamp":"2035-01-09T10:02:00Z","event":"ShipTargeted","TargetLocked":true,"ScanStage":3,"Ship":"viper","Ship_Localised":"Viper Mk III","LegalStatus":"Wanted"}"#,
             "\n"
@@ -119,6 +125,9 @@ fn replay_broad_events_stay_low_noise_and_malformed_lines_continue() {
     );
     assert!(stdout.contains("Scan: Viper Mk III"), "{stdout}");
     assert!(!stdout.contains("DockingGranted"), "{stdout}");
+    assert!(!stdout.contains("Interdicted"), "{stdout}");
+    assert!(!stdout.contains("UnderAttack"), "{stdout}");
+    assert!(!stdout.contains("HeatWarning"), "{stdout}");
     assert!(!stdout.contains("FixtureField"), "{stdout}");
 }
 
