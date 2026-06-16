@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub journal: JournalConfig,
     pub monitor: MonitorConfig,
     pub log_levels: LogLevelConfig,
+    pub matrix: Option<MatrixConfig>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -58,6 +59,7 @@ pub struct LogLevelConfig {
     pub missions: u8,
     pub missions_all: u8,
     pub merits: u8,
+    pub rank_promotion: u8,
     pub no_kills: u8,
     pub kill_rate: u8,
     pub summary_kills: u8,
@@ -66,6 +68,35 @@ pub struct LogLevelConfig {
     pub summary_bounties: u8,
     pub summary_merits: u8,
     pub duplicate_suppression: u8,
+}
+
+pub const MATRIX_DEVICE_ID: &str = "EDAFKDASHBOARD";
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct MatrixConfig {
+    pub enabled: bool,
+    pub homeserver: Option<String>,
+    pub user_id: Option<String>,
+    pub room_id: Option<String>,
+    pub access_token: Option<String>,
+    pub mention_user_id: Option<String>,
+    pub status_update_interval_seconds: u64,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub struct MatrixRuntimeConfig {
+    pub homeserver: String,
+    pub user_id: String,
+    pub room_id: String,
+    pub access_token: String,
+    pub mention_user_id: Option<String>,
+    pub status_update_interval_seconds: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct MatrixRuntimeConfigResult {
+    pub config: Option<MatrixRuntimeConfig>,
+    pub warnings: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -84,6 +115,7 @@ pub struct RuntimeConfig {
     pub journal: JournalConfig,
     pub monitor: MonitorConfig,
     pub log_levels: LogLevelConfig,
+    pub matrix: Option<MatrixConfig>,
     pub set_file: Option<PathBuf>,
     pub file_select: bool,
     pub reset_session: bool,
@@ -168,33 +200,154 @@ impl Default for LogLevelConfig {
         Self {
             scan_incoming: 1,
             scan_easy: 1,
-            scan_hard: 2,
-            kill_easy: 2,
-            kill_hard: 2,
-            fighter_hull: 2,
-            fighter_down: 3,
-            ship_shields: 3,
-            ship_hull: 3,
-            died: 3,
-            cargo_lost: 3,
-            bait_value_low: 2,
-            security_scan: 2,
-            security_attack: 3,
+            scan_hard: 1,
+            kill_easy: 1,
+            kill_hard: 1,
+            fighter_hull: 1,
+            fighter_down: 2,
+            ship_shields: 1,
+            ship_hull: 1,
+            died: 2,
+            cargo_lost: 2,
+            bait_value_low: 1,
+            security_scan: 1,
+            security_attack: 1,
             fuel_report: 1,
             fuel_low: 2,
-            fuel_critical: 3,
-            missions: 2,
-            missions_all: 3,
+            fuel_critical: 2,
+            missions: 1,
+            missions_all: 2,
             merits: 0,
-            no_kills: 3,
-            kill_rate: 3,
-            summary_kills: 2,
+            rank_promotion: 2,
+            no_kills: 2,
+            kill_rate: 1,
+            summary_kills: 1,
             summary_faction: 0,
             summary_scans: 0,
-            summary_bounties: 2,
-            summary_merits: 2,
+            summary_bounties: 1,
+            summary_merits: 1,
             duplicate_suppression: 1,
         }
+    }
+}
+
+impl Default for MatrixConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            homeserver: None,
+            user_id: None,
+            room_id: None,
+            access_token: None,
+            mention_user_id: None,
+            status_update_interval_seconds: 60,
+        }
+    }
+}
+
+impl fmt::Debug for MatrixConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MatrixConfig")
+            .field("enabled", &self.enabled)
+            .field("homeserver", &self.homeserver)
+            .field("user_id", &self.user_id)
+            .field("room_id", &self.room_id)
+            .field(
+                "access_token",
+                &self.access_token.as_ref().map(|_| "<redacted>"),
+            )
+            .field("mention_user_id", &self.mention_user_id)
+            .field(
+                "status_update_interval_seconds",
+                &self.status_update_interval_seconds,
+            )
+            .finish()
+    }
+}
+
+impl fmt::Debug for MatrixRuntimeConfig {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("MatrixRuntimeConfig")
+            .field("homeserver", &self.homeserver)
+            .field("user_id", &self.user_id)
+            .field("room_id", &self.room_id)
+            .field("access_token", &"<redacted>")
+            .field("mention_user_id", &self.mention_user_id)
+            .field(
+                "status_update_interval_seconds",
+                &self.status_update_interval_seconds,
+            )
+            .field("device_id", &MATRIX_DEVICE_ID)
+            .finish()
+    }
+}
+
+impl MatrixRuntimeConfig {
+    pub fn device_id(&self) -> &'static str {
+        MATRIX_DEVICE_ID
+    }
+}
+
+impl MatrixConfig {
+    pub fn to_runtime_config(&self) -> MatrixRuntimeConfigResult {
+        if !self.enabled {
+            return MatrixRuntimeConfigResult::default();
+        }
+
+        let missing_fields = self.missing_runtime_fields();
+        if !missing_fields.is_empty() {
+            return MatrixRuntimeConfigResult {
+                config: None,
+                warnings: vec![format!(
+                    "Matrix delivery disabled for this run: missing required matrix config field(s): {}",
+                    missing_fields.join(", ")
+                )],
+            };
+        }
+
+        MatrixRuntimeConfigResult {
+            config: Some(MatrixRuntimeConfig {
+                homeserver: self.homeserver.clone().expect("homeserver checked"),
+                user_id: self.user_id.clone().expect("user_id checked"),
+                room_id: self.room_id.clone().expect("room_id checked"),
+                access_token: self.access_token.clone().expect("access_token checked"),
+                mention_user_id: self.mention_user_id.clone(),
+                status_update_interval_seconds: self.status_update_interval_seconds,
+            }),
+            warnings: Vec::new(),
+        }
+    }
+
+    fn missing_runtime_fields(&self) -> Vec<&'static str> {
+        let mut missing_fields = Vec::new();
+        if self.homeserver.is_none() {
+            missing_fields.push("homeserver");
+        }
+        if self.user_id.is_none() {
+            missing_fields.push("user_id");
+        }
+        if self.room_id.is_none() {
+            missing_fields.push("room_id");
+        }
+        if self.access_token.is_none() {
+            missing_fields.push("access_token");
+        }
+        missing_fields
+    }
+}
+
+pub fn matrix_runtime_config(matrix: &Option<MatrixConfig>) -> MatrixRuntimeConfigResult {
+    match matrix {
+        Some(matrix) => matrix.to_runtime_config(),
+        None => MatrixRuntimeConfigResult::default(),
+    }
+}
+
+impl RuntimeConfig {
+    pub fn matrix_runtime(&self) -> MatrixRuntimeConfigResult {
+        matrix_runtime_config(&self.matrix)
     }
 }
 
@@ -224,10 +377,17 @@ impl AppConfig {
     pub fn load_optional(path: Option<&Path>) -> Result<LoadedConfig, ConfigError> {
         match path {
             Some(path) => Self::load_from_path(path),
-            None => Ok(LoadedConfig {
-                config: Self::default(),
-                warnings: Vec::new(),
-            }),
+            None => {
+                let implicit_path = Path::new("config.toml");
+                if implicit_path.exists() {
+                    Self::load_from_path(implicit_path)
+                } else {
+                    Ok(LoadedConfig {
+                        config: Self::default(),
+                        warnings: Vec::new(),
+                    })
+                }
+            }
         }
     }
 
@@ -246,6 +406,7 @@ impl AppConfig {
             journal: self.journal,
             monitor: self.monitor,
             log_levels: self.log_levels,
+            matrix: self.matrix,
             set_file: overrides.set_file.clone(),
             file_select: overrides.file_select,
             reset_session: overrides.reset_session,
@@ -387,8 +548,74 @@ impl AppConfig {
             }
         }
 
+        if let Some(matrix) = value.get("matrix") {
+            if let Some(table) = matrix.as_table() {
+                config.matrix = read_matrix_config(table, &mut warnings);
+            } else {
+                warnings.push(
+                    "config key matrix has wrong type; using defaults for section".to_string(),
+                );
+            }
+        }
+
         LoadedConfig { config, warnings }
     }
+}
+
+fn read_matrix_config(
+    table: &toml::map::Map<String, Value>,
+    warnings: &mut Vec<String>,
+) -> Option<MatrixConfig> {
+    let mut enabled = false;
+    read_bool(
+        table.get("enabled"),
+        "matrix.enabled",
+        &mut enabled,
+        warnings,
+    );
+    if !enabled {
+        return None;
+    }
+
+    let mut matrix = MatrixConfig::default();
+    read_optional_string(
+        table.get("homeserver"),
+        "matrix.homeserver",
+        &mut matrix.homeserver,
+        warnings,
+    );
+    read_optional_string(
+        table.get("user_id"),
+        "matrix.user_id",
+        &mut matrix.user_id,
+        warnings,
+    );
+    read_optional_string(
+        table.get("room_id"),
+        "matrix.room_id",
+        &mut matrix.room_id,
+        warnings,
+    );
+    read_optional_string(
+        table.get("access_token"),
+        "matrix.access_token",
+        &mut matrix.access_token,
+        warnings,
+    );
+    read_optional_string(
+        table.get("mention_user_id"),
+        "matrix.mention_user_id",
+        &mut matrix.mention_user_id,
+        warnings,
+    );
+    read_u64(
+        table.get("status_update_interval_seconds"),
+        "matrix.status_update_interval_seconds",
+        &mut matrix.status_update_interval_seconds,
+        warnings,
+    );
+
+    Some(matrix)
 }
 
 fn read_log_levels(
@@ -517,6 +744,12 @@ fn read_log_levels(
         warnings,
     );
     read_u8(
+        table.get("rank_promotion"),
+        "log_levels.rank_promotion",
+        &mut log_levels.rank_promotion,
+        warnings,
+    );
+    read_u8(
         table.get("no_kills"),
         "log_levels.no_kills",
         &mut log_levels.no_kills,
@@ -570,6 +803,21 @@ fn read_string(value: Option<&Value>, key: &str, target: &mut String, warnings: 
     if let Some(value) = value {
         if let Some(parsed) = value.as_str() {
             *target = parsed.to_string();
+        } else {
+            warnings.push(wrong_type_warning(key));
+        }
+    }
+}
+
+fn read_optional_string(
+    value: Option<&Value>,
+    key: &str,
+    target: &mut Option<String>,
+    warnings: &mut Vec<String>,
+) {
+    if let Some(value) = value {
+        if let Some(parsed) = value.as_str() {
+            *target = Some(parsed.to_string());
         } else {
             warnings.push(wrong_type_warning(key));
         }
@@ -654,11 +902,61 @@ mod tests {
         assert!(!config.monitor.extended_stats);
         assert_eq!(config.monitor.min_scan_level, 1);
         assert_eq!(config.monitor.poll_interval_ms, 1000);
+        assert_eq!(
+            default_level_two_log_fields(&config.log_levels),
+            vec![
+                "fighter_down",
+                "died",
+                "cargo_lost",
+                "fuel_low",
+                "fuel_critical",
+                "missions_all",
+                "rank_promotion",
+                "no_kills",
+            ]
+        );
         assert_eq!(config.log_levels.summary_faction, 0);
         assert_eq!(config.log_levels.summary_scans, 0);
         assert_eq!(config.log_levels.merits, 0);
-        assert_eq!(config.log_levels.summary_merits, 2);
         assert_eq!(config.log_levels.duplicate_suppression, 1);
+        assert_eq!(config.matrix, None);
+    }
+
+    fn default_level_two_log_fields(log_levels: &LogLevelConfig) -> Vec<&'static str> {
+        [
+            ("scan_incoming", log_levels.scan_incoming),
+            ("scan_easy", log_levels.scan_easy),
+            ("scan_hard", log_levels.scan_hard),
+            ("kill_easy", log_levels.kill_easy),
+            ("kill_hard", log_levels.kill_hard),
+            ("fighter_hull", log_levels.fighter_hull),
+            ("fighter_down", log_levels.fighter_down),
+            ("ship_shields", log_levels.ship_shields),
+            ("ship_hull", log_levels.ship_hull),
+            ("died", log_levels.died),
+            ("cargo_lost", log_levels.cargo_lost),
+            ("bait_value_low", log_levels.bait_value_low),
+            ("security_scan", log_levels.security_scan),
+            ("security_attack", log_levels.security_attack),
+            ("fuel_report", log_levels.fuel_report),
+            ("fuel_low", log_levels.fuel_low),
+            ("fuel_critical", log_levels.fuel_critical),
+            ("missions", log_levels.missions),
+            ("missions_all", log_levels.missions_all),
+            ("merits", log_levels.merits),
+            ("rank_promotion", log_levels.rank_promotion),
+            ("no_kills", log_levels.no_kills),
+            ("kill_rate", log_levels.kill_rate),
+            ("summary_kills", log_levels.summary_kills),
+            ("summary_faction", log_levels.summary_faction),
+            ("summary_scans", log_levels.summary_scans),
+            ("summary_bounties", log_levels.summary_bounties),
+            ("summary_merits", log_levels.summary_merits),
+            ("duplicate_suppression", log_levels.duplicate_suppression),
+        ]
+        .into_iter()
+        .filter_map(|(name, level)| (level == 2).then_some(name))
+        .collect()
     }
 
     #[test]
@@ -732,7 +1030,257 @@ mod tests {
         assert_eq!(runtime.journal.folder, "/cli/journals");
         assert_eq!(runtime.monitor.poll_interval_ms, 500);
         assert!(!runtime.monitor.live_status);
+        assert_eq!(runtime.matrix, None);
         assert_eq!(runtime.set_file, Some(PathBuf::from("Journal.log")));
         assert!(runtime.debug);
+    }
+
+    #[test]
+    fn config_matrix_missing_section_defaults_to_none() {
+        let loaded = AppConfig::from_toml_str(
+            r#"
+            [monitor]
+            live_status = false
+            "#,
+        )
+        .unwrap();
+
+        assert!(loaded.warnings.is_empty());
+        assert_eq!(loaded.config.matrix, None);
+    }
+
+    #[test]
+    fn config_matrix_disabled_is_silent_none() {
+        let loaded = AppConfig::from_toml_str(
+            r#"
+            [matrix]
+            enabled = false
+            homeserver = 42
+            "#,
+        )
+        .unwrap();
+
+        assert!(loaded.warnings.is_empty());
+        assert_eq!(loaded.config.matrix, None);
+    }
+
+    #[test]
+    fn config_matrix_enabled_preserves_present_fields_for_runtime_validation() {
+        let loaded = AppConfig::from_toml_str(concat!(
+            r#"
+            [matrix]
+            enabled = true
+            homeserver = "https://matrix.invalid"
+            user_id = "@fixture:matrix.invalid"
+            room_id = "!fixture-room:matrix.invalid"
+            access_"#,
+            "token",
+            r#" = "fixture-value"
+            mention_user_id = "@mention-fixture:matrix.invalid"
+            status_update_interval_seconds = 45
+            "#,
+        ))
+        .unwrap();
+
+        let matrix = loaded.config.matrix.unwrap();
+        assert!(loaded.warnings.is_empty());
+        assert!(matrix.enabled);
+        assert_eq!(matrix.homeserver.as_deref(), Some("https://matrix.invalid"));
+        assert_eq!(matrix.user_id.as_deref(), Some("@fixture:matrix.invalid"));
+        assert_eq!(
+            matrix.room_id.as_deref(),
+            Some("!fixture-room:matrix.invalid")
+        );
+        assert_eq!(matrix.access_token.as_deref(), Some("fixture-value"));
+        assert_eq!(
+            matrix.mention_user_id.as_deref(),
+            Some("@mention-fixture:matrix.invalid")
+        );
+        assert_eq!(matrix.status_update_interval_seconds, 45);
+    }
+
+    #[test]
+    fn config_matrix_optional_mention_and_status_interval_default() {
+        let loaded = AppConfig::from_toml_str(
+            r#"
+            [matrix]
+            enabled = true
+            homeserver = "https://matrix.invalid"
+            "#,
+        )
+        .unwrap();
+
+        let matrix = loaded.config.matrix.unwrap();
+        assert!(loaded.warnings.is_empty());
+        assert_eq!(matrix.homeserver.as_deref(), Some("https://matrix.invalid"));
+        assert_eq!(matrix.mention_user_id, None);
+        assert_eq!(matrix.status_update_interval_seconds, 60);
+    }
+
+    #[test]
+    fn config_matrix_enabled_wrong_typed_keys_warn_and_keep_defaults() {
+        let loaded = AppConfig::from_toml_str(
+            r#"
+            [matrix]
+            enabled = true
+            homeserver = false
+            user_id = 42
+            room_id = []
+            access_token = {}
+            mention_user_id = 99
+            status_update_interval_seconds = "often"
+            "#,
+        )
+        .unwrap();
+
+        let matrix = loaded.config.matrix.unwrap();
+        assert_eq!(matrix.homeserver, None);
+        assert_eq!(matrix.user_id, None);
+        assert_eq!(matrix.room_id, None);
+        assert_eq!(matrix.access_token, None);
+        assert_eq!(matrix.mention_user_id, None);
+        assert_eq!(matrix.status_update_interval_seconds, 60);
+        assert_eq!(loaded.warnings.len(), 6);
+        assert!(loaded.warnings[0].contains("matrix.homeserver"));
+        assert!(loaded.warnings[1].contains("matrix.user_id"));
+        assert!(loaded.warnings[2].contains("matrix.room_id"));
+        assert!(loaded.warnings[3].contains("matrix.access_token"));
+        assert!(loaded.warnings[4].contains("matrix.mention_user_id"));
+        assert!(
+            loaded.warnings[5].contains("matrix.status_update_interval_seconds"),
+            "{:?}",
+            loaded.warnings
+        );
+    }
+
+    #[test]
+    fn matrix_runtime_config_complete_enabled_config_preserves_runtime_fields() {
+        let loaded = AppConfig::from_toml_str(concat!(
+            r#"
+            [matrix]
+            enabled = true
+            homeserver = "https://matrix.invalid"
+            user_id = "@fixture:matrix.invalid"
+            room_id = "!fixture-room:matrix.invalid"
+            access_"#,
+            "token",
+            r#" = "fixture-value"
+            mention_user_id = "@mention-fixture:matrix.invalid"
+            status_update_interval_seconds = 45
+            "#,
+        ))
+        .unwrap();
+
+        let runtime = loaded
+            .config
+            .into_runtime(&CliConfigOverrides::default())
+            .matrix_runtime();
+        let matrix = runtime.config.unwrap();
+        assert!(runtime.warnings.is_empty());
+        assert_eq!(matrix.homeserver, "https://matrix.invalid");
+        assert_eq!(matrix.user_id, "@fixture:matrix.invalid");
+        assert_eq!(matrix.room_id, "!fixture-room:matrix.invalid");
+        assert_eq!(matrix.access_token, "fixture-value");
+        assert_eq!(
+            matrix.mention_user_id.as_deref(),
+            Some("@mention-fixture:matrix.invalid")
+        );
+        assert_eq!(matrix.status_update_interval_seconds, 45);
+    }
+
+    #[test]
+    fn matrix_runtime_config_redacts_access_token() {
+        let matrix = MatrixConfig {
+            homeserver: Some("https://matrix.invalid".to_string()),
+            user_id: Some("@fixture:matrix.invalid".to_string()),
+            room_id: Some("!fixture-room:matrix.invalid".to_string()),
+            access_token: Some("fixture-value".to_string()),
+            ..MatrixConfig::default()
+        };
+        let runtime = matrix.to_runtime_config();
+        let runtime_config = runtime.config.clone().unwrap();
+        let app_config = AppConfig {
+            matrix: Some(matrix.clone()),
+            ..AppConfig::default()
+        };
+        let full_runtime = app_config
+            .clone()
+            .into_runtime(&CliConfigOverrides::default());
+        let loaded = LoadedConfig {
+            config: app_config,
+            warnings: Vec::new(),
+        };
+
+        for debug in [
+            format!("{matrix:?}"),
+            format!("{runtime_config:?}"),
+            format!("{runtime:?}"),
+            format!("{full_runtime:?}"),
+            format!("{loaded:?}"),
+        ] {
+            assert!(debug.contains("<redacted>"), "{debug}");
+            assert!(!debug.contains("fixture-value"), "{debug}");
+        }
+    }
+
+    #[test]
+    fn matrix_enabled_missing_required_field_disables_with_warning() {
+        let loaded = AppConfig::from_toml_str(concat!(
+            r#"
+            [matrix]
+            enabled = true
+            homeserver = "https://matrix.invalid"
+            room_id = "!fixture-room:matrix.invalid"
+            access_"#,
+            "token",
+            r#" = "fixture-value"
+            "#,
+        ))
+        .unwrap();
+
+        let runtime = loaded
+            .config
+            .into_runtime(&CliConfigOverrides::default())
+            .matrix_runtime();
+
+        assert_eq!(runtime.config, None);
+        assert_eq!(runtime.warnings.len(), 1);
+        assert_eq!(
+            runtime.warnings[0],
+            "Matrix delivery disabled for this run: missing required matrix config field(s): user_id"
+        );
+        assert!(!runtime.warnings[0].contains("fixture-value"));
+        assert!(!runtime.warnings[0].contains('\n'));
+    }
+
+    #[test]
+    fn matrix_runtime_config_uses_fixed_device_id() {
+        let matrix = MatrixConfig {
+            homeserver: Some("https://matrix.invalid".to_string()),
+            user_id: Some("@fixture:matrix.invalid".to_string()),
+            room_id: Some("!fixture-room:matrix.invalid".to_string()),
+            access_token: Some("fixture-value".to_string()),
+            ..MatrixConfig::default()
+        }
+        .to_runtime_config()
+        .config
+        .unwrap();
+
+        assert_eq!(matrix.device_id(), "EDAFKDASHBOARD");
+    }
+
+    #[test]
+    fn matrix_runtime_config_missing_or_disabled_matrix_is_silent() {
+        let missing = matrix_runtime_config(&None);
+        let disabled = MatrixConfig {
+            enabled: false,
+            ..MatrixConfig::default()
+        }
+        .to_runtime_config();
+
+        assert_eq!(missing.config, None);
+        assert!(missing.warnings.is_empty());
+        assert_eq!(disabled.config, None);
+        assert!(disabled.warnings.is_empty());
     }
 }
