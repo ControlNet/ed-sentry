@@ -1,12 +1,12 @@
-# ed-afk-dashboard
+# ed-sentry
 
-`ed-afk-dashboard` is an independent Rust CLI for Elite Dangerous Journal AFK monitoring use cases. It reads local Journal files, tracks Phase 1 combat and session signals, and prints terminal output for live watch and replay runs.
+`ed-sentry` is an independent Rust CLI for Elite Dangerous Journal AFK monitoring use cases. It reads local Journal files, tracks Phase 1 combat and session signals, and prints terminal output for live watch and replay runs.
 
 This project is not a fork, port, or copy of another monitor. The implementation, code structure, messages, and docs are written for this repository while following Elite Dangerous Journal semantics and the Phase 1 plan.
 
 ## Phase 1 Scope
 
-Phase 1 is local CLI monitoring only.
+Phase 1 is local CLI monitoring with Matrix watch-mode delivery.
 
 Supported now:
 
@@ -15,10 +15,11 @@ Supported now:
 - Replay one sanitized or local Journal file from start to end.
 - Track cargo scans, observed kills, bounties, massacre mission progress, shield and hull state, fighter events, fuel reports, cargo loss, death, and session summaries.
 - Render terminal event logs and a live status line when the output is a TTY.
+- Send watch-mode notifications to an unencrypted Matrix room when `[matrix] enabled = true` is configured.
 
 Out of scope for Phase 1:
 
-- Matrix delivery and Matrix command handling. Phase 2 Matrix is deferred and has no usable Phase 1 configuration.
+- Matrix command handling.
 - Discord delivery.
 - WebUI dashboards.
 - EDMC plugin support.
@@ -37,11 +38,10 @@ On Linux and development machines, pass the folder or a file explicitly:
 
 ```bash
 cargo run -- --journal "/path/to/Elite Dangerous"
-cargo run -- --journal "/home/ubuntu/Elite Dangerous"
 cargo run -- --replay --set-file tests/fixtures/journal_combat_bounty.log --no-status-line
 ```
 
-By default, `ed-afk-dashboard` runs in watch mode and accepts `--journal <folder>` or `--set-file <file>`. Passing `--replay` switches to replay mode; replay requires `--set-file <file>` and rejects `--journal` in Phase 1.
+By default, `ed-sentry` runs in watch mode and accepts `--journal <folder>` or `--set-file <file>`. Passing `--replay` switches to replay mode; replay requires `--set-file <file>` and rejects `--journal` in Phase 1.
 
 ## CLI Usage
 
@@ -51,7 +51,13 @@ Run from the repository root while developing:
 cargo run -- --journal "/path/to/Elite Dangerous"
 ```
 
-Replay the deterministic sanitized combat fixture:
+Run watch mode with an explicit config file:
+
+```bash
+cargo run -- --config config.toml --journal "/path/to/Elite Dangerous"
+```
+
+Replay the deterministic sanitized combat fixture without Matrix:
 
 ```bash
 cargo run -- --replay --set-file tests/fixtures/journal_combat_bounty.log --no-status-line
@@ -61,6 +67,14 @@ Run the normal test suite:
 
 ```bash
 cargo test --all
+```
+
+Run the full local verification set before sending changes for review:
+
+```bash
+cargo fmt --check
+cargo test --all
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 Run the optional ignored real Journal regression test:
@@ -73,6 +87,8 @@ Expected signals:
 
 - The replay fixture exits `0` and prints reference-style terminal fragments such as `Scan`, `Kill`, and `Total Stats`.
 - `cargo test --all` exits `0` without requiring private Journal files.
+- `cargo fmt --check` exits `0` when formatting is current.
+- `cargo clippy --all-targets --all-features -- -D warnings` exits `0` when no lint warnings remain.
 - The ignored real Journal test exits `0` when local Journals exist. If that test is unavailable in the current checkout, Task 14 hasn't added it yet.
 
 Common flags:
@@ -91,13 +107,24 @@ No subcommands are used. If `--replay` is absent, the CLI runs in watch mode.
 
 ## Configuration
 
-Use `config.example.toml` as the Phase 1 reference. It contains the locked defaults for `[journal]`, `[monitor]`, and `[log_levels]`.
+Use `config.example.toml` as the committed reference. Copy it to `config.toml` for local settings:
+
+```bash
+cp config.example.toml config.toml
+```
+
+Only these config names are supported by this project documentation:
+
+- `config.example.toml` is committed and safe to share.
+- `config.toml` is local, gitignored, and must not be committed because it can contain your Matrix access token.
 
 Config precedence is:
 
 1. CLI flags.
-2. Values from `--config <file>`.
+2. Values from an explicit `--config <file>`, or from `./config.toml` when `--config` is not passed and that file exists.
 3. Built-in defaults.
+
+If `--config <file>` is passed, that path is strict: the file must exist and be valid TOML. If `--config` is not passed, the app auto-loads `./config.toml` when present. If `./config.toml` is absent, the app runs with built-in defaults.
 
 Missing keys keep their defaults. Wrong typed keys print a warning and keep the default for that key. Malformed TOML exits with code `1`.
 
@@ -119,14 +146,24 @@ Replay summary log levels control individual summary fragments:
 - `summary_faction` controls per-victim-faction kill totals.
 - `summary_merits` controls the Powerplay merits fragment.
 
-Log level values are terminal routing levels in Phase 1:
+Log level values control notification routing:
 
-- `0` ignores that notification type.
-- `1` prints to the terminal.
-- `2` prints to the terminal and marks the event as future remote-capable.
-- `3` prints to the terminal and marks the event as future mention-capable.
+- `0` means off.
+- `1` means notify.
+- `2` and higher mean notify and add a Matrix mention when Matrix delivery is enabled.
 
-Remote delivery is not active in Phase 1. There are no Matrix homeserver, token, room, or command settings to configure.
+Matrix settings live in `[matrix]`:
+
+- `enabled = false` keeps Matrix delivery off.
+- `homeserver`, `user_id`, `room_id`, and `access_token = "<token>"` configure Matrix delivery directly in `config.toml`. `room_id` accepts either a room ID such as `!roomid:example.org` or a legal Matrix room alias such as `#alerts:example.org`.
+- `mention_user_id` is optional. Set it to the Matrix user ID that should be mentioned by level `2+` notifications.
+- `status_update_interval_seconds = 60` controls how often watch mode may send status updates.
+
+Store the token directly as `access_token = "<token>"` in local `config.toml`. There is no env-token config key. Don't commit `config.toml`.
+
+Matrix delivery is watch-mode only. Replay remains terminal-only and never initializes Matrix, sends Matrix messages, or publishes Matrix status updates, even when `config.toml` contains Matrix settings.
+
+Matrix end-to-end encryption is unsupported. Use an unencrypted Matrix room for delivery.
 
 ## Privacy And Fixtures
 
@@ -140,13 +177,28 @@ See `tests/fixtures/README.md` for the fixture policy.
 
 The tag release workflow publishes these Phase 1 artifact names:
 
-- `ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz`
-- `ed-afk-dashboard-x86_64-pc-windows-msvc.zip`
+- `ed-sentry-x86_64-unknown-linux-gnu.tar.gz`
+- `ed-sentry-x86_64-pc-windows-msvc.zip`
+
+The Windows zip expands to an `ed-sentry` folder containing:
+
+- `ed-sentry.exe`
+- `config.toml`
+
+The packaged `config.toml` is copied from the committed safe template and must be edited locally before enabling Matrix delivery. It must not contain a real access token in git.
+
+For a local Windows GNU package, run:
+
+```bash
+scripts/package-windows-gnu.sh
+```
+
+This rebuilds `target/x86_64-pc-windows-gnu/release/ed-sentry.exe`, refreshes `dist/ed-sentry/`, and writes `dist/ed-sentry-x86_64-pc-windows-gnu.zip` using `config.example.toml` as the packaged `config.toml`.
 
 CI runs the normal sanitized test suite on Linux and Windows. Optional ignored real Journal regression tests remain local-only and are not part of CI or release workflows.
 
-## Phase 2 Roadmap
+## Matrix Roadmap
 
-Matrix is deferred to Phase 2. Phase 1 keeps notifier abstractions ready for future delivery, but Matrix is not active, not configured, and not required for any current command.
+The Matrix MVP is notification delivery only. It does not implement Matrix command handling.
 
-Future Matrix work may add remote delivery after the local CLI is stable. Matrix command handling remains a non-goal until a later plan explicitly adds it.
+Future work may expand delivery behavior after the local CLI and watch-mode Matrix path stay stable.
