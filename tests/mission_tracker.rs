@@ -1,5 +1,5 @@
-use ed_afk_dashboard::event::parse_journal_line;
-use ed_afk_dashboard::mission::{MissionKind, MissionProgress, MissionState, MissionTracker};
+use ed_sentry::event::parse_journal_line;
+use ed_sentry::mission::{MissionKind, MissionProgress, MissionState, MissionTracker};
 
 fn apply_lines(lines: &[&str]) -> MissionTracker {
     let mut tracker = MissionTracker::new();
