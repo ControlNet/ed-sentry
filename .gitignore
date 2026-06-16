@@ -1,4 +1,5 @@
 /target
+/config.toml
 /.omo/evidence/*
 !/.omo/evidence/.gitignore
 /.omo/boulder.json

@@ -1,6 +1,6 @@
-# Phase 1 example config for ed-afk-dashboard.
+# Example config for ed-sentry.
 # CLI flags override this file. Missing keys keep the defaults shown here.
-# Matrix, Discord, WebUI, EDMC, and automation settings are not active Phase 1 config.
+# Copy this file to config.toml for local settings. Do not commit config.toml.
 
 [journal]
 # Empty folder uses the Windows Saved Games known folder, including system folder moves.
@@ -27,33 +27,46 @@ min_scan_level = 1
 poll_interval_ms = 1000
 
 [log_levels]
-# Phase 1 levels: 0 ignore, 1 terminal, 2 terminal plus future remote, 3 terminal plus future mention.
+# Levels: 0 off, 1 notify, 2+ notify and Matrix mention.
 scan_incoming = 1
 scan_easy = 1
-scan_hard = 2
-kill_easy = 2
-kill_hard = 2
-fighter_hull = 2
-fighter_down = 3
-ship_shields = 3
-ship_hull = 3
-died = 3
-cargo_lost = 3
-bait_value_low = 2
-security_scan = 2
-security_attack = 3
+scan_hard = 1
+kill_easy = 1
+kill_hard = 1
+fighter_hull = 1
+fighter_down = 2
+ship_shields = 1
+ship_hull = 1
+died = 2
+cargo_lost = 2
+bait_value_low = 1
+security_scan = 1
+security_attack = 1
 fuel_report = 1
 fuel_low = 2
-fuel_critical = 3
-missions = 2
-missions_all = 3
+fuel_critical = 2
+missions = 1
+missions_all = 2
 merits = 0
-no_kills = 3
-kill_rate = 3
-summary_kills = 2
+rank_promotion = 2
+no_kills = 2
+kill_rate = 1
+summary_kills = 1
 summary_faction = 0
 summary_scans = 0
-summary_bounties = 2
-summary_merits = 2
+summary_bounties = 1
+summary_merits = 1
 # Retained for future remote duplicate-suppression notices; inactive for Phase 1 terminal output.
 duplicate_suppression = 1
+
+[matrix]
+# Matrix delivery requires an unencrypted room; E2EE/end-to-end encrypted rooms are unsupported.
+enabled = false
+homeserver = "https://matrix.example.org"
+user_id = "@ed-sentry:example.org"
+room_id = "!roomid:example.org"
+# A room alias like "#alerts:example.org" is also accepted.
+access_token = "<token>"
+# Optional Matrix user ID to mention for log levels 2 and higher.
+mention_user_id = ""
+status_update_interval_seconds = 60
