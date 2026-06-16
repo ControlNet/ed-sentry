@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use ed_afk_dashboard::event::{parse_journal_line, JournalEvent, JournalParseError};
+use ed_sentry::event::{parse_journal_line, JournalEvent, JournalParseError};
 
 #[test]
 fn event_parser_public_api_parses_known_event_for_downstream_callers() {

@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ed_afk_dashboard::config::{JournalConfig, RuntimeConfig};
-use ed_afk_dashboard::journal::{
+use ed_sentry::config::{JournalConfig, RuntimeConfig};
+use ed_sentry::journal::{
     discover_journal_files, journal_folder_from_saved_games, parse_journal_filename_timestamp,
     preload_journal_file, preload_journal_file_with_options, recent_journal_file_choices,
     resolve_journal_folder, select_configured_journal_file, select_newest_journal_file,
@@ -194,6 +194,7 @@ fn journal_discovery_set_file_bypasses_folder_discovery() {
         journal: JournalConfig::default(),
         monitor: Default::default(),
         log_levels: Default::default(),
+        matrix: None,
         set_file: Some(set_file.clone()),
         file_select: false,
         reset_session: false,

@@ -3,13 +3,10 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::time::Duration;
 
-use ed_afk_dashboard::config::{AppConfig, CliConfigOverrides, LogLevelConfig, MonitorConfig};
-use ed_afk_dashboard::event::parse_journal_line;
-use ed_afk_dashboard::journal::{
-    live_poll_interval, preload_journal_file, LiveTail, LiveTailWarning,
-};
-use ed_afk_dashboard::monitor::EventMonitor;
-use ed_afk_dashboard::notifier::FakeNotifier;
+use ed_sentry::config::{AppConfig, CliConfigOverrides, LogLevelConfig, MonitorConfig};
+use ed_sentry::event::parse_journal_line;
+use ed_sentry::journal::{live_poll_interval, preload_journal_file, LiveTail, LiveTailWarning};
+use ed_sentry::monitor::EventMonitor;
 
 #[test]
 fn live_tail_no_preload_duplicate() {
@@ -140,22 +137,19 @@ fn live_tail_temp_file_drives_monitor_notifier_pipeline_without_sleeping() {
     .unwrap();
     let preload = preload_journal_file(&path, parse_journal_line).unwrap();
     let mut tail = LiveTail::from_preload(&path, &preload);
-    let mut monitor = EventMonitor::new(
-        FakeNotifier::new(),
-        MonitorConfig::default(),
-        LogLevelConfig::default(),
-    );
+    let mut monitor = EventMonitor::new(MonitorConfig::default(), LogLevelConfig::default());
+    let mut notifications = Vec::new();
 
     for record in &preload.records {
-        monitor
-            .process_event(record.result.as_ref().expect("preload event should parse"))
-            .unwrap();
+        notifications.extend(
+            monitor.process_event(record.result.as_ref().expect("preload event should parse")),
+        );
     }
     assert_eq!(
         monitor.state().system.as_deref(),
         Some("Live Boundary System")
     );
-    assert!(monitor.dispatcher().notifier().notifications().is_empty());
+    assert!(notifications.is_empty());
     assert!(tail.poll(parse_journal_line).unwrap().records.is_empty());
 
     append_bytes(
@@ -164,16 +158,13 @@ fn live_tail_temp_file_drives_monitor_notifier_pipeline_without_sleeping() {
     );
     let partial_poll = tail.poll(parse_journal_line).unwrap();
     assert!(partial_poll.records.is_empty());
-    assert!(monitor.dispatcher().notifier().notifications().is_empty());
+    assert!(notifications.is_empty());
 
     append_bytes(&path, b"\n");
     let scan_poll = tail.poll(parse_journal_line).unwrap();
     assert_eq!(scan_poll.records.len(), 1);
-    monitor
-        .process_event(scan_poll.records[0].result.as_ref().unwrap())
-        .unwrap();
+    notifications.extend(monitor.process_event(scan_poll.records[0].result.as_ref().unwrap()));
 
-    let notifications = monitor.dispatcher().notifier().notifications();
     assert_eq!(notifications.len(), 1);
     assert_eq!(notifications[0].event_type, "ship_scan");
     assert!(notifications[0]
@@ -191,11 +182,8 @@ fn live_tail_temp_file_drives_monitor_notifier_pipeline_without_sleeping() {
     );
     let kill_poll = tail.poll(parse_journal_line).unwrap();
     assert_eq!(kill_poll.records.len(), 1);
-    monitor
-        .process_event(kill_poll.records[0].result.as_ref().unwrap())
-        .unwrap();
+    notifications.extend(monitor.process_event(kill_poll.records[0].result.as_ref().unwrap()));
 
-    let notifications = monitor.dispatcher().notifier().notifications();
     assert_eq!(notifications.len(), 2);
     assert_eq!(notifications[1].event_type, "kill_bounty");
     assert!(notifications[1].terminal_text.contains("Kill"));
@@ -211,7 +199,7 @@ fn append_bytes(path: &std::path::Path, bytes: &[u8]) {
     file.write_all(bytes).unwrap();
 }
 
-fn ok_lines(poll: &ed_afk_dashboard::journal::LiveTailPoll<String>) -> Vec<&str> {
+fn ok_lines(poll: &ed_sentry::journal::LiveTailPoll<String>) -> Vec<&str> {
     poll.records
         .iter()
         .map(|record| record.result.as_ref().unwrap().as_str())
