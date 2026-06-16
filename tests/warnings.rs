@@ -1,10 +1,8 @@
 use chrono::{DateTime, Duration, TimeZone, Utc};
-use ed_afk_dashboard::config::{LogLevelConfig, MonitorConfig};
-use ed_afk_dashboard::event::{
-    BountyEvent, BountyReward, JournalEvent, SupercruiseDestinationDropEvent,
-};
-use ed_afk_dashboard::monitor::EventMonitor;
-use ed_afk_dashboard::notifier::{FakeNotifier, Notification};
+use ed_sentry::config::{LogLevelConfig, MonitorConfig};
+use ed_sentry::event::{BountyEvent, BountyReward, JournalEvent, SupercruiseDestinationDropEvent};
+use ed_sentry::monitor::EventMonitor;
+use ed_sentry::notifier::Notification;
 
 fn timestamp(minutes: i64) -> DateTime<Utc> {
     Utc.with_ymd_and_hms(2035, 4, 12, 8, 0, 0).single().unwrap() + Duration::minutes(minutes)
@@ -49,18 +47,29 @@ fn bounty(minutes: i64) -> JournalEvent {
     })
 }
 
-fn monitor(config: MonitorConfig, log_levels: LogLevelConfig) -> EventMonitor<FakeNotifier> {
-    EventMonitor::new(FakeNotifier::new(), config, log_levels)
+fn monitor(config: MonitorConfig, log_levels: LogLevelConfig) -> EventMonitor {
+    EventMonitor::new(config, log_levels)
 }
 
-fn notifications<'a>(
-    monitor: &'a EventMonitor<FakeNotifier>,
-    event_type: &str,
-) -> Vec<&'a Notification> {
-    monitor
-        .dispatcher()
-        .notifier()
-        .notifications()
+fn push_event(
+    notifications: &mut Vec<Notification>,
+    monitor: &mut EventMonitor,
+    event: &JournalEvent,
+) {
+    notifications.extend(monitor.process_event(event));
+}
+
+fn push_warning(
+    notifications: &mut Vec<Notification>,
+    monitor: &mut EventMonitor,
+    minutes: i64,
+    preload: bool,
+) {
+    notifications.extend(monitor.check_warnings_at(timestamp(minutes), preload));
+}
+
+fn notifications<'a>(notifications: &'a [Notification], event_type: &str) -> Vec<&'a Notification> {
+    notifications
         .iter()
         .filter(|notification| notification.event_type == event_type)
         .collect()
@@ -69,13 +78,14 @@ fn notifications<'a>(
 #[test]
 fn warnings_no_kill_threshold_initial_warning_fires_once() {
     let mut monitor = monitor(monitor_config(), LogLevelConfig::default());
+    let mut sent = Vec::new();
 
-    monitor.process_event(&res_drop(0)).unwrap();
-    monitor.check_warnings_at(timestamp(4), false).unwrap();
-    monitor.check_warnings_at(timestamp(5), false).unwrap();
-    monitor.check_warnings_at(timestamp(35), false).unwrap();
+    push_event(&mut sent, &mut monitor, &res_drop(0));
+    push_warning(&mut sent, &mut monitor, 4, false);
+    push_warning(&mut sent, &mut monitor, 5, false);
+    push_warning(&mut sent, &mut monitor, 35, false);
 
-    let warnings = notifications(&monitor, "no_kills");
+    let warnings = notifications(&sent, "no_kills");
     assert_eq!(warnings.len(), 1);
     assert_eq!(warnings[0].timestamp, timestamp(5));
     assert_eq!(warnings[0].level, LogLevelConfig::default().no_kills);
@@ -89,14 +99,15 @@ fn warnings_later_no_kill_threshold_and_cooldown() {
         ..monitor_config()
     };
     let mut monitor = monitor(config, LogLevelConfig::default());
+    let mut sent = Vec::new();
 
-    monitor.process_event(&res_drop(0)).unwrap();
-    monitor.process_event(&bounty(1)).unwrap();
-    monitor.check_warnings_at(timestamp(10), false).unwrap();
-    monitor.check_warnings_at(timestamp(11), false).unwrap();
-    monitor.check_warnings_at(timestamp(40), false).unwrap();
-    monitor.check_warnings_at(timestamp(41), false).unwrap();
-    let warnings = notifications(&monitor, "no_kills");
+    push_event(&mut sent, &mut monitor, &res_drop(0));
+    push_event(&mut sent, &mut monitor, &bounty(1));
+    push_warning(&mut sent, &mut monitor, 10, false);
+    push_warning(&mut sent, &mut monitor, 11, false);
+    push_warning(&mut sent, &mut monitor, 40, false);
+    push_warning(&mut sent, &mut monitor, 41, false);
+    let warnings = notifications(&sent, "no_kills");
     assert_eq!(warnings.len(), 2);
     assert_eq!(warnings[0].timestamp, timestamp(11));
     assert_eq!(
@@ -113,13 +124,14 @@ fn warnings_new_kill_resets_no_kill_timer() {
         ..monitor_config()
     };
     let mut monitor = monitor(config, LogLevelConfig::default());
+    let mut sent = Vec::new();
 
-    monitor.process_event(&res_drop(0)).unwrap();
-    monitor.process_event(&bounty(8)).unwrap();
-    monitor.check_warnings_at(timestamp(13), false).unwrap();
-    monitor.check_warnings_at(timestamp(18), false).unwrap();
+    push_event(&mut sent, &mut monitor, &res_drop(0));
+    push_event(&mut sent, &mut monitor, &bounty(8));
+    push_warning(&mut sent, &mut monitor, 13, false);
+    push_warning(&mut sent, &mut monitor, 18, false);
 
-    let warnings = notifications(&monitor, "no_kills");
+    let warnings = notifications(&sent, "no_kills");
     assert_eq!(warnings.len(), 1);
     assert_eq!(warnings[0].timestamp, timestamp(18));
 }
@@ -131,17 +143,18 @@ fn warnings_low_kill_rate_threshold_cooldown_and_kill_reset() {
         ..monitor_config()
     };
     let mut monitor = monitor(config, LogLevelConfig::default());
+    let mut sent = Vec::new();
 
-    monitor.process_event(&res_drop(0)).unwrap();
-    monitor.process_event(&bounty(1)).unwrap();
-    monitor.check_warnings_at(timestamp(4), false).unwrap();
-    monitor.check_warnings_at(timestamp(6), false).unwrap();
-    monitor.check_warnings_at(timestamp(20), false).unwrap();
-    monitor.process_event(&bounty(21)).unwrap();
-    monitor.check_warnings_at(timestamp(22), false).unwrap();
-    monitor.check_warnings_at(timestamp(36), false).unwrap();
+    push_event(&mut sent, &mut monitor, &res_drop(0));
+    push_event(&mut sent, &mut monitor, &bounty(1));
+    push_warning(&mut sent, &mut monitor, 4, false);
+    push_warning(&mut sent, &mut monitor, 6, false);
+    push_warning(&mut sent, &mut monitor, 20, false);
+    push_event(&mut sent, &mut monitor, &bounty(21));
+    push_warning(&mut sent, &mut monitor, 22, false);
+    push_warning(&mut sent, &mut monitor, 36, false);
 
-    let warnings = notifications(&monitor, "kill_rate");
+    let warnings = notifications(&sent, "kill_rate");
     assert_eq!(warnings.len(), 2);
     assert_eq!(warnings[0].timestamp, timestamp(6));
     assert_eq!(warnings[1].timestamp, timestamp(36));
@@ -152,37 +165,40 @@ fn warnings_low_kill_rate_threshold_cooldown_and_kill_reset() {
 #[test]
 fn warnings_low_kill_rate_suppresses_later_no_kills_when_both_apply() {
     let mut monitor = monitor(monitor_config(), LogLevelConfig::default());
+    let mut sent = Vec::new();
 
-    monitor.process_event(&res_drop(0)).unwrap();
-    monitor.process_event(&bounty(1)).unwrap();
-    monitor.check_warnings_at(timestamp(20), false).unwrap();
+    push_event(&mut sent, &mut monitor, &res_drop(0));
+    push_event(&mut sent, &mut monitor, &bounty(1));
+    push_warning(&mut sent, &mut monitor, 20, false);
 
-    let kill_rate = notifications(&monitor, "kill_rate");
+    let kill_rate = notifications(&sent, "kill_rate");
     assert_eq!(kill_rate.len(), 1);
     assert_eq!(kill_rate[0].timestamp, timestamp(20));
     assert!(kill_rate[0].terminal_text.contains("Kill rate of"));
-    assert!(notifications(&monitor, "no_kills").is_empty());
+    assert!(notifications(&sent, "no_kills").is_empty());
 }
 
 #[test]
 fn warnings_disabled_during_preload() {
     let mut monitor = monitor(monitor_config(), LogLevelConfig::default());
+    let mut sent = Vec::new();
 
-    monitor.process_event(&res_drop(0)).unwrap();
-    monitor.check_warnings_at(timestamp(60), true).unwrap();
+    push_event(&mut sent, &mut monitor, &res_drop(0));
+    push_warning(&mut sent, &mut monitor, 60, true);
 
     assert!(monitor.state().active_session);
-    assert!(notifications(&monitor, "no_kills").is_empty());
-    assert!(notifications(&monitor, "kill_rate").is_empty());
+    assert!(notifications(&sent, "no_kills").is_empty());
+    assert!(notifications(&sent, "kill_rate").is_empty());
 }
 
 #[test]
 fn warnings_do_not_fire_before_session_start() {
     let mut monitor = monitor(monitor_config(), LogLevelConfig::default());
+    let mut sent = Vec::new();
 
-    monitor.check_warnings_at(timestamp(60), false).unwrap();
+    push_warning(&mut sent, &mut monitor, 60, false);
 
-    assert!(monitor.dispatcher().notifier().notifications().is_empty());
+    assert!(sent.is_empty());
 }
 
 #[test]
@@ -193,12 +209,13 @@ fn warnings_level_zero_suppresses_delivery_without_breaking_state() {
         ..LogLevelConfig::default()
     };
     let mut monitor = monitor(monitor_config(), log_levels);
+    let mut sent = Vec::new();
 
-    monitor.process_event(&res_drop(0)).unwrap();
-    monitor.check_warnings_at(timestamp(5), false).unwrap();
+    push_event(&mut sent, &mut monitor, &res_drop(0));
+    push_warning(&mut sent, &mut monitor, 5, false);
 
     assert!(monitor.state().active_session);
     assert_eq!(monitor.state().kills, 0);
-    assert!(notifications(&monitor, "no_kills").is_empty());
-    assert!(notifications(&monitor, "kill_rate").is_empty());
+    assert_eq!(notifications(&sent, "no_kills")[0].level, 0);
+    assert!(notifications(&sent, "kill_rate").is_empty());
 }

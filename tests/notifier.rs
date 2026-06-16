@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use ed_afk_dashboard::notifier::{AlertLevel, FakeNotifier, Notification, NotificationDispatcher};
+use ed_sentry::notifier::{AlertLevel, FakeNotifier, Notification, NotificationDispatcher};
 
 #[test]
 fn notifier_public_api_driver_dispatches_through_fake_notifier() {
@@ -11,7 +11,7 @@ fn notifier_public_api_driver_dispatches_through_fake_notifier() {
     dispatcher
         .dispatch(Notification::new(
             "DriverEvent",
-            3,
+            2,
             AlertLevel::Critical,
             Some("!".to_string()),
             "Driver notification",

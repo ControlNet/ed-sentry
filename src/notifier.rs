@@ -39,7 +39,7 @@ impl Notification {
             terminal_text: terminal_text.into(),
             remote_text: remote_text.into(),
             timestamp,
-            mention: level >= 3,
+            mention: level >= 2,
         }
     }
 }
@@ -150,7 +150,7 @@ mod tests {
     }
 
     #[test]
-    fn notifier_level_routing_ignores_zero_and_dispatches_terminal_levels() {
+    fn notifier_level_routing_ignores_zero_and_marks_mentions_at_two() {
         let mut dispatcher = NotificationDispatcher::new(FakeNotifier::new(), 5);
 
         dispatcher
@@ -172,8 +172,19 @@ mod tests {
         assert_eq!(notifications[1].level, 2);
         assert_eq!(notifications[2].level, 3);
         assert!(!notifications[0].mention);
-        assert!(!notifications[1].mention);
+        assert!(notifications[1].mention);
         assert!(notifications[2].mention);
+    }
+
+    #[test]
+    fn notifier_level_two_is_mention_capable() {
+        let level_one = notification("FuelReport", 1, "Fuel stable");
+        let level_two = notification("ShipHull", 2, "Ship hull critical");
+        let level_three = notification("Death", 3, "Ship destroyed");
+
+        assert!(!level_one.mention);
+        assert!(level_two.mention);
+        assert!(level_three.mention);
     }
 
     #[test]

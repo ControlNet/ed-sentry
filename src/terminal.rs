@@ -14,7 +14,7 @@ use crate::state::SessionState;
 use crate::text::{format_rate_per_hour, line_safe};
 use crate::time::TimeDisplayZone;
 
-const DEFAULT_WINDOW_TITLE: &str = "ED AFK Dashboard v260421";
+const DEFAULT_WINDOW_TITLE: &str = "ed-sentry v260421";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TerminalMode {
