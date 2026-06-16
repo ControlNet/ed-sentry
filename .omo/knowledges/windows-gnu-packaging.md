@@ -10,3 +10,5 @@ sudo apt-get install -y mingw-w64
 ```
 
 - After any repo change, rebuild and refresh both Linux and Windows artifacts before reporting completion.
+- Use `scripts/package-windows-gnu.sh` for local Windows GNU packaging. It runs `cargo build --release --target x86_64-pc-windows-gnu`, stages `ed-sentry/ed-sentry.exe` plus `config.example.toml` as `ed-sentry/config.toml`, refreshes `dist/ed-sentry/`, and writes `dist/ed-sentry-x86_64-pc-windows-gnu.zip`.
+- Do not hand-copy `dist/ed-sentry/config.toml`; stale extracted dist contents caused the packaged template to look old even when the zip had already been refreshed.
