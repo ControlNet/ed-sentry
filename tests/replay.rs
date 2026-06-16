@@ -5,7 +5,7 @@ const ANSI_CLEAR_CURRENT_LINE: &str = "\u{1b}[2K";
 
 #[test]
 fn replay_combat_fixture_outputs_core_fragments() {
-    let output = Command::cargo_bin("ed-afk-dashboard")
+    let output = Command::cargo_bin("ed-sentry")
         .unwrap()
         .args([
             "--replay",
@@ -20,7 +20,7 @@ fn replay_combat_fixture_outputs_core_fragments() {
     assert!(output.stderr.is_empty());
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(
-        stdout.contains("ED AFK Dashboard v260421 by CMDR PSIPAB"),
+        stdout.contains("ed-sentry v260421 by CMDR ControlNet"),
         "{stdout}"
     );
     assert!(
@@ -58,7 +58,7 @@ fn replay_combat_fixture_outputs_core_fragments() {
 
 #[test]
 fn replay_malformed_fixture_warns_and_continues_to_summary() {
-    let output = Command::cargo_bin("ed-afk-dashboard")
+    let output = Command::cargo_bin("ed-sentry")
         .unwrap()
         .args([
             "--replay",
@@ -110,7 +110,7 @@ fn replay_broad_events_stay_low_noise_and_malformed_lines_continue() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-afk-dashboard")
+    let output = Command::cargo_bin("ed-sentry")
         .unwrap()
         .args([
             "--replay",
@@ -142,7 +142,7 @@ fn replay_broad_events_stay_low_noise_and_malformed_lines_continue() {
 
 #[test]
 fn replay_reset_session_warning_is_printed_once() {
-    let output = Command::cargo_bin("ed-afk-dashboard")
+    let output = Command::cargo_bin("ed-sentry")
         .unwrap()
         .args([
             "--replay",
@@ -185,7 +185,7 @@ fn replay_config_output_options_are_observable() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-afk-dashboard")
+    let output = Command::cargo_bin("ed-sentry")
         .unwrap()
         .args([
             "--replay",
@@ -231,7 +231,7 @@ fn replay_summary_log_levels_control_summary_fragments() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-afk-dashboard")
+    let output = Command::cargo_bin("ed-sentry")
         .unwrap()
         .args([
             "--replay",
@@ -273,7 +273,7 @@ fn replay_does_not_emit_live_idle_warnings() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-afk-dashboard")
+    let output = Command::cargo_bin("ed-sentry")
         .unwrap()
         .args([
             "--replay",
@@ -288,4 +288,53 @@ fn replay_does_not_emit_live_idle_warnings() {
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(!stdout.contains("Kill rate of"), "{stdout}");
     assert!(!stdout.contains("No kills logged"), "{stdout}");
+}
+
+#[test]
+fn replay_matrix_config_does_not_initialize_matrix() {
+    let working_dir = tempfile::tempdir().unwrap();
+    let matrix_log = working_dir.path().join("matrix.jsonl");
+    std::fs::write(
+        working_dir.path().join("config.toml"),
+        format!(
+            r#"
+        [matrix]
+        enabled = true
+        homeserver = "https://matrix.invalid"
+        user_id = "@bot:matrix.invalid"
+        room_id = "!room:matrix.invalid"
+        access_{} = "fixture-access"
+        mention_user_id = "@commander:matrix.invalid"
+        status_update_interval_seconds = 60
+        "#,
+            "token",
+        ),
+    )
+    .unwrap();
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/journal_combat_bounty.log");
+
+    let output = Command::cargo_bin("ed-sentry")
+        .unwrap()
+        .current_dir(working_dir.path())
+        .env("ED_AFK_DASHBOARD_FAKE_MATRIX_LOG", &matrix_log)
+        .args([
+            "--replay",
+            "--set-file",
+            fixture.to_str().unwrap(),
+            "--no-status-line",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.is_empty(), "{stderr}");
+    assert!(stdout.contains("Total Stats"), "{stdout}");
+    assert!(!stdout.contains("Matrix delivery enabled"), "{stdout}");
+    assert!(
+        !matrix_log.exists(),
+        "replay unexpectedly initialized fake Matrix"
+    );
 }

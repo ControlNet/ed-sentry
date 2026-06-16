@@ -3,8 +3,8 @@ use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use ed_afk_dashboard::event::{parse_journal_line, JournalEvent};
-use ed_afk_dashboard::state::SessionState;
+use ed_sentry::event::{parse_journal_line, JournalEvent};
+use ed_sentry::state::SessionState;
 
 const REAL_JOURNAL_DIR: &str = "/home/ubuntu/Elite Dangerous";
 const KNOWN_SAMPLE_FILES: &[&str] = &[
