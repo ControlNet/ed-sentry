@@ -18,10 +18,10 @@ jobs:
         include:
           - os: ubuntu-latest
             target_name: x86_64-unknown-linux-gnu
-            artifact_name: ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz
+            artifact_name: ed-sentry-x86_64-unknown-linux-gnu.tar.gz
           - os: windows-latest
             target_name: x86_64-pc-windows-msvc
-            artifact_name: ed-afk-dashboard-x86_64-pc-windows-msvc.zip
+            artifact_name: ed-sentry-x86_64-pc-windows-msvc.zip
 
     steps:
       - name: Check out repository
@@ -51,16 +51,17 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          cp target/release/ed-afk-dashboard dist/ed-afk-dashboard
-          tar -czf ed-afk-dashboard-x86_64-unknown-linux-gnu.tar.gz -C dist ed-afk-dashboard
+          cp target/release/ed-sentry dist/ed-sentry
+          tar -czf ed-sentry-x86_64-unknown-linux-gnu.tar.gz -C dist ed-sentry
 
       - name: Package Windows artifact
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist
-          Copy-Item target\release\ed-afk-dashboard.exe dist\ed-afk-dashboard.exe
-          Compress-Archive -Path dist\ed-afk-dashboard.exe -DestinationPath ed-afk-dashboard-x86_64-pc-windows-msvc.zip -Force
+          New-Item -ItemType Directory -Force -Path dist\ed-sentry
+          Copy-Item target\release\ed-sentry.exe dist\ed-sentry\ed-sentry.exe
+          Copy-Item config.example.toml dist\ed-sentry\config.toml
+          Compress-Archive -Path dist\ed-sentry -DestinationPath ed-sentry-x86_64-pc-windows-msvc.zip -Force
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
