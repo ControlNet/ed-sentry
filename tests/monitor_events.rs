@@ -1,10 +1,10 @@
 use chrono::{DateTime, Duration, Utc};
-use ed_afk_dashboard::config::{LogLevelConfig, MonitorConfig};
-use ed_afk_dashboard::event::{
+use ed_sentry::config::{LogLevelConfig, MonitorConfig};
+use ed_sentry::event::{
     parse_journal_line, JournalEvent, ReceiveTextEvent, ReservoirReplenishedEvent,
 };
-use ed_afk_dashboard::monitor::EventMonitor;
-use ed_afk_dashboard::notifier::{FakeNotifier, Notification};
+use ed_sentry::monitor::EventMonitor;
+use ed_sentry::notifier::Notification;
 use std::fs;
 use std::path::Path;
 
@@ -25,18 +25,32 @@ fn run_events(
     events: &[JournalEvent],
     monitor_config: MonitorConfig,
     log_levels: LogLevelConfig,
-) -> EventMonitor<FakeNotifier> {
-    let mut monitor = EventMonitor::new(FakeNotifier::new(), monitor_config, log_levels);
+) -> MonitorRun {
+    let mut monitor = EventMonitor::new(monitor_config, log_levels);
+    let mut notifications = Vec::new();
     for event in events {
-        monitor.process_event(event).unwrap();
+        notifications.extend(monitor.process_event(event));
     }
-    monitor
+    MonitorRun {
+        monitor,
+        notifications,
+    }
 }
 
-fn run_events_with_monitor(monitor: &mut EventMonitor<FakeNotifier>, events: &[JournalEvent]) {
+fn run_events_with_monitor(
+    monitor: &mut EventMonitor,
+    events: &[JournalEvent],
+) -> Vec<Notification> {
+    let mut notifications = Vec::new();
     for event in events {
-        monitor.process_event(event).unwrap();
+        notifications.extend(monitor.process_event(event));
     }
+    notifications
+}
+
+struct MonitorRun {
+    monitor: EventMonitor,
+    notifications: Vec<Notification>,
 }
 
 fn notification_texts(notifications: &[Notification]) -> Vec<&str> {
@@ -82,16 +96,14 @@ fn res_drop_event() -> JournalEvent {
 fn assert_fuel_report_notification(fuel_main: f64, expected_level: u8) {
     let event = reservoir_replenished_event(fuel_main);
 
-    let monitor = run_events(
+    let run = run_events(
         &[res_drop_event(), event],
         MonitorConfig::default(),
         LogLevelConfig::default(),
     );
 
-    let notification = monitor
-        .dispatcher()
-        .notifier()
-        .notifications()
+    let notification = run
+        .notifications
         .iter()
         .find(|notification| notification.event_type == "fuel_report")
         .unwrap();
@@ -103,13 +115,13 @@ fn assert_fuel_report_notification(fuel_main: f64, expected_level: u8) {
 fn monitor_events_combat_notifications() {
     let events = fixture_events("journal_combat_bounty.log");
 
-    let monitor = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
 
-    let notifications = monitor.dispatcher().notifier().notifications();
+    let notifications = &run.notifications;
     let texts = notification_texts(notifications);
-    assert_eq!(monitor.state().cargo_scans, 0);
-    assert_eq!(monitor.state().kills, 2);
-    assert_eq!(monitor.state().bounty_total, 18_400);
+    assert_eq!(run.monitor.state().cargo_scans, 0);
+    assert_eq!(run.monitor.state().kills, 2);
+    assert_eq!(run.monitor.state().bounty_total, 18_400);
     assert!(
         texts.contains(&"Scan: Viper Mk III (Competent)"),
         "{texts:?}"
@@ -129,6 +141,45 @@ fn monitor_events_combat_notifications() {
 }
 
 #[test]
+fn monitor_events_rank_promotions_default_to_level_two_mentions() {
+    let events = [
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:00:00Z","event":"Promotion","Combat":4}"#,
+        )
+        .unwrap(),
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:01:00Z","event":"PowerplayRank","Power":"Fixture Power","Rank":3}"#,
+        )
+        .unwrap(),
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:02:00Z","event":"SquadronPromotion","SquadronName":"Fixture Squadron","NewRank":2}"#,
+        )
+        .unwrap(),
+    ];
+
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let notifications = run
+        .notifications
+        .iter()
+        .filter(|notification| notification.event_type == "rank_promotion")
+        .collect::<Vec<_>>();
+
+    assert_eq!(notifications.len(), 3);
+    assert!(notifications.iter().all(|notification| {
+        notification.level == LogLevelConfig::default().rank_promotion && notification.mention
+    }));
+    assert!(notifications[0]
+        .terminal_text
+        .contains("Rank promotion: Combat 4"));
+    assert!(notifications[1]
+        .terminal_text
+        .contains("Powerplay rank changed: Fixture Power rank 3"));
+    assert!(notifications[2]
+        .terminal_text
+        .contains("Squadron promotion: Fixture Squadron rank 2"));
+}
+
+#[test]
 fn monitor_events_output_options_change_visible_text() {
     let events = fixture_events("journal_combat_bounty.log");
     let monitor_config = MonitorConfig {
@@ -138,9 +189,9 @@ fn monitor_events_output_options_change_visible_text() {
         ..MonitorConfig::default()
     };
 
-    let monitor = run_events(&events, monitor_config, LogLevelConfig::default());
+    let run = run_events(&events, monitor_config, LogLevelConfig::default());
 
-    let notifications = monitor.dispatcher().notifier().notifications();
+    let notifications = &run.notifications;
     let texts = notification_texts(notifications);
     assert!(
         texts.contains(&"Scan: Viper Mk III (Competent)"),
@@ -166,14 +217,14 @@ fn monitor_events_output_options_change_visible_text() {
 fn monitor_events_damage_notifications() {
     let events = fixture_events("journal_damage_fighter.log");
 
-    let monitor = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
 
-    let notifications = monitor.dispatcher().notifier().notifications();
+    let notifications = &run.notifications;
     let texts = notification_texts(notifications);
-    assert_eq!(monitor.state().shields_up, Some(false));
-    assert_eq!(monitor.state().ship_hull, Some(0.0));
-    assert_eq!(monitor.state().fighter_alive, Some(false));
-    assert!(!monitor.state().active_session);
+    assert_eq!(run.monitor.state().shields_up, Some(false));
+    assert_eq!(run.monitor.state().ship_hull, Some(0.0));
+    assert_eq!(run.monitor.state().fighter_alive, Some(false));
+    assert!(!run.monitor.state().active_session);
     assert!(
         texts.iter().any(|text| text.contains("Ship shields down!")),
         "{texts:?}"
@@ -198,7 +249,7 @@ fn monitor_events_damage_notifications() {
     );
     assert!(notifications
         .iter()
-        .filter(|notification| notification.level == 3)
+        .filter(|notification| notification.level >= 2)
         .all(|notification| notification.mention));
 }
 
@@ -215,16 +266,16 @@ fn monitor_events_mission_redirect_uses_mission_log_level_without_counting_kills
         .unwrap(),
     ];
 
-    let monitor = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
 
-    let notifications = monitor.dispatcher().notifier().notifications();
+    let notifications = &run.notifications;
     let redirect = notifications
         .iter()
         .find(|notification| notification.event_type == "mission_redirected")
         .unwrap();
     assert!(redirect.terminal_text.contains("Completed kills for"));
     assert_eq!(redirect.level, LogLevelConfig::default().missions);
-    assert_eq!(monitor.state().kills, 0);
+    assert_eq!(run.monitor.state().kills, 0);
 }
 
 #[test]
@@ -248,9 +299,9 @@ fn monitor_events_upstream_filters_fighter_events() {
         .unwrap(),
     ];
 
-    let monitor = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
 
-    let notifications = monitor.dispatcher().notifier().notifications();
+    let notifications = &run.notifications;
     assert!(!notifications
         .iter()
         .any(|notification| notification.event_type == "fighter_launch"));
@@ -283,14 +334,11 @@ fn monitor_events_upstream_scan_counters_only_track_incoming_cargo_scans() {
         .unwrap(),
     ];
 
-    let monitor = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
 
-    assert_eq!(monitor.state().cargo_scans, 1);
+    assert_eq!(run.monitor.state().cargo_scans, 1);
     assert_eq!(
-        monitor
-            .dispatcher()
-            .notifier()
-            .notifications()
+        run.notifications
             .iter()
             .filter(|notification| notification.event_type == "cargo_scan")
             .count(),
@@ -300,11 +348,7 @@ fn monitor_events_upstream_scan_counters_only_track_incoming_cargo_scans() {
 
 #[test]
 fn monitor_events_upstream_session_start_backdating_and_drop_reset() {
-    let mut monitor = EventMonitor::new(
-        FakeNotifier::new(),
-        MonitorConfig::default(),
-        LogLevelConfig::default(),
-    );
+    let mut monitor = EventMonitor::new(MonitorConfig::default(), LogLevelConfig::default());
     let events = [
         parse_journal_line(
             r#"{"timestamp":"2035-01-09T10:00:00Z","event":"Bounty","Rewards":[{"Faction":"Fixture","Reward":1000}],"Target":"viper","VictimFaction":"Raiders"}"#,
@@ -356,8 +400,8 @@ fn monitor_events_upstream_missions_snapshot_and_redirect_semantics() {
         .unwrap(),
     ];
 
-    let monitor = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
-    let notifications = monitor.dispatcher().notifier().notifications();
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let notifications = &run.notifications;
     let mission_loads = notifications
         .iter()
         .filter(|notification| notification.event_type == "missions_snapshot")
@@ -372,7 +416,8 @@ fn monitor_events_upstream_missions_snapshot_and_redirect_semantics() {
         redirect.terminal_text,
         "Completed kills for all missions! (1/1)"
     );
-    assert!(monitor
+    assert!(run
+        .monitor
         .render_dynamic_title(
             DateTime::parse_from_rfc3339("2035-01-09T10:02:00Z")
                 .unwrap()
@@ -413,12 +458,11 @@ fn monitor_events_upstream_summary_scans_faction_and_merits() {
         .unwrap(),
     ];
 
-    let mut monitor = run_events(&events, MonitorConfig::default(), log_levels);
-    monitor.finish("Journal.test.log", timestamp()).unwrap();
-    let output = monitor
-        .dispatcher()
-        .notifier()
-        .notifications()
+    let mut run = run_events(&events, MonitorConfig::default(), log_levels);
+    run.notifications
+        .extend(run.monitor.finish("Journal.test.log", timestamp()));
+    let output = run
+        .notifications
         .iter()
         .map(|notification| notification.terminal_text.as_str())
         .collect::<Vec<_>>()
@@ -440,13 +484,11 @@ fn monitor_events_upstream_summary_scans_faction_and_merits() {
 fn monitor_events_non_massacre_redirect_does_not_emit_mission_progress() {
     let events = fixture_events("journal_missions.log");
 
-    let monitor = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
 
-    assert_eq!(monitor.state().mission_completed, 0);
-    assert!(!monitor
-        .dispatcher()
-        .notifier()
-        .notifications()
+    assert_eq!(run.monitor.state().mission_completed, 0);
+    assert!(!run
+        .notifications
         .iter()
         .any(|notification| notification.event_type == "mission_redirected"));
 }
@@ -463,14 +505,14 @@ fn monitor_events_receive_text_pirate_scan_updates_state_and_notifies() {
         channel: Some("npc".to_string()),
     });
 
-    let monitor = run_events(
+    let run = run_events(
         &[event],
         MonitorConfig::default(),
         LogLevelConfig::default(),
     );
 
-    let notifications = monitor.dispatcher().notifier().notifications();
-    assert_eq!(monitor.state().cargo_scans, 1);
+    let notifications = &run.notifications;
+    assert_eq!(run.monitor.state().cargo_scans, 1);
     assert_eq!(notifications.len(), 1);
     assert_eq!(notifications[0].event_type, "cargo_scan");
     assert!(notifications[0].terminal_text.contains("Cargo scan"));
@@ -488,7 +530,7 @@ fn monitor_events_reservoir_replenished_reports_normal_fuel_level() {
 #[test]
 fn monitor_events_reservoir_replenished_reports_fuel_eta_after_previous_sample() {
     let start = timestamp();
-    let monitor = run_events(
+    let run = run_events(
         &[
             res_drop_event(),
             timed_reservoir_replenished_event(start, 63.0),
@@ -498,10 +540,8 @@ fn monitor_events_reservoir_replenished_reports_fuel_eta_after_previous_sample()
         LogLevelConfig::default(),
     );
 
-    let notification = monitor
-        .dispatcher()
-        .notifier()
-        .notifications()
+    let notification = run
+        .notifications
         .iter()
         .rfind(|notification| notification.event_type == "fuel_report")
         .unwrap();
@@ -531,10 +571,13 @@ fn monitor_events_level_zero_updates_state_without_delivery() {
         ..LogLevelConfig::default()
     };
 
-    let monitor = run_events(&events, MonitorConfig::default(), log_levels);
+    let run = run_events(&events, MonitorConfig::default(), log_levels);
 
-    assert_eq!(monitor.state().cargo_scans, 0);
-    assert_eq!(monitor.state().kills, 2);
-    assert_eq!(monitor.state().bounty_total, 18_400);
-    assert!(monitor.dispatcher().notifier().notifications().is_empty());
+    assert_eq!(run.monitor.state().cargo_scans, 0);
+    assert_eq!(run.monitor.state().kills, 2);
+    assert_eq!(run.monitor.state().bounty_total, 18_400);
+    assert!(run
+        .notifications
+        .iter()
+        .all(|notification| notification.level == 0));
 }

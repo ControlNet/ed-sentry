@@ -1,21 +1,21 @@
 use std::collections::VecDeque;
 
 use chrono::{DateTime, Duration, Utc};
+use serde_json::Value;
 
 use crate::config::{LogLevelConfig, MonitorConfig, RuntimeConfig};
 use crate::event::{
     BountyEvent, FactionKillBondEvent, JournalEvent, MissionEvent, ReservoirReplenishedEvent,
     ShipTargetedEvent,
 };
-use crate::notifier::{AlertLevel, Notification, NotificationDispatcher, Notifier};
+use crate::notifier::{AlertLevel, Notification};
 use crate::state::SessionState;
 use crate::terminal::{render_dynamic_title, render_monitor_status_line};
 use crate::text::line_safe;
 
 #[derive(Clone, Debug)]
-pub struct EventMonitor<N> {
+pub struct EventMonitor {
     state: SessionState,
-    dispatcher: NotificationDispatcher<N>,
     monitor_config: MonitorConfig,
     log_levels: LogLevelConfig,
     warnings: WarningScheduler,
@@ -92,13 +92,10 @@ struct WarningScheduler {
     cooldown_multiplier: i32,
 }
 
-impl<N: Notifier> EventMonitor<N> {
-    pub fn new(notifier: N, monitor_config: MonitorConfig, log_levels: LogLevelConfig) -> Self {
-        let dispatcher =
-            NotificationDispatcher::from_config(notifier, &monitor_config, &log_levels);
+impl EventMonitor {
+    pub fn new(monitor_config: MonitorConfig, log_levels: LogLevelConfig) -> Self {
         Self {
             state: SessionState::new(),
-            dispatcher,
             monitor_config,
             log_levels,
             warnings: WarningScheduler::default(),
@@ -117,11 +114,11 @@ impl<N: Notifier> EventMonitor<N> {
         }
     }
 
-    pub fn from_runtime_config(notifier: N, config: &RuntimeConfig) -> Self {
-        Self::new(notifier, config.monitor.clone(), config.log_levels.clone())
+    pub fn from_runtime_config(config: &RuntimeConfig) -> Self {
+        Self::new(config.monitor.clone(), config.log_levels.clone())
     }
 
-    pub fn process_event(&mut self, event: &JournalEvent) -> anyhow::Result<()> {
+    pub fn process_event(&mut self, event: &JournalEvent) -> Vec<Notification> {
         let previous_state = self.state.clone();
         self.state.apply_event(event);
 
@@ -132,21 +129,19 @@ impl<N: Notifier> EventMonitor<N> {
             self.warnings.record_kill();
         }
 
-        for notification in self.notifications_for_event(event, &previous_state) {
-            self.dispatcher.dispatch(notification)?;
-        }
+        let notifications = self.notifications_for_event(event, &previous_state);
         self.last_event_name = Some(event.event_name().to_string());
 
-        Ok(())
+        notifications
     }
 
-    pub fn check_warnings_at(&mut self, now: DateTime<Utc>, preload: bool) -> anyhow::Result<()> {
+    pub fn check_warnings_at(&mut self, now: DateTime<Utc>, preload: bool) -> Vec<Notification> {
         if preload || !self.state.active_session {
-            return Ok(());
+            return Vec::new();
         }
 
         let Some(session_started_at) = self.state.session_started_at else {
-            return Ok(());
+            return Vec::new();
         };
 
         self.warnings.clear_elapsed(now, self.warning_cooldown());
@@ -158,11 +153,7 @@ impl<N: Notifier> EventMonitor<N> {
         } else {
             self.no_kills_warning(now, session_started_at)
         };
-        if let Some(notification) = warning {
-            self.dispatcher.dispatch(notification)?;
-        }
-
-        Ok(())
+        warning.into_iter().collect()
     }
 
     pub fn state(&self) -> &SessionState {
@@ -173,42 +164,27 @@ impl<N: Notifier> EventMonitor<N> {
         &mut self.state
     }
 
-    pub fn dispatcher(&self) -> &NotificationDispatcher<N> {
-        &self.dispatcher
-    }
-
-    pub fn dispatcher_mut(&mut self) -> &mut NotificationDispatcher<N> {
-        &mut self.dispatcher
-    }
-
-    pub fn into_dispatcher(self) -> NotificationDispatcher<N> {
-        self.dispatcher
-    }
-
-    pub fn finish(&mut self, journal_file: &str, timestamp: DateTime<Utc>) -> anyhow::Result<()> {
+    pub fn finish(&mut self, journal_file: &str, timestamp: DateTime<Utc>) -> Vec<Notification> {
+        let mut notifications = Vec::new();
         if let Some(summary) = self.summary_notification(false, timestamp) {
-            self.dispatcher.dispatch(summary)?;
+            notifications.push(summary);
         }
-        self.dispatcher.dispatch(self.notification(
+        notifications.push(self.notification(
             "monitor_stopped",
-            2,
+            1,
             format!("Monitor stopped ({journal_file})"),
             timestamp,
-        ))?;
-        Ok(())
+        ));
+        notifications
     }
 
-    pub fn start_monitor(
-        &mut self,
-        journal_file: &str,
-        timestamp: DateTime<Utc>,
-    ) -> anyhow::Result<()> {
-        self.dispatcher.dispatch(self.notification(
+    pub fn start_monitor(&mut self, journal_file: &str, timestamp: DateTime<Utc>) -> Notification {
+        self.notification(
             "monitor_started",
-            2,
+            1,
             format!("Monitor started ({journal_file})"),
             timestamp,
-        ))
+        )
     }
 
     pub fn render_status_line(&self, now: DateTime<Utc>) -> String {
@@ -244,6 +220,29 @@ impl<N: Notifier> EventMonitor<N> {
             JournalEvent::Progress(progress) => {
                 self.combat_progress = progress.combat;
             }
+            JournalEvent::Promotion(event) => {
+                if let Some(combat_rank) = event
+                    .raw
+                    .get("Combat")
+                    .and_then(Value::as_u64)
+                    .and_then(|rank| u8::try_from(rank).ok())
+                    .and_then(combat_rank_name)
+                {
+                    self.combat_rank = Some(combat_rank.to_string());
+                }
+                notifications.push(self.rank_promotion_notification(
+                    &event.event,
+                    &event.raw,
+                    event.timestamp,
+                ));
+            }
+            JournalEvent::PowerplayRank(event) | JournalEvent::SquadronPromotion(event) => {
+                notifications.push(self.rank_promotion_notification(
+                    &event.event,
+                    &event.raw,
+                    event.timestamp,
+                ));
+            }
             JournalEvent::Loadout(loadout) => {
                 if let Some(capacity) = loadout
                     .fuel_capacity_main
@@ -254,7 +253,7 @@ impl<N: Notifier> EventMonitor<N> {
             }
             JournalEvent::LoadGame(load_game) => notifications.push(self.notification(
                 "commander_load",
-                2,
+                1,
                 self.commander_text(load_game),
                 load_game.timestamp,
             )),
@@ -274,7 +273,7 @@ impl<N: Notifier> EventMonitor<N> {
                     );
                     notifications.push(self.notification(
                         "destination_drop",
-                        2,
+                        1,
                         format!("Dropped at {place}"),
                         drop.timestamp,
                     ));
@@ -282,7 +281,7 @@ impl<N: Notifier> EventMonitor<N> {
             }
             JournalEvent::SupercruiseEntry(entry) => notifications.push(self.notification(
                 "supercruise_entry",
-                2,
+                1,
                 format!(
                     "Supercruise entry in {}",
                     clean_text(entry.star_system.as_deref().unwrap_or("[Unknown]"))
@@ -291,7 +290,7 @@ impl<N: Notifier> EventMonitor<N> {
             )),
             JournalEvent::FSDJump(jump) => notifications.push(self.notification(
                 "fsd_jump",
-                2,
+                1,
                 format!(
                     "FSD jump to {}",
                     clean_text(jump.star_system.as_deref().unwrap_or("[Unknown]"))
@@ -301,14 +300,14 @@ impl<N: Notifier> EventMonitor<N> {
             JournalEvent::Music(music) if text_equals(music.music_track.as_deref(), "MainMenu") => {
                 notifications.push(self.notification(
                     "main_menu",
-                    2,
+                    1,
                     "Exited to main menu".to_string(),
                     music.timestamp,
                 ));
             }
             JournalEvent::ShipyardSwap(swap) => notifications.push(self.notification(
                 "shipyard_swap",
-                2,
+                1,
                 format!(
                     "Swapped ship to {}",
                     ship_name(
@@ -529,7 +528,7 @@ impl<N: Notifier> EventMonitor<N> {
             JournalEvent::LaunchFighter(event) if event.player_controlled == Some(false) => {
                 notifications.push(self.notification(
                     "fighter_launch",
-                    2,
+                    1,
                     "Fighter launched".to_string(),
                     event.timestamp,
                 ))
@@ -582,7 +581,7 @@ impl<N: Notifier> EventMonitor<N> {
             )),
             JournalEvent::Shutdown(event) => notifications.push(self.notification(
                 "shutdown",
-                2,
+                1,
                 "Quit to desktop".to_string(),
                 event.timestamp,
             )),
@@ -858,6 +857,20 @@ impl<N: Notifier> EventMonitor<N> {
         self.notification(event_type, level, text, timestamp)
     }
 
+    fn rank_promotion_notification(
+        &self,
+        source_event: &str,
+        raw: &Value,
+        timestamp: DateTime<Utc>,
+    ) -> Notification {
+        self.notification(
+            "rank_promotion",
+            self.log_levels.rank_promotion,
+            rank_promotion_text(source_event, raw),
+            timestamp,
+        )
+    }
+
     fn bounty_text(&self, event: &BountyEvent, previous_state: &SessionState) -> String {
         let target = ship_name(event.target.as_deref(), event.target_localised.as_deref());
         let mut text = format!(
@@ -1119,6 +1132,7 @@ fn emoji_for_event(event_type: &str) -> Option<&'static str> {
         "security_scan" | "security_attack" => Some("🚨"),
         "kill_bounty" | "kill_bond" => Some("💥"),
         "kill_rate" | "no_kills" => Some("⚠️"),
+        "rank_promotion" => Some("🏅"),
         "mission_redirected" => Some("✅"),
         "mission_accepted" | "mission_status" | "missions_snapshot" => Some("🎯"),
         "ship_shields" => Some("🛡️"),
@@ -1141,6 +1155,65 @@ fn emoji_for_event(event_type: &str) -> Option<&'static str> {
         "merits" => Some("🎫"),
         _ => None,
     }
+}
+
+fn rank_promotion_text(source_event: &str, raw: &Value) -> String {
+    match source_event {
+        "Promotion" => {
+            let ranks = [
+                ("Combat", "Combat"),
+                ("Trade", "Trade"),
+                ("Explore", "Explorer"),
+                ("Empire", "Empire"),
+                ("Federation", "Federation"),
+                ("CQC", "CQC"),
+                ("Soldier", "Soldier"),
+                ("Exobiologist", "Exobiologist"),
+            ]
+            .into_iter()
+            .filter_map(|(key, label)| {
+                raw_value_text(raw, key).map(|value| format!("{label} {value}"))
+            })
+            .collect::<Vec<_>>();
+
+            if ranks.is_empty() {
+                "Rank promotion".to_string()
+            } else {
+                format!("Rank promotion: {}", ranks.join(", "))
+            }
+        }
+        "PowerplayRank" => match (raw_value_text(raw, "Power"), raw_value_text(raw, "Rank")) {
+            (Some(power), Some(rank)) => format!("Powerplay rank changed: {power} rank {rank}"),
+            (Some(power), None) => format!("Powerplay rank changed: {power}"),
+            (None, Some(rank)) => format!("Powerplay rank changed: rank {rank}"),
+            (None, None) => "Powerplay rank changed".to_string(),
+        },
+        "SquadronPromotion" => {
+            let squadron = raw_value_text(raw, "SquadronName");
+            let new_rank = raw_value_text(raw, "NewRank").or_else(|| raw_value_text(raw, "Rank"));
+            match (squadron, new_rank) {
+                (Some(squadron), Some(rank)) => {
+                    format!("Squadron promotion: {squadron} rank {rank}")
+                }
+                (Some(squadron), None) => format!("Squadron promotion: {squadron}"),
+                (None, Some(rank)) => format!("Squadron promotion: rank {rank}"),
+                (None, None) => "Squadron promotion".to_string(),
+            }
+        }
+        _ => "Rank promotion".to_string(),
+    }
+}
+
+fn raw_value_text(raw: &Value, key: &str) -> Option<String> {
+    raw.get(key)
+        .and_then(|value| {
+            value
+                .as_str()
+                .map(clean_text)
+                .or_else(|| value.as_i64().map(|number| number.to_string()))
+                .or_else(|| value.as_u64().map(|number| number.to_string()))
+        })
+        .filter(|value| !value.is_empty())
 }
 
 fn bounty_credits(event: &BountyEvent) -> u64 {

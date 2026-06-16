@@ -12,6 +12,7 @@ macro_rules! known_raw_journal_events {
         Statistics => "Statistics",
         Materials => "Materials",
         Passengers => "Passengers",
+        Promotion => "Promotion",
         StoredShips => "StoredShips",
         StoredModules => "StoredModules",
         Powerplay => "Powerplay",
