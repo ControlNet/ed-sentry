@@ -1,6 +1,6 @@
 # ODEliteTracker-inspired mission modeling
 
-- Mission modeling is intentionally separate from AFK combat `SessionState`. Use `ed_afk_dashboard::mission::MissionTracker` for dashboard-style mission state and keep terminal output behavior in `monitor` unchanged unless explicitly requested.
+- Mission modeling is intentionally separate from AFK combat `SessionState`. Use `ed_sentry::mission::MissionTracker` for dashboard-style mission state and keep terminal output behavior in `monitor` unchanged unless explicitly requested.
 - Parser mission extraction now includes destination, issuing/target faction, reward/donation/fine, influence/reputation, wing, expiry, trade commodity/count, and massacre kill-count fields from Journal mission lifecycle events.
 - `CargoDepot` is promoted from broad raw event to typed event because trade/mining/source-return progress needs `MissionID`, collected/delivered counts, total delivery target, and cargo names.
 - `MissionTracker` classifies accepted missions into `Massacre`, `Trade`, or `Other`, stores origin context from `LoadGame`, `Location`, and `FSDJump`, tracks mission state transitions, updates trade progress from `CargoDepot`, and updates massacre kill progress from `Bounty.VictimFaction`.
