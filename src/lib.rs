@@ -1,3 +1,4 @@
+pub mod app;
 pub mod config;
 pub mod delivery;
 pub mod event;
@@ -10,3 +11,4 @@ pub mod state;
 pub mod terminal;
 pub mod text;
 pub mod time;
+pub mod web;

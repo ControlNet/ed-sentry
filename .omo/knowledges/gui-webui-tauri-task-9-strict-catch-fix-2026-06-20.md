@@ -1,0 +1,24 @@
+# GUI WebUI/Tauri Task 9 Strict Catch Fix - 2026-06-20
+
+- Remaining Todo 9 blocker was the `omo:programming` strict TypeScript no-excuse checker rule `catch-without-narrowing` in production adapter code.
+- Failing-first artifact: `.omo/evidence/gui-webui-tauri/task-9-no-excuse-failing-first.txt`.
+  - Command: `NODE_PATH=/home/ubuntu/.herdr/worktrees/ed-afk-monitor/feature-ui/ui/node_modules bun /home/ubuntu/.codex/plugins/cache/sisyphuslabs/omo/4.12.0/skills/programming/scripts/typescript/check-no-excuse-rules.ts ui/src ui/e2e`.
+  - Expected baseline failure: `ui/src/adapters/web.ts:60:9`, `ui/src/adapters/tauri.ts:20:9`, and `ui/src/adapters/tauri.ts:42:11`.
+- Fix scope was adapter-only:
+  - `ui/src/adapters/web.ts`: `loadSnapshot` catch now checks `error instanceof Error` before converting through `formatAdapterError("web", error)`; non-`Error` throws still use the existing unknown-error path.
+  - `ui/src/adapters/tauri.ts`: `loadSnapshot` and `listenSnapshot` catches now check `error instanceof Error` before converting through `formatAdapterError("tauri", error)`; malformed stream payloads still emit the degraded `Desktop payload ignored` connection event.
+- Passing strict checker artifact: `.omo/evidence/gui-webui-tauri/task-9-no-excuse-check.txt`, reporting `No violations in 23 file(s).` and `EXIT_CODE=0`.
+- Adapter behavior remains covered by `.omo/evidence/gui-webui-tauri/task-9-adapter-boundary.txt`:
+  - malformed WebSocket JSON degrades the Web connection,
+  - WebSocket `hello` expands into snapshot plus buffered feed event,
+  - malformed Tauri stream payload degrades the desktop connection instead of throwing through the subscriber.
+- Full refreshed verification artifacts:
+  - `.omo/evidence/gui-webui-tauri/task-9-typecheck.txt`
+  - `.omo/evidence/gui-webui-tauri/task-9-lint.txt`
+  - `.omo/evidence/gui-webui-tauri/task-9-build.txt`
+  - `.omo/evidence/gui-webui-tauri/task-9-adapter-boundary.txt`
+  - `.omo/evidence/gui-webui-tauri/task-9-dashboard-shell.txt`
+  - `.omo/evidence/gui-webui-tauri/task-9-negative-greps.txt`
+  - `.omo/evidence/gui-webui-tauri/task-9-module-loc.txt`
+  - `.omo/evidence/gui-webui-tauri/task-9-code-review.md`
+- The worktree contains parallel dirty Rust/docs/config work and an untracked `ui/` tree from earlier Todo work. This Task 9 strict catch pass did not edit Rust/docs/config, dashboard components, `.omo/plans/**`, or `.omo/start-work/ledger.jsonl`.

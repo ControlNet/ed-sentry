@@ -1,0 +1,151 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans:
+    "Fira Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --font-mono: "Fira Code", "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  --spacing: var(--space-1);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-status-online: var(--color-status-online);
+  --color-status-warning: var(--color-status-warning);
+  --color-status-danger: var(--color-status-danger);
+  --color-status-info: var(--color-status-info);
+  --color-status-neutral: var(--color-status-neutral);
+  --color-data-scan: var(--color-data-scan);
+  --color-data-kill: var(--color-data-kill);
+  --color-data-mission: var(--color-data-mission);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --color-bg-base: #03070b;
+  --color-bg-inset: #070d13;
+  --color-surface-panel: #0b1218;
+  --color-surface-raised: #101a22;
+  --color-surface-pressed: #16232d;
+  --color-border-subtle: #17242e;
+  --color-border-strong: #28404d;
+  --color-text-primary: #e6f0f4;
+  --color-text-secondary: #a7b8c0;
+  --color-text-muted: #667a84;
+  --color-accent-action: #4bb7c8;
+  --color-accent-action-hover: #7ad7e3;
+  --color-status-online: #5ed38c;
+  --color-status-warning: #e8b75d;
+  --color-status-danger: #f06464;
+  --color-status-info: #7aa7ff;
+  --color-status-neutral: #7a8e98;
+  --color-data-scan: #69d6d0;
+  --color-data-kill: #ff8a6a;
+  --color-data-mission: #b9a7ff;
+  --color-overlay-scrim: #010305;
+  --color-focus-ring: #7ad7e3;
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --radius-xs: 2px;
+  --radius-sm-token: 4px;
+  --radius-md-token: 6px;
+  --radius-lg-token: 8px;
+  --shell-nav-width: 232px;
+  --shell-topbar-height: 56px;
+  --content-max-width: 1440px;
+  --metric-min-width: 180px;
+  --feed-row-min-height: 44px;
+  --table-row-height: 48px;
+  --background: var(--color-bg-base);
+  --foreground: var(--color-text-primary);
+  --card: var(--color-surface-panel);
+  --card-foreground: var(--color-text-primary);
+  --popover: var(--color-surface-raised);
+  --popover-foreground: var(--color-text-primary);
+  --primary: var(--color-accent-action);
+  --primary-foreground: var(--color-bg-base);
+  --secondary: var(--color-surface-raised);
+  --secondary-foreground: var(--color-text-secondary);
+  --muted: var(--color-bg-inset);
+  --muted-foreground: var(--color-text-muted);
+  --accent: var(--color-surface-pressed);
+  --accent-foreground: var(--color-text-primary);
+  --destructive: var(--color-status-danger);
+  --destructive-foreground: var(--color-bg-base);
+  --border: var(--color-border-subtle);
+  --input: var(--color-border-strong);
+  --ring: var(--color-focus-ring);
+  --radius: var(--radius-md-token);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  min-width: 320px;
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: dark;
+  font-family: var(--font-sans);
+}
+
+body {
+  min-height: 100dvh;
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  .animate-spin {
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+  }
+
+  .transition-colors {
+    transition-duration: 0ms;
+  }
+}

@@ -16,15 +16,17 @@ Supported now:
 - Track cargo scans, observed kills, bounties, massacre mission progress, shield and hull state, fighter events, fuel reports, cargo loss, death, and session summaries.
 - Render terminal event logs and a live status line when the output is a TTY.
 - Send watch-mode notifications to an unencrypted Matrix room when `[matrix] enabled = true` is configured.
+- Start the local WebUI dashboard in watch-capable runtimes when `[web] enabled = true` is configured.
+- Build the shared Web/Tauri frontend under `ui/`, including the local `ed-sentry-gui` desktop entry.
 
 Out of scope for Phase 1:
 
 - Matrix command handling.
 - Discord delivery.
-- WebUI dashboards.
+- Replay inside the WebUI or desktop dashboard.
 - EDMC plugin support.
 - auto relog, key simulation, game automation, and relog scripting.
-- Database storage or historical dashboards.
+- Database storage, multi-day stored analytics, or chart-library dashboards.
 
 ## Journal Paths
 
@@ -69,6 +71,19 @@ Run the normal test suite:
 cargo test --all
 ```
 
+Build the shared WebUI/Tauri frontend:
+
+```bash
+pnpm --dir ui build
+```
+
+Build the desktop GUI locally when the host has Tauri v2 system dependencies installed:
+
+```bash
+pnpm --dir ui tauri:build
+pnpm --dir ui tauri build
+```
+
 Run the full local verification set before sending changes for review:
 
 ```bash
@@ -87,6 +102,7 @@ Expected signals:
 
 - The replay fixture exits `0` and prints reference-style terminal fragments such as `Scan`, `Kill`, and `Total Stats`.
 - `cargo test --all` exits `0` without requiring private Journal files.
+- `pnpm --dir ui build` exits `0` and writes `ui/dist`.
 - `cargo fmt --check` exits `0` when formatting is current.
 - `cargo clippy --all-targets --all-features -- -D warnings` exits `0` when no lint warnings remain.
 - The ignored real Journal test exits `0` when local Journals exist. If that test is unavailable in the current checkout, Task 14 hasn't added it yet.
@@ -138,6 +154,33 @@ Important monitor defaults:
 - `pirate_names = false`, `bounty_faction = false`, and `bounty_value = false` keep default cargo-scan and kill lines concise; set them to `true` to include pilot names, victim factions, and credit values.
 - `extended_stats = false` keeps default event lines concise; set it to `true` to include supported event counters such as kill sequence numbers.
 
+WebUI settings live in `[web]`:
+
+- `enabled = false` keeps WebUI disabled by default. Set `enabled = true` in config to start WebUI from watch-capable CLI and desktop runtimes.
+- `host = "127.0.0.1"` binds to loopback by default for local-only access.
+- `port = 8765` is the default WebUI port.
+- `open_browser = false` avoids launching a browser automatically.
+- Non-localhost `host` values print a warning and continue so deliberate advanced binds are visible but do not block startup. Treat any non-loopback bind as an advanced local-network exposure and do not use it on untrusted networks.
+
+There is no separate CLI switch for WebUI startup. Configuration is the startup contract.
+
+Replay remains terminal-only and ignores WebUI by design. Even when `[web] enabled = true`, replay does not initialize WebUI, start a server, open a browser, or publish WebUI status.
+
+The first milestone uses a local-first WebUI security model:
+
+- Static dashboard assets and read-only status endpoints may be served from the configured bind address.
+- Config mutation is allowed only for loopback WebUI binds such as `127.0.0.1`; non-loopback binds reject state-changing config updates.
+- Config update requests are also checked against host/origin policy. Do not expose the WebUI publicly unless a later authenticated remote mode is designed.
+- The config editor uses the same sanitized config view as the backend APIs. Matrix token values are never echoed back to the frontend; saving can keep, replace, or explicitly clear the local token without displaying the existing value.
+
+WebUI assets are not embedded in the Rust binary in this milestone. `ed-sentry` looks for built frontend files in this order:
+
+1. `ED_SENTRY_WEBUI_DIST`, for tests and development overrides.
+2. A `webui/` directory beside the running `ed-sentry` executable, used by release archives.
+3. The repo-local `ui/dist` directory, used during development after `pnpm --dir ui build`.
+
+The browser WebUI and desktop GUI share the same React/Vite frontend. The browser path talks to the local WebUI backend; the desktop path is the `ed-sentry-gui` Tauri entry under `ui/src-tauri/` and uses desktop adapter code while reusing the same dashboard pages and Rust application services.
+
 Replay summary log levels control individual summary fragments:
 
 - `summary_kills` controls the `Kills` fragment.
@@ -173,19 +216,34 @@ The committed files under `tests/fixtures/` are synthetic and sanitized. They us
 
 See `tests/fixtures/README.md` for the fixture policy.
 
+Useful local privacy scans:
+
+```bash
+privacy_pattern='access_token\s*=\s*"[^"<][^"]{8,}"|Matrix access token'
+privacy_pattern="${privacy_pattern}:|Journal\.[0-9].*\.log|BEGIN (RSA|OPENSSH|PRIVATE) KEY"
+rg -n --hidden --glob '!target/**' --glob '!ui/node_modules/**' --glob '!ui/dist/**' --glob '!dist/**' --glob '!Cargo.lock' --glob '!src/**/tests.rs' --glob '!src/**/tests/**' "$privacy_pattern" README.md config.example.toml src ui .omo/evidence/gui-webui-tauri
+python /home/ubuntu/.codex/skills/secret-guard/scripts/scan_secrets.py tracked
+python /home/ubuntu/.codex/skills/secret-guard/scripts/scan_secrets.py gitignore
+```
+
+The first `rg` command should exit `1` with no matches. It intentionally scans user-facing docs, production source, UI source, and evidence for raw Journal filenames and private-key/token patterns rather than the public game title, which appears in normal docs and fixture names. Synthetic parser and WebUI tests contain deliberate fake Journal filenames and fake token markers, so review them separately when changing fixtures.
+
 ## Release Artifacts
 
-The tag release workflow publishes these Phase 1 artifact names:
+The tag release workflow publishes these Phase 1 CLI/WebUI artifact names:
 
 - `ed-sentry-x86_64-unknown-linux-gnu.tar.gz`
 - `ed-sentry-x86_64-pc-windows-msvc.zip`
 
-The Windows zip expands to an `ed-sentry` folder containing:
+Each archive expands to an `ed-sentry` folder containing:
 
-- `ed-sentry.exe`
-- `config.toml`
+- `ed-sentry` on Linux, or `ed-sentry.exe` on Windows.
+- `config.toml`, copied from `config.example.toml`.
+- `webui/`, copied from the current `ui/dist` build so the packaged binary can serve `/` without a repo checkout.
 
-The packaged `config.toml` is copied from the committed safe template and must be edited locally before enabling Matrix delivery. It must not contain a real access token in git.
+The packaged `config.toml` is copied from the committed safe template and must be edited locally before enabling Matrix delivery or WebUI. It must not contain a real access token in git.
+
+The release workflow installs Node with pnpm `10.30.1`, runs `pnpm --dir ui install --frozen-lockfile`, builds `ui/dist`, copies it to `ed-sentry/webui/`, and checks that `webui/index.html` exists before uploading archives. This matches the runtime asset lookup order: `ED_SENTRY_WEBUI_DIST`, sibling `webui/`, then repo-local `ui/dist`.
 
 For a local Windows GNU package, run:
 
@@ -193,7 +251,16 @@ For a local Windows GNU package, run:
 scripts/package-windows-gnu.sh
 ```
 
-This rebuilds `target/x86_64-pc-windows-gnu/release/ed-sentry.exe`, refreshes `dist/ed-sentry/`, and writes `dist/ed-sentry-x86_64-pc-windows-gnu.zip` using `config.example.toml` as the packaged `config.toml`.
+This rebuilds `target/x86_64-pc-windows-gnu/release/ed-sentry.exe`, builds `ui/dist`, refreshes `dist/ed-sentry/`, copies `ui/dist` to `dist/ed-sentry/webui/`, and writes `dist/ed-sentry-x86_64-pc-windows-gnu.zip` using `config.example.toml` as the packaged `config.toml`.
+
+Desktop GUI artifacts are not published by CI in this first milestone. Build `ed-sentry-gui` locally with:
+
+```bash
+pnpm --dir ui tauri:build
+pnpm --dir ui tauri build
+```
+
+The tracked release blocker is desktop runner coverage and platform packaging for Tauri artifacts; CLI/WebUI archives remain the CI-published release artifacts.
 
 CI runs the normal sanitized test suite on Linux and Windows. Optional ignored real Journal regression tests remain local-only and are not part of CI or release workflows.
 

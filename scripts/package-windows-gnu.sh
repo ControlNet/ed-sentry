@@ -11,6 +11,7 @@ EXTRACTED_DIR="$DIST_DIR/$PACKAGE_NAME"
 ZIP_PATH="$DIST_DIR/${PACKAGE_NAME}-${TARGET}.zip"
 EXE_PATH="$REPO_ROOT/target/$TARGET/release/${PACKAGE_NAME}.exe"
 CONFIG_TEMPLATE="$REPO_ROOT/config.example.toml"
+WEBUI_DIST="$REPO_ROOT/ui/dist"
 
 require_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -20,10 +21,15 @@ require_command() {
 }
 
 require_command cargo
+require_command pnpm
 require_command zip
 require_command sha256sum
 
 cd "$REPO_ROOT"
+
+printf 'Building WebUI assets...\n'
+pnpm --dir ui install --frozen-lockfile
+pnpm --dir ui build
 
 printf 'Building %s release binary...\n' "$TARGET"
 cargo build --release --target "$TARGET"
@@ -38,12 +44,18 @@ if [[ ! -f "$CONFIG_TEMPLATE" ]]; then
     exit 1
 fi
 
+if [[ ! -f "$WEBUI_DIST/index.html" ]]; then
+    printf 'Missing built WebUI index: %s\n' "$WEBUI_DIST/index.html" >&2
+    exit 1
+fi
+
 STAGING_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ed-sentry-windows-gnu.XXXXXX")
 trap 'rm -rf "$STAGING_DIR"' EXIT
 
-mkdir -p "$STAGING_DIR/$PACKAGE_NAME" "$DIST_DIR"
+mkdir -p "$STAGING_DIR/$PACKAGE_NAME/webui" "$DIST_DIR"
 cp "$EXE_PATH" "$STAGING_DIR/$PACKAGE_NAME/${PACKAGE_NAME}.exe"
 cp "$CONFIG_TEMPLATE" "$STAGING_DIR/$PACKAGE_NAME/config.toml"
+cp -R "$WEBUI_DIST"/. "$STAGING_DIR/$PACKAGE_NAME/webui/"
 
 case "$EXTRACTED_DIR" in
     "$REPO_ROOT"/dist/ed-sentry)
@@ -66,4 +78,6 @@ mv "$ZIP_TMP" "$ZIP_PATH"
 printf 'Packaged Windows GNU artifact:\n'
 printf '  %s\n' "$ZIP_PATH"
 printf '  %s\n' "$EXTRACTED_DIR"
-sha256sum "$ZIP_PATH" "$EXTRACTED_DIR/${PACKAGE_NAME}.exe"
+printf '  WebUI: %s\n' "$EXTRACTED_DIR/webui"
+test -f "$EXTRACTED_DIR/webui/index.html"
+sha256sum "$ZIP_PATH" "$EXTRACTED_DIR/${PACKAGE_NAME}.exe" "$EXTRACTED_DIR/webui/index.html"

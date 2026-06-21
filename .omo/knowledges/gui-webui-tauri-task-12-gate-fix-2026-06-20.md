@@ -1,0 +1,21 @@
+# GUI WebUI Tauri Task 12 Gate Fix
+
+- React Doctor baseline for this gate fix was `ok=true`, `errorCount=0`, `warningCount=26`.
+- Minimal fixes removed three warning classes:
+  - `ui/src/components/dashboard/config-panel.tsx`: moved `savedForm` into the ready load state to clear `no-cascading-set-state`.
+  - `ui/src/components/ui/card.tsx`: rendered `CardTitle` children inside the `h3` to clear `heading-has-content`.
+  - `ui/pnpm-workspace.yaml`: added `minimumReleaseAge: 10080` and `trustPolicy: no-downgrade` to clear pnpm hardening warnings while keeping `ui/` as the workspace root.
+- Final React Doctor artifact is `.omo/evidence/gui-webui-tauri/task-12-react-doctor.json` with `warningCount=22`, all remaining diagnostics are Maintainability.
+- Required Todo 12 blocker artifacts added:
+  - `.omo/evidence/gui-webui-tauri/task-12-code-review.md`
+  - `.omo/evidence/gui-webui-tauri/task-12-manual-qa-matrix.md`
+  - `.omo/evidence/gui-webui-tauri/task-12-review-notepad.md`
+  - `.omo/evidence/gui-webui-tauri/task-12-react-doctor-triage.md`
+- Gate-fix verification artifacts:
+  - `task-12-gate-fix-typecheck.txt`
+  - `task-12-gate-fix-lint.txt`
+  - `task-12-gate-fix-build.txt`
+  - `task-12-gate-fix-playwright.txt`
+  - `task-12-gate-fix-mobile.txt`
+  - `task-12-gate-fix-axum-responsive.txt`
+  - `task-12-gate-fix-cleanup-process-check.txt`

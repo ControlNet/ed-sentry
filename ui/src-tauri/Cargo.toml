@@ -1,0 +1,19 @@
+[package]
+name = "ed-sentry-gui"
+version = "0.1.0"
+description = "ed-sentry desktop GUI"
+authors = ["ed-sentry contributors"]
+license = ""
+repository = ""
+default-run = "ed-sentry-gui"
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+ed-sentry = { path = "../.." }
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
+tokio = { version = "1", features = ["sync"] }

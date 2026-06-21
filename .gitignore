@@ -6,6 +6,12 @@
 /.omo/run-continuation/
 /.omo/drafts/
 /dist/
+/ui/node_modules/
+/ui/dist/
+/ui/playwright-report/
+/ui/test-results/
+/ui/.vite/
+/ui/src-tauri/target/
 *.tar.gz
 *.zip
 Journal.*.log
@@ -22,3 +28,12 @@ secrets.yml
 secrets.yaml
 id_rsa
 id_ed25519
+*.jks
+*.keystore
+.htpasswd
+.netrc
+.pgpass
+*.secret
+.boto
+.s3cfg
+kubeconfig

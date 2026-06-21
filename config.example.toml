@@ -59,6 +59,17 @@ summary_merits = 1
 # Retained for future remote duplicate-suppression notices; inactive for Phase 1 terminal output.
 duplicate_suppression = 1
 
+[web]
+# WebUI is disabled by default. Set enabled = true to start it in watch-capable
+# CLI and desktop runtimes; replay remains terminal-only.
+enabled = false
+# Keep the default loopback bind for local-only access.
+# Config editing is allowed only on loopback binds in the first milestone.
+# Non-localhost binds warn at startup and are intended for deliberate advanced use only.
+host = "127.0.0.1"
+port = 8765
+open_browser = false
+
 [matrix]
 # Matrix delivery requires an unencrypted room; E2EE/end-to-end encrypted rooms are unsupported.
 enabled = false

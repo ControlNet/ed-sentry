@@ -195,6 +195,8 @@ fn journal_discovery_set_file_bypasses_folder_discovery() {
         monitor: Default::default(),
         log_levels: Default::default(),
         matrix: None,
+        web: ed_sentry::config::WebConfig::default(),
+        config_source: Default::default(),
         set_file: Some(set_file.clone()),
         file_select: false,
         reset_session: false,
