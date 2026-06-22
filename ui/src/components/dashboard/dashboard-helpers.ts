@@ -1,4 +1,5 @@
 import type { EventFeedItem, MissionProgressView, ServiceStatusKind } from "@/adapters/dashboard"
+import type { TacticalBadgeTone } from "./tactical-ui"
 
 const statusGlyphLabels = new Map<string, string>([
   ["💥", "Kills"],
@@ -57,6 +58,22 @@ export function statusTextClass(kind: ServiceStatusKind): string {
       return "text-status-danger"
     case "disabled":
       return "text-status-neutral"
+    default:
+      return assertNever(kind)
+  }
+}
+
+export function serviceStatusBadgeTone(kind: ServiceStatusKind): TacticalBadgeTone {
+  switch (kind) {
+    case "running":
+      return "success"
+    case "warning":
+    case "starting":
+      return "warning"
+    case "error":
+      return "danger"
+    case "disabled":
+      return "default"
     default:
       return assertNever(kind)
   }

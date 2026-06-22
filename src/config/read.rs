@@ -59,18 +59,22 @@ impl AppConfig {
     }
 
     pub fn load_tauri_from_dir(config_dir: &Path) -> Result<LoadedConfig, ConfigError> {
-        let path = config_dir.join("config.toml");
+        Self::load_tauri_from_path(config_dir.join("config.toml"))
+    }
+
+    pub fn load_tauri_from_path(path: impl AsRef<Path>) -> Result<LoadedConfig, ConfigError> {
+        let path = path.as_ref();
         let source = ConfigSource::Tauri {
-            target: ConfigPath::editable(path.clone()),
+            target: ConfigPath::editable(path.to_path_buf()),
         };
         if path.exists() {
-            Self::load_config_source(&path, source)
+            Self::load_config_source(path, source)
         } else {
             Ok(LoadedConfig {
                 config: Self::default(),
                 warnings: Vec::new(),
                 source: ConfigSource::Tauri {
-                    target: ConfigPath::first_save(path),
+                    target: ConfigPath::first_save(path.to_path_buf()),
                 },
             })
         }

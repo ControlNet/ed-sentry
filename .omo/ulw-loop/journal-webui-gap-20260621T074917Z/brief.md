@@ -1,0 +1,1 @@
+调查当前 webui 中展示或计划展示的数据，以 /home/ubuntu/Elite Dangerous 的实际 Journal 与 sidecar JSON 为准，判断哪些数据目前无法获取；输出证据化结论并保存到 .omo/knowledges。LIGHT：只读调查加文档，不改产品代码。成功标准：1) 从代码提取 webui 数据字段契约；2) 从实际 Journal/sidecar 统计可用事件和字段；3) 输出可获取、后端未暴露、UI未接线、当前Journal缺失/无法推导的分类清单。QA：CLI stdout/报告文件作为数据面证据。

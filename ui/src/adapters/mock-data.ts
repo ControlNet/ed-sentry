@@ -130,15 +130,6 @@ export const mockDashboardSnapshot: AppSnapshot = {
   ],
   event_feed: [
     {
-      id: "mock-event-005",
-      source: "status",
-      event_type: "runtime_status",
-      level: 0,
-      summary: "💥-/h ⌚0s 🎯 0/0",
-      timestamp: "2026-06-20T14:18:00Z",
-      timestamp_display: "14:18:00",
-    },
-    {
       id: "mock-event-004",
       source: "notification",
       event_type: "kill",

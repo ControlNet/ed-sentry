@@ -137,7 +137,7 @@ pub(super) fn event_buffer_applies_line_safe_to_frontend_text() {
 }
 
 #[test]
-fn runtime_records_lifecycle_and_status_events_in_feed() {
+fn runtime_records_lifecycle_but_not_status_events_in_feed() {
     let temp_dir = tempfile::tempdir().unwrap();
     let journal_path = temp_dir.path().join("Journal.2035-01-03T100000.01.log");
     std::fs::write(
@@ -168,13 +168,30 @@ fn runtime_records_lifecycle_and_status_events_in_feed() {
         .iter()
         .any(|item| item.source == "lifecycle" && item.event_type == "monitor_started"));
 
+    let subscriber = runtime.event_store().subscribe();
     let status = runtime.status_snapshot(status_at, false);
-    let status_line = status.status_line.as_deref().unwrap();
-    assert!(status.snapshot.event_feed.iter().any(|item| {
-        item.source == "status"
-            && item.event_type == "runtime_status"
-            && item.summary == status_line
-    }));
+    assert!(status.status_line.is_some());
+    assert!(!status
+        .snapshot
+        .event_feed
+        .iter()
+        .any(|item| item.source == "status" || item.event_type == "runtime_status"));
+
+    let update = subscriber
+        .live
+        .recv_timeout(StdDuration::from_secs(1))
+        .unwrap();
+    match update {
+        AppLiveUpdate::Snapshot { snapshot } => {
+            assert!(!snapshot
+                .event_feed
+                .iter()
+                .any(|item| { item.source == "status" || item.event_type == "runtime_status" }));
+        }
+        AppLiveUpdate::Event { item } => {
+            panic!("runtime status should not broadcast feed event: {item:?}")
+        }
+    }
 }
 
 #[test]

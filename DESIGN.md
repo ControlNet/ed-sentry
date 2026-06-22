@@ -24,6 +24,7 @@ All UI colors must resolve through these tokens. Hex values are allowed only in 
 | Text muted | `--color-text-muted` | #667A84 | Disabled, placeholder, inactive feed text |
 | Accent action | `--color-accent-action` | #4BB7C8 | Links, focus rings, selected shell item |
 | Accent action hover | `--color-accent-action-hover` | #7AD7E3 | Hover and active action state |
+| Tactical accent | `--color-tactical-accent` | #F97316 | Reference-design tactical tabs, HUD panel accents, mission progress emphasis |
 | Status online | `--color-status-online` | #5ED38C | Healthy watch, connected Matrix, active Journal |
 | Status warning | `--color-status-warning` | #E8B75D | Idle risk, low rate, degraded delivery |
 | Status danger | `--color-status-danger` | #F06464 | Death, critical fuel, disconnected required service |
@@ -90,6 +91,8 @@ shadcn/ui is component source scaffolding only. It must be rethemed through this
 | `--font-metric` | 28px | 650 | 34px | 0 | Primary Metric Tile values |
 | `--font-metric-sm` | 20px | 650 | 26px | 0 | Compact Metric Tile values |
 | `--font-code` | 13px | 500 | 20px | 0 | Journal paths, Matrix IDs, config keys |
+| `--font-tactical-overline` | 10px | 700 | 14px | 0.14em | Tactical HUD labels, tab labels, compact badges |
+| `--font-tactical-micro` | 9px | 600 | 13px | 0.16em | Dense telemetry metadata and mission IDs |
 
 ### Typography Rules
 
@@ -132,6 +135,8 @@ All spacing derives from a 4px base. Layout and component code must use these to
 | `--metric-min-width` | 180px | Metric Tile responsive minimum |
 | `--feed-row-min-height` | 44px | Event Feed row stability |
 | `--table-row-height` | 48px | Mission Table row stability |
+| `--tactical-summary-panel-height` | 320px | Telemetry mission/feed summary panel height |
+| `--tactical-workspace-min-height` | 544px | Mission and event workspace minimum height |
 
 ### Layout Rules
 

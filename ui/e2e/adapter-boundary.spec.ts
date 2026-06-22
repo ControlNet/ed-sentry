@@ -7,6 +7,7 @@ import {
   type EditableConfigUpdate,
 } from "@/adapters/dashboard"
 import { mockDashboardSnapshot } from "@/adapters/mock-data"
+import { shouldApplySnapshotUpdate } from "@/store/snapshot-normalization"
 import { mockConfigView } from "./adapter-boundary-fixtures"
 
 type FakeWebSocketEvent = {
@@ -84,7 +85,7 @@ test("web adapter reports malformed WebSocket JSON as a degraded connection", ()
   })
 })
 
-test("web adapter expands hello messages into snapshot and buffered event updates", () => {
+test("web adapter treats hello as one bootstrap snapshot", () => {
   const originalWebSocket = globalThis.WebSocket
   Object.defineProperty(globalThis, "WebSocket", {
     configurable: true,
@@ -112,7 +113,27 @@ test("web adapter expands hello messages into snapshot and buffered event update
   }
 
   expect(events).toContainEqual({ type: "snapshot", snapshot: mockDashboardSnapshot })
-  expect(events).toContainEqual({ type: "event", item: bufferedEvent })
+  expect(events).not.toContainEqual({ type: "event", item: bufferedEvent })
+  expect(events.filter((event) => event.type === "snapshot")).toHaveLength(1)
+})
+
+test("dashboard store ignores volatile-only snapshot updates", () => {
+  const volatileOnlySnapshot = {
+    ...mockDashboardSnapshot,
+    generated_at: "2026-06-20T14:18:03Z",
+    generated_at_display: "2026-06-20T14:18:03Z",
+    event_feed: [...mockDashboardSnapshot.event_feed].reverse(),
+  }
+  const changedSnapshot = {
+    ...mockDashboardSnapshot,
+    session: {
+      ...mockDashboardSnapshot.session,
+      kills: mockDashboardSnapshot.session.kills + 1,
+    },
+  }
+
+  expect(shouldApplySnapshotUpdate(mockDashboardSnapshot, volatileOnlySnapshot)).toBe(false)
+  expect(shouldApplySnapshotUpdate(mockDashboardSnapshot, changedSnapshot)).toBe(true)
 })
 
 test("web adapter loadSnapshot reads only the snapshot endpoint", async () => {

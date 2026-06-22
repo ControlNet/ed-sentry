@@ -179,10 +179,6 @@ impl MonitorRuntime {
             .monitor
             .dynamic_title
             .then(|| self.monitor.render_dynamic_title(now));
-        if let Some(summary) = status_line.as_deref().or(dynamic_title.as_deref()) {
-            self.events
-                .record_status_update("runtime_status", summary, now);
-        }
         let snapshot = self.snapshot(now);
         self.events.publish_snapshot(snapshot.clone());
         RuntimeStatusSnapshot {

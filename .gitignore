@@ -1,9 +1,14 @@
 /target
 /config.toml
+# OMO runtime artifacts. Keep durable knowledge/docs under .omo/knowledges/,
+# .omo/plans/, .omo/notepads/, and non-evidence .omo/ulw-loop/ files trackable.
+/.omo/boulder.json
 /.omo/evidence/*
 !/.omo/evidence/.gitignore
-/.omo/boulder.json
 /.omo/run-continuation/
+/.omo/start-work/
+/.omo/ultraresearch/
+/.omo/ulw-loop/evidence/
 /.omo/drafts/
 /dist/
 /ui/node_modules/

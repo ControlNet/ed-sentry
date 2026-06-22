@@ -57,7 +57,6 @@ struct AppEventStoreState {
 
 enum SystemEventKind {
     Lifecycle,
-    Status,
     Warning,
 }
 
@@ -127,21 +126,6 @@ impl AppEventStore {
     ) {
         let item = self.system_event(
             SystemEventKind::Lifecycle,
-            event_type.as_ref(),
-            summary.as_ref(),
-            timestamp,
-        );
-        self.record_event(item);
-    }
-
-    pub fn record_status_update(
-        &self,
-        event_type: impl AsRef<str>,
-        summary: impl AsRef<str>,
-        timestamp: DateTime<Utc>,
-    ) {
-        let item = self.system_event(
-            SystemEventKind::Status,
             event_type.as_ref(),
             summary.as_ref(),
             timestamp,
@@ -259,14 +243,13 @@ impl SystemEventKind {
     const fn source(&self) -> &'static str {
         match self {
             Self::Lifecycle => "lifecycle",
-            Self::Status => "status",
             Self::Warning => "warning",
         }
     }
 
     const fn level(&self) -> u8 {
         match self {
-            Self::Lifecycle | Self::Status => 1,
+            Self::Lifecycle => 1,
             Self::Warning => 2,
         }
     }

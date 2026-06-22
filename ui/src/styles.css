@@ -36,6 +36,15 @@
   --color-data-scan: var(--color-data-scan);
   --color-data-kill: var(--color-data-kill);
   --color-data-mission: var(--color-data-mission);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-surface-panel: var(--color-surface-panel);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-surface-inset: var(--color-bg-inset);
+  --color-border-strong: var(--color-border-strong);
+  --color-tactical: var(--color-tactical-accent);
+  --color-tactical-accent: var(--color-tactical-accent);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -43,26 +52,27 @@
 }
 
 :root {
-  --color-bg-base: #03070b;
-  --color-bg-inset: #070d13;
-  --color-surface-panel: #0b1218;
-  --color-surface-raised: #101a22;
-  --color-surface-pressed: #16232d;
-  --color-border-subtle: #17242e;
-  --color-border-strong: #28404d;
-  --color-text-primary: #e6f0f4;
-  --color-text-secondary: #a7b8c0;
-  --color-text-muted: #667a84;
+  --color-bg-base: #03060a;
+  --color-bg-inset: #020617;
+  --color-surface-panel: #060a11;
+  --color-surface-raised: #0f172a;
+  --color-surface-pressed: #1e293b;
+  --color-border-subtle: #1e293b;
+  --color-border-strong: #334155;
+  --color-text-primary: #e2e8f0;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
   --color-accent-action: #4bb7c8;
   --color-accent-action-hover: #7ad7e3;
-  --color-status-online: #5ed38c;
-  --color-status-warning: #e8b75d;
-  --color-status-danger: #f06464;
-  --color-status-info: #7aa7ff;
-  --color-status-neutral: #7a8e98;
-  --color-data-scan: #69d6d0;
-  --color-data-kill: #ff8a6a;
-  --color-data-mission: #b9a7ff;
+  --color-status-online: #34d399;
+  --color-status-warning: #fbbf24;
+  --color-status-danger: #f43f5e;
+  --color-status-info: #38bdf8;
+  --color-status-neutral: #475569;
+  --color-data-scan: #22d3ee;
+  --color-data-kill: #fb7185;
+  --color-data-mission: #a78bfa;
+  --color-tactical-accent: #f97316;
   --color-overlay-scrim: #010305;
   --color-focus-ring: #7ad7e3;
   --space-0: 0;
@@ -85,6 +95,14 @@
   --metric-min-width: 180px;
   --feed-row-min-height: 44px;
   --table-row-height: 48px;
+  --font-tactical-overline-size: 10px;
+  --font-tactical-micro-size: 9px;
+  --font-code-size: 13px;
+  --tracking-tactical-wide: 0.14em;
+  --tracking-tactical-wider: 0.16em;
+  --tracking-tactical-title: 0.18em;
+  --tactical-summary-panel-height: 320px;
+  --motion-fast: 140ms ease-out;
   --background: var(--color-bg-base);
   --foreground: var(--color-text-primary);
   --card: var(--color-surface-panel);
@@ -135,6 +153,155 @@ select {
   min-height: 100dvh;
 }
 
+.bg-tactical {
+  background-color: #03060a;
+  background-image:
+    linear-gradient(rgb(30 41 59 / 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(30 41 59 / 0.2) 1px, transparent 1px);
+  background-size: 24px 24px;
+  position: relative;
+}
+
+.bg-tactical::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  background: linear-gradient(rgb(18 16 16 / 0) 50%, rgb(0 0 0 / 0.15) 50%);
+  background-size: 100% 4px;
+  opacity: 0.35;
+}
+
+.hud-panel {
+  border: 1px solid rgb(249 115 22 / 0.2);
+  background: rgb(6 10 17 / 0.8);
+  box-shadow: inset 0 0 20px rgb(249 115 22 / 0.05);
+}
+
+.custom-scrollbar {
+  scrollbar-color: rgb(249 115 22 / 0.3) rgb(15 23 42 / 0.5);
+  scrollbar-width: thin;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgb(15 23 42 / 0.5);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(249 115 22 / 0.3);
+  border-radius: 0;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-tactical-accent);
+}
+
+.text-shadow-glow {
+  text-shadow: 0 0 10px color-mix(in srgb, var(--color-tactical-accent) 40%, transparent);
+}
+
+[data-titlebar-drag-debug="true"] [data-titlebar-drag-region] {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgb(16 185 129 / 0.18) 0,
+      rgb(16 185 129 / 0.18) 6px,
+      rgb(16 185 129 / 0.08) 6px,
+      rgb(16 185 129 / 0.08) 12px
+    ),
+    rgb(16 185 129 / 0.08);
+  outline: 1px solid rgb(16 185 129 / 0.8);
+  outline-offset: -1px;
+}
+
+[data-titlebar-drag-debug="true"] [data-titlebar-no-drag] {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgb(244 63 94 / 0.24) 0,
+      rgb(244 63 94 / 0.24) 6px,
+      rgb(244 63 94 / 0.1) 6px,
+      rgb(244 63 94 / 0.1) 12px
+    ),
+    rgb(244 63 94 / 0.08);
+  outline: 1px solid rgb(244 63 94 / 0.9);
+  outline-offset: -1px;
+}
+
+.tactical-overline {
+  font-family: var(--font-mono);
+  font-size: var(--font-tactical-overline-size);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tactical-wider);
+  text-transform: uppercase;
+}
+
+.tactical-micro {
+  font-family: var(--font-mono);
+  font-size: var(--font-tactical-micro-size);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tactical-wider);
+  text-transform: uppercase;
+}
+
+.tactical-summary-panel {
+  height: var(--tactical-summary-panel-height);
+}
+
+.tactical-workspace {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.tactical-config-section {
+  display: grid;
+  gap: var(--space-4);
+  position: relative;
+  border: 1px solid #1e293b;
+  border-radius: 2px;
+  background: rgb(15 23 42 / 0.2);
+  padding: var(--space-5);
+}
+
+.tactical-input {
+  height: 34px;
+  width: 100%;
+  border: 1px solid #1e293b;
+  border-radius: 2px;
+  background: rgb(0 0 0 / 0.5);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #e2e8f0;
+  outline: none;
+  transition: border-color var(--motion-fast);
+}
+
+.tactical-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.tactical-input:focus-visible {
+  border-color: rgb(249 115 22 / 0.5);
+  box-shadow: 0 0 0 2px rgb(249 115 22 / 0.25);
+}
+
+.tactical-button {
+  border-radius: var(--radius-xs);
+  border-color: color-mix(in srgb, var(--color-tactical-accent) 45%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--font-tactical-overline-size);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tactical-wide);
+  text-transform: uppercase;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html:focus-within {
     scroll-behavior: auto;
@@ -145,6 +312,7 @@ select {
     animation-iteration-count: 1;
   }
 
+  .transition-all,
   .transition-colors {
     transition-duration: 0ms;
   }

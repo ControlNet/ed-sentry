@@ -1,0 +1,1228 @@
+{
+  "version": 1,
+  "createdAt": "2026-06-22T07:30:54.747Z",
+  "updatedAt": "2026-06-22T07:30:54.747Z",
+  "briefPath": ".omo/ulw-loop/frontend-redesign-2026-06-22/brief.md",
+  "goalsPath": ".omo/ulw-loop/frontend-redesign-2026-06-22/goals.json",
+  "ledgerPath": ".omo/ulw-loop/frontend-redesign-2026-06-22/ledger.jsonl",
+  "codexGoalMode": "aggregate",
+  "goals": [
+    {
+      "id": "G001-never-modify-reference-design-design",
+      "title": "Never modify `reference-design/design1.tsx`.",
+      "objective": "Never modify `reference-design/design1.tsx`.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Never modify `reference-design/design1.tsx`.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 1.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Never modify `reference-design/design1.tsx`..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Never modify `reference-design/design1.tsx`..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G002-use-the-reference-design-as-the-visu",
+      "title": "Use the reference design as the visual/content interaction basis, not...",
+      "objective": "Use the reference design as the visual/content interaction basis, not as a file to edit.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Use the reference design as the visual/content interaction basis, not as a fi...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 2.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Use the reference design as the visual/content interaction basis, not as a fi....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Use the reference design as the visual/content interaction basis, not as a fi....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G003-preserve-the-shared-frontend-archite",
+      "title": "Preserve the shared frontend architecture for `mock`, `web`, and `tau...",
+      "objective": "Preserve the shared frontend architecture for `mock`, `web`, and `tauri` adapters.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Preserve the shared frontend architecture for `mock`, `web`, and `tauri` adap...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 3.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Preserve the shared frontend architecture for `mock`, `web`, and `tauri` adap....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Preserve the shared frontend architecture for `mock`, `web`, and `tauri` adap....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G004-preserve-config-editing-and-write-on",
+      "title": "Preserve config editing and write-only Matrix token behavior.",
+      "objective": "Preserve config editing and write-only Matrix token behavior.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Preserve config editing and write-only Matrix token behavior.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 4.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Preserve config editing and write-only Matrix token behavior..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Preserve config editing and write-only Matrix token behavior..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G005-preserve-mission-detail-list-require",
+      "title": "Preserve mission detail/list requirements from `.omo/knowledges/front...",
+      "objective": "Preserve mission detail/list requirements from `.omo/knowledges/frontend-redesign-requirements-2026-06-22.md`.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Preserve mission detail/list requirements from `.omo/knowledges/frontend-rede...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 5.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Preserve mission detail/list requirements from `.omo/knowledges/frontend-rede....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Preserve mission detail/list requirements from `.omo/knowledges/frontend-rede....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G006-do-not-introduce-gui-replay",
+      "title": "Do not introduce GUI replay.",
+      "objective": "Do not introduce GUI replay.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Do not introduce GUI replay.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 6.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Do not introduce GUI replay..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Do not introduce GUI replay..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G007-do-not-expose-raw-matrix-tokens-raw",
+      "title": "Do not expose raw Matrix tokens, raw Journal lines, or private Journa...",
+      "objective": "Do not expose raw Matrix tokens, raw Journal lines, or private Journal/chat content.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Do not expose raw Matrix tokens, raw Journal lines, or private Journal/chat c...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 7.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Do not expose raw Matrix tokens, raw Journal lines, or private Journal/chat c....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Do not expose raw Matrix tokens, raw Journal lines, or private Journal/chat c....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G008-keep-code-comments-identifiers-in-en",
+      "title": "Keep code/comments/identifiers in English.",
+      "objective": "Keep code/comments/identifiers in English.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Keep code/comments/identifiers in English.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 8.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Keep code/comments/identifiers in English..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Keep code/comments/identifiers in English..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G009-reply-to-the-user-in-chinese",
+      "title": "Reply to the user in Chinese.",
+      "objective": "Reply to the user in Chinese.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Reply to the user in Chinese.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 9.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Reply to the user in Chinese..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Reply to the user in Chinese..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G010-reference-preserved",
+      "title": "`reference-preserved`",
+      "objective": "`reference-preserved`",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: `reference-preserved`",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 10.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: `reference-preserved`.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: `reference-preserved`.",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G011-scenario-cli-data-surface-run-git-di",
+      "title": "Scenario: CLI/data surface. Run `git diff -- reference-design/design1...",
+      "objective": "Scenario: CLI/data surface. Run `git diff -- reference-design/design1.tsx` after implementation.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Scenario: CLI/data surface. Run `git diff -- reference-design/design1.tsx` af...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 11.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Scenario: CLI/data surface. Run `git diff -- reference-design/design1.tsx` af....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Scenario: CLI/data surface. Run `git diff -- reference-design/design1.tsx` af....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G012-pass-observable-command-exits-0-and",
+      "title": "Pass observable: command exits 0 and prints no diff.",
+      "objective": "Pass observable: command exits 0 and prints no diff.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Pass observable: command exits 0 and prints no diff.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 12.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Pass observable: command exits 0 and prints no diff..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Pass observable: command exits 0 and prints no diff..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G013-expected-evidence-omo-ulw-loop-evide",
+      "title": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-referenc...",
+      "objective": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-reference-preserved.txt`.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-reference-preser...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 13.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-reference-preser....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-reference-preser....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G014-browser-redesign",
+      "title": "`browser-redesign`",
+      "objective": "`browser-redesign`",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: `browser-redesign`",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 14.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: `browser-redesign`.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: `browser-redesign`.",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G015-scenario-browser-use-run-production",
+      "title": "Scenario: Browser use. Run production Vite build/preview, open the re...",
+      "objective": "Scenario: Browser use. Run production Vite build/preview, open the real app with Playwright at `http://127.0.0.1:<port>/?adapter=mock`, click tabs `Telemetry`, `Missions`, `Comms Feed`, `Systems`, and capture desktop/tablet/mobile screenshots.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Scenario: Browser use. Run production Vite build/preview, open the real app w...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 15.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Scenario: Browser use. Run production Vite build/preview, open the real app w....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Scenario: Browser use. Run production Vite build/preview, open the real app w....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G016-pass-observable-each-tab-renders-ref",
+      "title": "Pass observable: each tab renders reference-design-derived UI content...",
+      "objective": "Pass observable: each tab renders reference-design-derived UI content, and screenshots are non-empty with no browser console page crash.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Pass observable: each tab renders reference-design-derived UI content, and sc...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 16.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Pass observable: each tab renders reference-design-derived UI content, and sc....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Pass observable: each tab renders reference-design-derived UI content, and sc....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G017-expected-evidence-omo-ulw-loop-evide",
+      "title": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-browser-...",
+      "objective": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-browser-qa.txt` plus PNG screenshots under `.omo/ulw-loop/evidence/`.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-browser-qa.txt`...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 17.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-browser-qa.txt`....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-browser-qa.txt`....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G018-functional-regression",
+      "title": "`functional-regression`",
+      "objective": "`functional-regression`",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: `functional-regression`",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 18.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: `functional-regression`.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: `functional-regression`.",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G019-scenario-cli-test-surface-run-pnpm-d",
+      "title": "Scenario: CLI/test surface. Run `pnpm --dir ui typecheck`, `pnpm --di...",
+      "objective": "Scenario: CLI/test surface. Run `pnpm --dir ui typecheck`, `pnpm --dir ui build`, and focused Playwright tests covering dashboard/config/adapters.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Scenario: CLI/test surface. Run `pnpm --dir ui typecheck`, `pnpm --dir ui bui...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 19.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Scenario: CLI/test surface. Run `pnpm --dir ui typecheck`, `pnpm --dir ui bui....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Scenario: CLI/test surface. Run `pnpm --dir ui typecheck`, `pnpm --dir ui bui....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G020-pass-observable-commands-exit-0-with",
+      "title": "Pass observable: commands exit 0 without weakening tests.",
+      "objective": "Pass observable: commands exit 0 without weakening tests.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Pass observable: commands exit 0 without weakening tests.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 20.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Pass observable: commands exit 0 without weakening tests..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Pass observable: commands exit 0 without weakening tests..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G021-expected-evidence-omo-ulw-loop-evide",
+      "title": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-function...",
+      "objective": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-functional-regression.txt`.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-functional-regre...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 21.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-functional-regre....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-functional-regre....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G022-visual-review",
+      "title": "`visual-review`",
+      "objective": "`visual-review`",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: `visual-review`",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 22.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: `visual-review`.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: `visual-review`.",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G023-scenario-browser-visual-qa-surface-c",
+      "title": "Scenario: Browser/visual QA surface. Compare actual screenshots again...",
+      "objective": "Scenario: Browser/visual QA surface. Compare actual screenshots against the rendered reference design intent and run visual QA review for desktop/tablet/mobile.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Scenario: Browser/visual QA surface. Compare actual screenshots against the r...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 23.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Scenario: Browser/visual QA surface. Compare actual screenshots against the r....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Scenario: Browser/visual QA surface. Compare actual screenshots against the r....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G024-pass-observable-visual-qa-reports-pa",
+      "title": "Pass observable: visual QA reports PASS/GOOD or all blocking findings...",
+      "objective": "Pass observable: visual QA reports PASS/GOOD or all blocking findings are fixed and rerun.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Pass observable: visual QA reports PASS/GOOD or all blocking findings are fix...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 24.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Pass observable: visual QA reports PASS/GOOD or all blocking findings are fix....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Pass observable: visual QA reports PASS/GOOD or all blocking findings are fix....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G025-expected-evidence-omo-ulw-loop-evide",
+      "title": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-visual-q...",
+      "objective": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-visual-qa.md`.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-visual-qa.md`.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 25.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-visual-qa.md`..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-visual-qa.md`..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G026-final-review",
+      "title": "`final-review`",
+      "objective": "`final-review`",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: `final-review`",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 26.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: `final-review`.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: `final-review`.",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G027-scenario-review-gate-run-final-code",
+      "title": "Scenario: Review gate. Run final code/goal/security/QA review against...",
+      "objective": "Scenario: Review gate. Run final code/goal/security/QA review against the diff and evidence.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Scenario: Review gate. Run final code/goal/security/QA review against the dif...",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 27.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Scenario: Review gate. Run final code/goal/security/QA review against the dif....",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Scenario: Review gate. Run final code/goal/security/QA review against the dif....",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G028-pass-observable-reviewer-approval-ha",
+      "title": "Pass observable: reviewer approval has no blocking findings.",
+      "objective": "Pass observable: reviewer approval has no blocking findings.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Pass observable: reviewer approval has no blocking findings.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 28.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Pass observable: reviewer approval has no blocking findings..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Pass observable: reviewer approval has no blocking findings..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G029-expected-evidence-omo-ulw-loop-evide",
+      "title": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-final-re...",
+      "objective": "Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-final-review.md`.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-final-review.md`.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 29.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-final-review.md`..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Expected evidence: `.omo/ulw-loop/evidence/frontend-redesign-final-review.md`..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G030-stop-any-preview-dev-server-started",
+      "title": "Stop any preview/dev server started for QA.",
+      "objective": "Stop any preview/dev server started for QA.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Stop any preview/dev server started for QA.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 30.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Stop any preview/dev server started for QA..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Stop any preview/dev server started for QA..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G031-close-any-playwright-browser-context",
+      "title": "Close any Playwright/browser context started for QA.",
+      "objective": "Close any Playwright/browser context started for QA.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Close any Playwright/browser context started for QA.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 31.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Close any Playwright/browser context started for QA..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Close any Playwright/browser context started for QA..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    },
+    {
+      "id": "G032-confirm-no-qa-tmux-sessions-bound-po",
+      "title": "Confirm no QA tmux sessions, bound ports, or temp dirs remain.",
+      "objective": "Confirm no QA tmux sessions, bound ports, or temp dirs remain.",
+      "status": "pending",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "happy path for: Confirm no QA tmux sessions, bound ports, or temp dirs remain.",
+          "userModel": "happy",
+          "expectedEvidence": "Replace via revise_criterion with observable happy-path proof for goal 32.",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C002",
+          "scenario": "edge case (boundary/empty/malformed)",
+          "userModel": "edge",
+          "expectedEvidence": "Replace via revise_criterion with boundary or malformed-input proof for: Confirm no QA tmux sessions, bound ports, or temp dirs remain..",
+          "essential": true,
+          "capturedEvidence": null,
+          "status": "pending"
+        },
+        {
+          "id": "C003",
+          "scenario": "regression: adjacent surface still works",
+          "userModel": "regression",
+          "expectedEvidence": "Replace via revise_criterion with regression proof for neighboring behavior after: Confirm no QA tmux sessions, bound ports, or temp dirs remain..",
+          "essential": false,
+          "capturedEvidence": null,
+          "status": "pending"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-22T07:30:54.747Z",
+      "updatedAt": "2026-06-22T07:30:54.747Z"
+    }
+  ],
+  "codexObjective": "Complete the durable ulw-loop plan in .omo/ulw-loop/frontend-redesign-2026-06-22/goals.json, including later accepted/appended stories, under the original brief constraints; use .omo/ulw-loop/frontend-redesign-2026-06-22/ledger.jsonl as the audit trail."
+}

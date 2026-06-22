@@ -10,6 +10,8 @@ DIST_DIR="$REPO_ROOT/dist"
 EXTRACTED_DIR="$DIST_DIR/$PACKAGE_NAME"
 ZIP_PATH="$DIST_DIR/${PACKAGE_NAME}-${TARGET}.zip"
 EXE_PATH="$REPO_ROOT/target/$TARGET/release/${PACKAGE_NAME}.exe"
+GUI_EXE_PATH="$REPO_ROOT/ui/src-tauri/target/$TARGET/release/${PACKAGE_NAME}-gui.exe"
+WEBVIEW2_LOADER_PATH="$REPO_ROOT/ui/src-tauri/target/$TARGET/release/WebView2Loader.dll"
 CONFIG_TEMPLATE="$REPO_ROOT/config.example.toml"
 WEBUI_DIST="$REPO_ROOT/ui/dist"
 
@@ -34,8 +36,21 @@ pnpm --dir ui build
 printf 'Building %s release binary...\n' "$TARGET"
 cargo build --release --target "$TARGET"
 
+printf 'Building %s Tauri GUI binary...\n' "$TARGET"
+pnpm --dir ui exec tauri build --target "$TARGET"
+
 if [[ ! -f "$EXE_PATH" ]]; then
     printf 'Expected binary was not produced: %s\n' "$EXE_PATH" >&2
+    exit 1
+fi
+
+if [[ ! -f "$GUI_EXE_PATH" ]]; then
+    printf 'Expected GUI binary was not produced: %s\n' "$GUI_EXE_PATH" >&2
+    exit 1
+fi
+
+if [[ ! -f "$WEBVIEW2_LOADER_PATH" ]]; then
+    printf 'Expected WebView2 loader DLL was not produced: %s\n' "$WEBVIEW2_LOADER_PATH" >&2
     exit 1
 fi
 
@@ -54,6 +69,8 @@ trap 'rm -rf "$STAGING_DIR"' EXIT
 
 mkdir -p "$STAGING_DIR/$PACKAGE_NAME/webui" "$DIST_DIR"
 cp "$EXE_PATH" "$STAGING_DIR/$PACKAGE_NAME/${PACKAGE_NAME}.exe"
+cp "$GUI_EXE_PATH" "$STAGING_DIR/$PACKAGE_NAME/${PACKAGE_NAME}-gui.exe"
+cp "$WEBVIEW2_LOADER_PATH" "$STAGING_DIR/$PACKAGE_NAME/WebView2Loader.dll"
 cp "$CONFIG_TEMPLATE" "$STAGING_DIR/$PACKAGE_NAME/config.toml"
 cp -R "$WEBUI_DIST"/. "$STAGING_DIR/$PACKAGE_NAME/webui/"
 
@@ -81,3 +98,4 @@ printf '  %s\n' "$EXTRACTED_DIR"
 printf '  WebUI: %s\n' "$EXTRACTED_DIR/webui"
 test -f "$EXTRACTED_DIR/webui/index.html"
 sha256sum "$ZIP_PATH" "$EXTRACTED_DIR/${PACKAGE_NAME}.exe" "$EXTRACTED_DIR/webui/index.html"
+sha256sum "$EXTRACTED_DIR/${PACKAGE_NAME}-gui.exe" "$EXTRACTED_DIR/WebView2Loader.dll"

@@ -1,5 +1,5 @@
 import { Gauge } from "lucide-react"
-import { NumberField, SectionTitle, ToggleField } from "./config-form-fields"
+import { NumberField, ToggleField } from "./config-form-fields"
 import type { ConfigFormState } from "./config-form-model"
 
 type ConfigMonitorSectionProps = {
@@ -16,15 +16,12 @@ export function ConfigMonitorSection({
   }
 
   return (
-    <section aria-label="Monitor settings" className="grid gap-4 rounded-md border bg-card p-4">
-      <div className="flex items-start gap-3">
-        <Gauge aria-hidden="true" className="mt-1 size-5 text-primary" />
-        <SectionTitle
-          title="Monitor"
-          description="Runtime status, warning thresholds, duplicate suppression, and scan cadence."
-        />
-      </div>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <section aria-label="Monitor settings" className="tactical-config-section">
+      <h3 className="absolute -top-3 left-4 flex items-center gap-2 bg-[#060a11] px-2 text-[10px] font-bold uppercase tracking-widest text-orange-500">
+        <Gauge aria-hidden="true" className="size-3" />
+        Monitor thresholds
+      </h3>
+      <div className="mt-2 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         <ToggleField
           label="Live status"
           checked={form.monitor.live_status}

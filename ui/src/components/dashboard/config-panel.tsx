@@ -1,7 +1,6 @@
-import { AlertTriangle, Loader2, RotateCcw, Save } from "lucide-react"
+import { AlertTriangle, Loader2, Save } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import type { ConfigApiView, DashboardAdapter } from "@/adapters/dashboard"
-import { Button } from "@/components/ui/button"
 import { JournalConfigSection, MatrixConfigSection, WebConfigSection } from "./config-core-sections"
 import { FieldMessage } from "./config-form-fields"
 import {
@@ -98,9 +97,9 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
 
   if (state.status === "loading") {
     return (
-      <section aria-label="Config editor" className="rounded-md border bg-card p-5">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          <Loader2 aria-hidden="true" className="size-4 animate-spin text-primary" />
+      <section aria-label="Config editor" className="tactical-config-section">
+        <div className="flex items-center gap-3 text-sm text-text-muted">
+          <Loader2 aria-hidden="true" className="size-4 animate-spin text-tactical" />
           Loading config
         </div>
       </section>
@@ -109,10 +108,10 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
 
   if (state.status === "error") {
     return (
-      <section aria-label="Config editor" className="grid gap-3 rounded-md border bg-card p-5">
+      <section aria-label="Config editor" className="tactical-config-section">
         <div className="flex items-center gap-3">
           <AlertTriangle aria-hidden="true" className="size-5 text-status-danger" />
-          <h2 className="text-lg font-semibold tracking-normal">Config unavailable</h2>
+          <h2 className="tactical-overline text-status-danger">Config unavailable</h2>
         </div>
         <FieldMessage tone="error">{state.message}</FieldMessage>
       </section>
@@ -120,38 +119,7 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
   }
 
   return (
-    <section aria-label="Config editor" className="grid gap-4">
-      <div className="flex flex-col gap-3 border-b pb-4 md:flex-row md:items-end md:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.06em] text-muted-foreground">
-            Editable local config
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-normal">Config</h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Changes save to the active local config source. Token fields are write-only.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!dirty}
-            onClick={() => setForm(state.savedForm)}
-          >
-            <RotateCcw aria-hidden="true" />
-            Cancel
-          </Button>
-          <Button type="button" disabled={!canSave} onClick={() => void save()}>
-            {saveState === "saving" ? (
-              <Loader2 aria-hidden="true" className="animate-spin" />
-            ) : (
-              <Save aria-hidden="true" />
-            )}
-            Save
-          </Button>
-        </div>
-      </div>
-
+    <section aria-label="Config editor" className="space-y-6 p-2">
       {!state.view.policy.state_changing_enabled ? (
         <FieldMessage tone="warning">{state.view.policy.state_changing_reason}</FieldMessage>
       ) : null}
@@ -169,14 +137,29 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
       )}
 
       <JournalConfigSection form={state.form} onChange={setForm} />
-      <ConfigMonitorSection form={state.form} onChange={setForm} />
-      <WebConfigSection form={state.form} onChange={setForm} />
       <MatrixConfigSection
         form={state.form}
         tokenPresent={state.view.config.matrix?.access_token_present ?? false}
         onChange={setForm}
       />
+      <WebConfigSection form={state.form} onChange={setForm} />
+      <ConfigMonitorSection form={state.form} onChange={setForm} />
       <ConfigLogLevelsSection form={state.form} onChange={setForm} />
+      <div className="mt-6 flex justify-end border-t border-orange-500/10 px-2 pt-4">
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-sm bg-orange-600 px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-100 shadow-[0_0_10px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={!canSave}
+          onClick={() => void save()}
+        >
+          {saveState === "saving" ? (
+            <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
+          ) : (
+            <Save aria-hidden="true" className="size-3.5" />
+          )}
+          Commit Modifications
+        </button>
+      </div>
     </section>
   )
 }

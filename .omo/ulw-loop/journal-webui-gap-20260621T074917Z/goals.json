@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "createdAt": "2026-06-21T07:49:40.419Z",
+  "updatedAt": "2026-06-21T07:55:15.215Z",
+  "briefPath": ".omo/ulw-loop/journal-webui-gap-20260621T074917Z/brief.md",
+  "goalsPath": ".omo/ulw-loop/journal-webui-gap-20260621T074917Z/goals.json",
+  "ledgerPath": ".omo/ulw-loop/journal-webui-gap-20260621T074917Z/ledger.jsonl",
+  "codexGoalMode": "aggregate",
+  "goals": [
+    {
+      "id": "G001-webui-home-ubuntu-elite-dangerous-jo",
+      "title": "调查当前 webui 中展示或计划展示的数据，以 /home/ubuntu/Elite Dangerous 的实际 Journal 与 s...",
+      "objective": "调查当前 webui 中展示或计划展示的数据，以 /home/ubuntu/Elite Dangerous 的实际 Journal 与 sidecar JSON 为准，判断哪些数据目前无法获取；输出证据化结论并保存到 .omo/knowledges。LIGHT：只读调查加文档，不改产品代码。成功标准：1) 从代码提取 webui 数据字段契约；2) 从实际 Journal/sidecar 统计可用事件和字段；3) 输出可获取、后端未暴露、UI未接线、当前Journal缺失/无法推导的分类清单。QA：CLI stdout/报告文件作为数据面证据。",
+      "status": "blocked",
+      "successCriteria": [
+        {
+          "id": "C001",
+          "scenario": "CLI data-surface: run code/schema grep plus Journal statistics script against /home/ubuntu/Elite Dangerous; PASS if output lists AppSnapshot/webui fields and Journal event/field counts without raw commander names.",
+          "userModel": "happy",
+          "expectedEvidence": ".omo/evidence/journal-webui-gap/schema-and-journal-stats.txt",
+          "essential": true,
+          "capturedEvidence": ".omo/evidence/journal-webui-gap/schema-and-journal-stats.txt exists and records AppSnapshot/webui fields plus Journal aggregate: 26 files, 80,428 lines, 145 event types, 0 malformed; cleanup: no servers/ports/browser/tmux/temp dirs started.",
+          "status": "pass",
+          "capturedAt": "2026-06-21T07:54:06.022Z"
+        },
+        {
+          "id": "C002",
+          "scenario": "CLI data-surface: classify webui fields into obtainable, backend-not-exposed, UI-not-structured, and Journal-currently-missing using actual counts; PASS if saved report has all four categories and evidence commands.",
+          "userModel": "edge",
+          "expectedEvidence": ".omo/knowledges/journal-webui-data-gap-2026-06-21.md",
+          "essential": true,
+          "capturedEvidence": ".omo/knowledges/journal-webui-data-gap-2026-06-21.md exists and classifies current webui fields into obtainable, present-not-exposed, current-Journal-missing, and implementation-gap categories; cleanup: no servers/ports/browser/tmux/temp dirs started.",
+          "status": "pass",
+          "capturedAt": "2026-06-21T07:54:06.234Z"
+        },
+        {
+          "id": "C003",
+          "scenario": "CLI regression surface: run cargo run -- --help; PASS if it exits 0 and prints Usage: ed-sentry [OPTIONS].",
+          "userModel": "regression",
+          "expectedEvidence": "cargo run -- --help output captured in current command transcript; Usage line observed.",
+          "essential": false,
+          "capturedEvidence": "cargo run -- --help exited 0 after compiling and printed Usage: ed-sentry [OPTIONS]; cleanup: no long-running process remained after command exit.",
+          "status": "pass",
+          "capturedAt": "2026-06-21T07:54:28.076Z"
+        }
+      ],
+      "attempt": 0,
+      "createdAt": "2026-06-21T07:49:40.419Z",
+      "updatedAt": "2026-06-21T07:55:15.215Z",
+      "blockedReason": "All investigation criteria passed, but final complete checkpoint is blocked by a completed legacy Codex goal in this thread. C001/C002/C003 evidence is recorded in ledger; report is available at .omo/knowledges/journal-webui-data-gap-2026-06-21.md."
+    }
+  ],
+  "codexObjective": "Complete the durable ulw-loop plan in .omo/ulw-loop/journal-webui-gap-20260621T074917Z/goals.json, including later accepted/appended stories, under the original brief constraints; use .omo/ulw-loop/journal-webui-gap-20260621T074917Z/ledger.jsonl as the audit trail."
+}

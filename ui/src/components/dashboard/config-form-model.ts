@@ -81,9 +81,6 @@ export function isConfigFormDirty(form: ConfigFormState, saved: ConfigFormState)
 
 export function validateConfigForm(form: ConfigFormState): readonly string[] {
   const errors: string[] = []
-  if (form.journal.folder.trim().length === 0) {
-    errors.push("Journal folder is required.")
-  }
   addRangeError(errors, "Recent Journal files", form.journal.recent_files, 1, 100)
   addRangeError(errors, "Warn kill rate", form.monitor.warn_kill_rate, 0, 1000)
   addRangeError(errors, "Duplicate suppression max", form.monitor.duplicate_max, 0, 1000)

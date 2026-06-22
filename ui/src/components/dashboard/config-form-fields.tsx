@@ -40,9 +40,11 @@ export function SectionTitle({
   readonly description: string
 }): React.JSX.Element {
   return (
-    <div className="border-b pb-3">
-      <h2 className="text-lg font-semibold tracking-normal">{title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+    <div className="min-w-0">
+      <h2 className="font-mono text-[10px] font-bold uppercase tracking-widest text-orange-500">
+        {title}
+      </h2>
+      <p className="mt-1 text-xs text-slate-500">{description}</p>
     </div>
   )
 }
@@ -59,7 +61,7 @@ export function TextField({
     <FieldShell label={label}>
       <input
         aria-label={label}
-        className={inputClassName}
+        className="tactical-input"
         type={type}
         value={value}
         placeholder={placeholder}
@@ -82,7 +84,7 @@ export function NumberField({
     <FieldShell label={label}>
       <input
         aria-label={label}
-        className={inputClassName}
+        className="tactical-input"
         type="number"
         value={String(value)}
         min={min}
@@ -101,17 +103,19 @@ export function ToggleField({
   onChange,
 }: ToggleFieldProps): React.JSX.Element {
   return (
-    <label className="flex min-h-11 items-start gap-3 rounded-md border bg-background p-3">
+    <label className="flex min-h-11 items-start gap-3 border border-slate-800/50 bg-slate-900/50 p-2 transition-colors hover:border-orange-500/50">
       <input
-        className="mt-1 size-4 accent-primary"
+        className="mt-1 size-4 accent-orange-500"
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.currentTarget.checked)}
       />
       <span className="min-w-0">
-        <span className="block text-sm font-medium">{label}</span>
+        <span className="block font-mono text-xs uppercase tracking-widest text-slate-200">
+          {label}
+        </span>
         {description === undefined ? null : (
-          <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
+          <span className="mt-1 block text-xs text-slate-500">{description}</span>
         )}
       </span>
     </label>
@@ -128,11 +132,11 @@ export function FieldMessage({
   return (
     <p
       className={cn(
-        "rounded-md border bg-background p-3 text-sm",
-        tone === "success" && "border-status-online text-status-online",
-        tone === "warning" && "border-status-warning text-status-warning",
-        tone === "error" && "border-status-danger text-status-danger",
-        tone === "info" && "text-muted-foreground",
+        "border bg-slate-900/50 p-3 text-sm",
+        tone === "success" && "border-emerald-800 text-emerald-400",
+        tone === "warning" && "border-amber-800 text-amber-400",
+        tone === "error" && "border-rose-800 text-rose-400",
+        tone === "info" && "border-slate-800 text-slate-500",
       )}
     >
       {children}
@@ -142,15 +146,12 @@ export function FieldMessage({
 
 function FieldShell({ label, description, children }: FieldShellProps): React.JSX.Element {
   return (
-    <div className="grid gap-2 text-sm">
-      <span className="font-medium">{label}</span>
+    <div className="text-sm">
+      <span className="mb-2 block font-mono text-[10px] uppercase text-slate-500">{label}</span>
       {children}
       {description === undefined ? null : (
-        <span className="text-xs text-muted-foreground">{description}</span>
+        <span className="mt-1 block text-xs text-slate-500">{description}</span>
       )}
     </div>
   )
 }
-
-const inputClassName =
-  "h-9 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"

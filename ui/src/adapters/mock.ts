@@ -6,7 +6,16 @@ import {
   type EditableConfigUpdate,
 } from "@/adapters/types"
 
-const mockScenarioValues = ["default", "empty", "error", "loading"] as const
+const mockScenarioValues = [
+  "default",
+  "empty",
+  "error",
+  "loading",
+  "long_feed",
+  "private_path",
+  "service_statuses",
+  "degraded_connection",
+] as const
 
 type MockScenario = (typeof mockScenarioValues)[number]
 
@@ -101,6 +110,13 @@ export const mockDashboardAdapter: DashboardAdapter = {
         throw new DashboardAdapterError("mock", "Test fixture dashboard load failed")
       case "loading":
         return new Promise(() => undefined)
+      case "long_feed":
+        return longFeedMockDashboardSnapshot
+      case "private_path":
+        return privatePathMockDashboardSnapshot
+      case "service_statuses":
+        return serviceStatusesMockDashboardSnapshot
+      case "degraded_connection":
       case "default":
         return mockDashboardSnapshot
       default:
@@ -138,6 +154,27 @@ export const mockDashboardAdapter: DashboardAdapter = {
     return mockConfigView
   },
   subscribe(onEvent) {
+    if (readMockScenario() === "degraded_connection") {
+      let active = true
+      setTimeout(() => {
+        if (!active) {
+          return
+        }
+        onEvent({
+          type: "connection",
+          connection: {
+            status: "degraded",
+            label: "Mock degraded",
+            detail: "Simulated live transport degradation",
+            checkedAtDisplay: mockDashboardSnapshot.generated_at_display,
+          },
+        })
+      }, 0)
+      return () => {
+        active = false
+      }
+    }
+
     onEvent({
       type: "connection",
       connection: {
@@ -163,6 +200,49 @@ const emptyMockDashboardSnapshot = {
     items: [],
   },
   event_feed: [],
+} satisfies typeof mockDashboardSnapshot
+
+const longFeedMockDashboardSnapshot = {
+  ...mockDashboardSnapshot,
+  event_feed: Array.from({ length: 60 }, (_, index) => {
+    const eventNumber = index + 1
+    const eventLabel = String(eventNumber).padStart(2, "0")
+    const timestamp = new Date(Date.UTC(2026, 5, 20, 13, index, 0)).toISOString()
+    return {
+      id: `mock-long-event-${eventLabel}`,
+      source: "notification",
+      event_type: "long_feed_fixture",
+      level: eventNumber % 10 === 0 ? 2 : 1,
+      summary: `Long feed event ${eventLabel}`,
+      timestamp,
+      timestamp_display: timestamp.slice(11, 19),
+    }
+  }),
+} satisfies typeof mockDashboardSnapshot
+
+const privatePathMockDashboardSnapshot = {
+  ...mockDashboardSnapshot,
+  journal_source: {
+    ...mockDashboardSnapshot.journal_source,
+    folder: "/home/private-journal-root/Elite Dangerous",
+    selected_file: "Journal.private.2036-01-02.log",
+  },
+} satisfies typeof mockDashboardSnapshot
+
+const serviceStatusesMockDashboardSnapshot = {
+  ...mockDashboardSnapshot,
+  matrix: {
+    ...mockDashboardSnapshot.matrix,
+    kind: "running",
+    status_label: "Running",
+    message: "Matrix relay connected",
+  },
+  web: {
+    ...mockDashboardSnapshot.web,
+    kind: "disabled",
+    status_label: "Disabled",
+    message: "Web interface disabled by config",
+  },
 } satisfies typeof mockDashboardSnapshot
 
 function readMockScenario(): MockScenario {

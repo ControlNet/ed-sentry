@@ -1,6 +1,6 @@
 import { ListFilter } from "lucide-react"
 import { type LogLevelKey, logLevelKeys } from "@/adapters/config"
-import { NumberField, SectionTitle } from "./config-form-fields"
+import { NumberField } from "./config-form-fields"
 import type { ConfigFormState } from "./config-form-model"
 
 type ConfigLogLevelsSectionProps = {
@@ -23,15 +23,12 @@ export function ConfigLogLevelsSection({
   }
 
   return (
-    <section aria-label="Log level settings" className="grid gap-4 rounded-md border bg-card p-4">
-      <div className="flex items-start gap-3">
-        <ListFilter aria-hidden="true" className="mt-1 size-5 text-primary" />
-        <SectionTitle
-          title="Log levels"
-          description="Compact numeric levels for notification and summary event categories."
-        />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <section aria-label="Log level settings" className="tactical-config-section">
+      <h3 className="absolute -top-3 left-4 flex items-center gap-2 bg-[#060a11] px-2 text-[10px] font-bold uppercase tracking-widest text-orange-500">
+        <ListFilter aria-hidden="true" className="size-3" />
+        Event routing levels
+      </h3>
+      <div className="mt-2 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {logLevelKeys.map((key) => (
           <NumberField
             key={key}

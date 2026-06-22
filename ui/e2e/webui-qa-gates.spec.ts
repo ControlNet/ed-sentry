@@ -40,14 +40,14 @@ test("@responsive-desktop captures the 1280px WebUI state without horizontal ove
 test("@keyboard-focus reaches core controls and shows focus affordance", async ({ page }) => {
   await page.goto("/")
 
-  const dashboardButton = page.getByRole("button", { name: "Dashboard" })
-  const configButton = page.getByRole("button", { name: "Config" })
+  const dashboardButton = page.getByRole("button", { name: "Telemetry" })
+  const configButton = page.getByRole("button", { name: /Systems/u })
 
   await pressTabUntilFocused(page, dashboardButton)
-  await expectVisibleFocus(dashboardButton, "Dashboard")
+  await expectVisibleFocus(dashboardButton, "Telemetry")
 
   await pressTabUntilFocused(page, configButton)
-  await expectVisibleFocus(configButton, "Config")
+  await expectVisibleFocus(configButton, "Systems")
   await page.keyboard.press("Enter")
   await expect(page.getByRole("region", { name: "Config editor" })).toBeVisible()
 
@@ -57,16 +57,11 @@ test("@keyboard-focus reaches core controls and shows focus affordance", async (
   await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A")
   await page.keyboard.type("Sanitized Journal source QA")
 
-  const saveButton = page.getByRole("button", { name: "Save" })
-  const cancelButton = page.getByRole("button", { name: "Cancel" })
+  const saveButton = page.getByRole("button", { name: "Commit Modifications" })
   await expect(saveButton).toBeEnabled()
-  await expect(cancelButton).toBeEnabled()
 
-  await pressTabUntilFocused(page, saveButton, { reverse: true })
-  await expectVisibleFocus(saveButton, "Save")
-
-  await pressTabUntilFocused(page, cancelButton, { reverse: true })
-  await expectVisibleFocus(cancelButton, "Cancel")
+  await pressTabUntilFocused(page, saveButton, { maxSteps: 90 })
+  await expectVisibleFocus(saveButton, "Commit Modifications")
 
   await page.screenshot({
     path: `${evidenceDir}/task-12-keyboard-focus.png`,
@@ -80,11 +75,11 @@ test("@reduced-motion keeps controls usable while disabling non-essential motion
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
 
-  const refreshButton = page.getByRole("button", { name: "Refresh" })
-  await expect(refreshButton).toBeVisible()
-  await expect(page.getByRole("region", { name: "Connection state" })).toContainText("Mock live")
+  const telemetryButton = page.getByRole("button", { name: "Telemetry" })
+  await expect(telemetryButton).toBeVisible()
+  await expect(page.locator("main")).toContainText("SYS_RELAY: CONNECTED")
 
-  const transitionDurations = await refreshButton.evaluate(
+  const transitionDurations = await telemetryButton.evaluate(
     (element) => getComputedStyle(element).transitionDuration,
   )
   expect(parseCssTimeListMs(transitionDurations).every((duration) => duration === 0)).toBe(true)
@@ -112,7 +107,7 @@ test("@state-coverage renders empty, loading, and error dashboard states", async
     "No dashboard events have arrived.",
   )
   await expect(page.getByRole("region", { name: "Mission progress" })).toContainText(
-    "No tracked missions in this snapshot.",
+    "No active missions",
   )
   await assertNoForbiddenText(page)
   await page.screenshot({
@@ -142,13 +137,13 @@ test("@accessibility-smoke exposes landmarks, region names, and form labels", as
 
   await expect(page.locator("main")).toBeVisible()
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "AFK monitor" })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Connection state" })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Combat metrics" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Telemetry Link" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Combat Analytics" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Recent event feed" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Refresh" })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Telemetry" })).toBeEnabled()
 
-  await page.getByRole("button", { name: "Config" }).click()
+  await page.getByRole("button", { name: /Systems/u }).click()
   await expect(page.getByRole("region", { name: "Config editor" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Journal settings" })).toBeVisible()
   await expect(page.getByRole("textbox", { name: "Journal folder" })).toBeVisible()
@@ -175,10 +170,10 @@ async function captureResponsiveDashboard(
 ): Promise<void> {
   await page.setViewportSize({ width, height: 900 })
   await page.goto("/")
-  await expect(page.getByRole("heading", { name: "AFK monitor" })).toBeVisible()
-  await expect(page.locator("header")).toContainText("Local Commander")
-  await expect(page.getByRole("region", { name: "Connection state" })).toContainText("Mock live")
-  await expect(page.getByRole("region", { name: "Combat metrics" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.locator("main")).toContainText("Local Commander")
+  await expect(page.locator("main")).toContainText("SYS_RELAY: CONNECTED")
+  await expect(page.getByRole("region", { name: "Combat Analytics" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Recent event feed" })).toContainText(
     "Bounty voucher",
   )
@@ -211,10 +206,11 @@ async function assertNoForbiddenText(page: Page): Promise<void> {
 async function pressTabUntilFocused(
   page: Page,
   target: Locator,
-  options: { readonly reverse?: boolean } = {},
+  options: { readonly maxSteps?: number; readonly reverse?: boolean } = {},
 ): Promise<void> {
   const key = options.reverse === true ? "Shift+Tab" : "Tab"
-  for (let index = 0; index < 40; index += 1) {
+  const maxSteps = options.maxSteps ?? 40
+  for (let index = 0; index < maxSteps; index += 1) {
     await page.keyboard.press(key)
     if (await target.evaluate((element) => element === document.activeElement)) {
       return

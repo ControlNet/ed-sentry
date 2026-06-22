@@ -2,6 +2,7 @@ import { Activity } from "lucide-react"
 import type { EventFeedItem } from "@/adapters/dashboard"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
+import { normalizeEventFeed } from "@/store/snapshot-normalization"
 import { eventTitle, lineSafeText } from "./dashboard-helpers"
 import { PanelHeader } from "./dashboard-status"
 
@@ -10,6 +11,8 @@ export function EventFeed({
 }: {
   readonly events: readonly EventFeedItem[]
 }): React.JSX.Element {
+  const visibleEvents = normalizeEventFeed(events)
+
   return (
     <Card role="region" aria-label="Recent event feed" className="overflow-hidden rounded-md">
       <PanelHeader
@@ -17,13 +20,13 @@ export function EventFeed({
         title="Recent event feed"
         description="Current-process events from the adapter stream."
       />
-      <ol className="divide-y">
-        {events.length === 0 ? (
+      <ol className="max-h-[32rem] divide-y overflow-y-auto overscroll-contain">
+        {visibleEvents.length === 0 ? (
           <li className="min-h-[var(--feed-row-min-height)] p-4 text-sm text-muted-foreground">
             No dashboard events have arrived.
           </li>
         ) : (
-          events.map((event) => (
+          visibleEvents.map((event) => (
             <li
               key={event.id}
               className="grid min-h-[var(--feed-row-min-height)] grid-cols-[5.25rem_1fr] gap-3 p-3"

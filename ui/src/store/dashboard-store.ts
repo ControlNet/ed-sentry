@@ -7,6 +7,11 @@ import {
   type DashboardAdapterUnsubscribe,
   type DashboardConnectionState,
 } from "@/adapters/dashboard"
+import {
+  normalizeEventFeed,
+  normalizeSnapshot,
+  shouldApplySnapshotUpdate,
+} from "./snapshot-normalization"
 
 export type DashboardStatus = "idle" | "loading" | "ready" | "error"
 
@@ -56,7 +61,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       },
     })
     try {
-      const snapshot = await adapter.loadSnapshot()
+      const snapshot = normalizeSnapshot(await adapter.loadSnapshot())
       set({
         snapshot,
         status: "ready",
@@ -96,7 +101,7 @@ function applyAdapterEvent(
       set({ connection: event.connection })
       return
     case "snapshot":
-      set({ snapshot: event.snapshot, status: "ready" })
+      setNormalizedSnapshot(event.snapshot, set, get)
       return
     case "event": {
       const currentSnapshot = get().snapshot
@@ -116,14 +121,28 @@ function applyAdapterEvent(
   }
 }
 
+function setNormalizedSnapshot(
+  snapshot: AppSnapshot,
+  set: (state: Partial<DashboardState>) => void,
+  get: () => DashboardState,
+): void {
+  const currentSnapshot = get().snapshot
+  const normalizedSnapshot = normalizeSnapshot(snapshot)
+  if (currentSnapshot !== null && !shouldApplySnapshotUpdate(currentSnapshot, normalizedSnapshot)) {
+    set({ status: "ready" })
+    return
+  }
+  set({ snapshot: normalizedSnapshot, status: "ready" })
+}
+
 function mergeEventFeed(
   nextItem: AppSnapshot["event_feed"][number],
   currentItems: AppSnapshot["event_feed"],
 ): AppSnapshot["event_feed"] {
-  return [nextItem, ...currentItems.filter((currentItem) => currentItem.id !== nextItem.id)].slice(
-    0,
-    30,
-  )
+  return normalizeEventFeed([
+    nextItem,
+    ...currentItems.filter((currentItem) => currentItem.id !== nextItem.id),
+  ])
 }
 
 function assertNever(value: never): never {

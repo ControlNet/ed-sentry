@@ -181,15 +181,7 @@ function eventsFromWebSocketMessage(
 ): readonly DashboardAdapterEvent[] {
   switch (message.type) {
     case "hello":
-      return [
-        { type: "snapshot", snapshot: message.snapshot },
-        ...message.event_feed.map(
-          (item): DashboardAdapterEvent => ({
-            type: "event",
-            item,
-          }),
-        ),
-      ]
+      return [{ type: "snapshot", snapshot: message.snapshot }]
     case "snapshot":
       return [{ type: "snapshot", snapshot: message.snapshot }]
     case "event":

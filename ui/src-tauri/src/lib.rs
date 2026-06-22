@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ed_sentry::app::runtime::DesktopRuntime;
@@ -84,10 +84,11 @@ async fn save_config(
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            let config_dir = app.path().app_config_dir().map_err(|_error| {
+            let app_config_dir = app.path().app_config_dir().map_err(|_error| {
                 Box::<dyn std::error::Error>::from("Config directory could not be resolved")
             })?;
-            let startup = load_desktop_startup(&config_dir);
+            let config_path = desktop_config_path(&app_config_dir);
+            let startup = load_desktop_startup(&config_path);
             if let Some(runtime) = startup.runtime.clone() {
                 spawn_event_bridge(app.handle().clone(), runtime);
             }
@@ -115,22 +116,39 @@ struct DesktopStartup {
     startup_error: Option<String>,
 }
 
-fn load_desktop_startup(config_dir: &Path) -> DesktopStartup {
-    if let Err(error) = std::fs::create_dir_all(config_dir) {
-        let config = AppConfig::default()
-            .into_runtime_with_source(ConfigSource::InMemory, &CliConfigOverrides::default());
-        return DesktopStartup {
-            config,
-            config_source: ConfigSource::InMemory,
-            runtime: None,
-            startup_error: Some(format!(
-                "Config directory could not be created: {}",
-                safe_io_error(&error)
-            )),
-        };
+fn desktop_config_path(app_config_dir: &Path) -> PathBuf {
+    match std::env::current_exe() {
+        Ok(exe_path) => desktop_config_path_from_exe(app_config_dir, &exe_path),
+        Err(_error) => app_config_dir.join("config.toml"),
+    }
+}
+
+fn desktop_config_path_from_exe(app_config_dir: &Path, exe_path: &Path) -> PathBuf {
+    exe_path
+        .parent()
+        .map_or_else(|| app_config_dir.join("config.toml"), |dir| {
+            dir.join("config.toml")
+        })
+}
+
+fn load_desktop_startup(config_path: &Path) -> DesktopStartup {
+    if let Some(config_dir) = config_path.parent() {
+        if let Err(error) = std::fs::create_dir_all(config_dir) {
+            let config = AppConfig::default()
+                .into_runtime_with_source(ConfigSource::InMemory, &CliConfigOverrides::default());
+            return DesktopStartup {
+                config,
+                config_source: ConfigSource::InMemory,
+                runtime: None,
+                startup_error: Some(format!(
+                    "Config directory could not be created: {}",
+                    safe_io_error(&error)
+                )),
+            };
+        }
     }
 
-    let loaded = match AppConfig::load_tauri_from_dir(config_dir) {
+    let loaded = match AppConfig::load_tauri_from_path(config_path) {
         Ok(loaded) => loaded,
         Err(error) => {
             let source = error.config_source();
@@ -247,7 +265,21 @@ mod tests {
 
     use ed_sentry::config::{ConfigError, ConfigSource, ConfigWriteError};
 
-    use super::{frontend_safe_config_load_error, frontend_safe_config_write_error};
+    use super::{
+        desktop_config_path_from_exe, frontend_safe_config_load_error,
+        frontend_safe_config_write_error,
+    };
+
+    #[test]
+    fn desktop_config_path_prefers_exe_sibling_config() {
+        let app_config_dir = PathBuf::from("/home/user/AppData/Roaming/dev.ed-sentry.gui");
+        let exe_path = PathBuf::from("C:/Users/user/Downloads/ed-sentry/ed-sentry-gui.exe");
+
+        assert_eq!(
+            desktop_config_path_from_exe(&app_config_dir, &exe_path),
+            PathBuf::from("C:/Users/user/Downloads/ed-sentry/config.toml")
+        );
+    }
 
     #[test]
     fn config_errors_omit_native_paths() {
