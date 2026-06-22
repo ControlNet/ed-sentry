@@ -60,7 +60,7 @@ export function DashboardShell({
   const activeDefinition = workspaceTabs.find((tab) => tab.id === activeTab) ?? workspaceTabs[0]
   const isTauri = adapter.mode === "tauri"
   const showTauriChrome = isTauri || titlebarDragDebugEnabled
-  const tauriDragRegion = isTauri ? "" : undefined
+  const tauriDragRegion = showTauriChrome ? "" : undefined
 
   return (
     <div
@@ -112,9 +112,14 @@ export function DashboardShell({
           <nav
             aria-label="Primary"
             className="custom-scrollbar relative min-w-0 flex-1 overflow-x-auto"
+            data-tauri-drag-region={tauriDragRegion}
             data-titlebar-drag-region="primary-nav"
           >
-            <div className="flex w-fit gap-2">
+            <div
+              className="flex w-fit gap-2"
+              data-tauri-drag-region={tauriDragRegion}
+              data-titlebar-drag-region="primary-nav-list"
+            >
               {workspaceTabs.map((tab) => (
                 <WorkspaceTabButton
                   key={tab.id}
@@ -172,7 +177,10 @@ type ClosestCapableElement = Element & {
 
 function WindowControls(): React.JSX.Element {
   return (
-    <div className="flex h-full shrink-0 items-stretch border-l border-orange-500/15">
+    <div
+      className="flex h-full shrink-0 items-stretch border-l border-orange-500/15"
+      data-titlebar-no-drag="window-controls"
+    >
       <WindowControlButton command="minimize" label="Minimize window" icon={Minus} />
       <WindowControlButton command="maximize" label="Maximize window" icon={Square} />
       <WindowControlButton command="close" label="Close window" icon={X} danger />
@@ -247,7 +255,7 @@ function shouldStartWindowDrag(event: React.PointerEvent<HTMLElement>): boolean 
 function isInteractiveTitlebarTarget(target: ClosestCapableElement): boolean {
   return (
     target.closest(
-      "button, a, input, textarea, select, summary, [role='button'], [role='tab'], [data-window-control]",
+      "button, a, input, textarea, select, summary, [role='button'], [role='tab'], [data-window-control], [data-titlebar-no-drag]",
     ) !== null
   )
 }

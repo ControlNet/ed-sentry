@@ -45,6 +45,7 @@ test("@tauri-window-chrome enables frameless drag and window controls", async ()
   expect(shellSource).toContain("currentWindow.close()")
   expect(shellSource).toContain("shouldStartWindowDrag")
   expect(shellSource).toContain("onPointerDownCapture")
+  expect(shellSource).toContain("data-tauri-drag-region={tauriDragRegion}")
   expect(shellSource).toContain('data-titlebar-drag-region="primary-nav"')
   expect(shellSource).toContain('data-titlebar-drag-region="brand-mark"')
   expect(shellSource).toContain('data-titlebar-drag-region="brand-label"')
@@ -59,12 +60,21 @@ test("@tauri-window-chrome visualizes titlebar drag hitmap", async ({ page }) =>
 
   await expect(page.locator("[data-titlebar-drag-debug='true']")).toBeVisible()
   await expect(page.locator("[data-titlebar-drag-region='primary-nav']")).toBeVisible()
+  await expect(page.locator("[data-titlebar-drag-region='primary-nav']")).toHaveAttribute(
+    "data-tauri-drag-region",
+    "",
+  )
+  await expect(page.locator("[data-titlebar-drag-region='primary-nav-list']")).toHaveAttribute(
+    "data-tauri-drag-region",
+    "",
+  )
   await expect(page.locator("[data-titlebar-drag-region='brand']")).toBeVisible()
   await expect(page.locator("[data-titlebar-drag-region='brand-mark']")).toBeVisible()
   await expect(page.locator("[data-titlebar-drag-region='brand-label']")).toBeVisible()
   await expect(page.locator("[data-titlebar-drag-region='status']")).toBeVisible()
   await expect(page.locator("[data-titlebar-drag-region='status-label']")).toBeVisible()
   await expect(page.locator("[data-titlebar-no-drag='workspace-tab']")).toHaveCount(4)
+  await expect(page.locator("[data-titlebar-no-drag='window-controls']")).toHaveCount(1)
   await expect(page.locator("[data-titlebar-no-drag='window-control']")).toHaveCount(3)
 
   await page.screenshot({
