@@ -1,4 +1,5 @@
 /target
+/.codegraph
 /config.toml
 # OMO runtime artifacts. Keep durable knowledge/docs under .omo/knowledges/,
 # .omo/plans/, .omo/notepads/, and non-evidence .omo/ulw-loop/ files trackable.
