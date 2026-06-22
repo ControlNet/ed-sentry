@@ -149,6 +149,14 @@ select {
   font: inherit;
 }
 
+*[data-tauri-drag-region] {
+  app-region: drag;
+}
+
+[data-titlebar-no-drag] {
+  app-region: no-drag;
+}
+
 #root {
   min-height: 100dvh;
 }
