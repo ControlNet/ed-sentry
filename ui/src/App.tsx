@@ -1,6 +1,6 @@
-import { Loader2 } from "lucide-react"
 import { useEffect } from "react"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
+import { LoadingScreen } from "@/components/dashboard/loading-screen"
 import { Button } from "@/components/ui/button"
 import { useDashboardStore } from "@/store/dashboard-store"
 
@@ -34,17 +34,7 @@ export function App(): React.JSX.Element {
   }
 
   if (snapshot === null) {
-    return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-background p-6 text-foreground">
-        <section
-          aria-live="polite"
-          className="flex items-center gap-3 rounded-lg border bg-card p-5 text-sm text-muted-foreground"
-        >
-          <Loader2 aria-hidden="true" className="size-4 animate-spin text-primary" />
-          <span>{connection.detail}</span>
-        </section>
-      </main>
-    )
+    return <LoadingScreen detail={connection.detail} />
   }
 
   return (

@@ -206,6 +206,25 @@ select {
   text-shadow: 0 0 10px color-mix(in srgb, var(--color-tactical-accent) 40%, transparent);
 }
 
+.loading-progress-ring {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-tactical-accent) 80%, transparent));
+  transition: stroke-dashoffset 90ms ease-out;
+}
+
+.loading-progress-value,
+.loading-status {
+  text-shadow: 0 0 10px color-mix(in srgb, var(--color-tactical-accent) 60%, transparent);
+}
+
+.loading-core-icon {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-tactical-accent) 80%, transparent));
+}
+
+.loading-linear-progress {
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-tactical-accent) 60%, transparent);
+  transition: transform 90ms ease-out;
+}
+
 [data-titlebar-drag-debug="true"] [data-titlebar-drag-region] {
   background:
     repeating-linear-gradient(

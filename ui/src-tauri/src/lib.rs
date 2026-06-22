@@ -10,57 +10,58 @@ use ed_sentry::config::{
     AppConfig, CliConfigOverrides, ConfigError, ConfigSource, ConfigWriteError, RuntimeConfig,
 };
 use tauri::{Emitter, Manager, State};
-use tokio::sync::RwLock;
+use tokio::sync::{watch, RwLock};
 
 struct DesktopState {
     config: RwLock<RuntimeConfig>,
     config_source: RwLock<ConfigSource>,
     runtime: RwLock<Option<Arc<DesktopRuntime>>>,
     startup_error: RwLock<Option<String>>,
+    startup_signal: watch::Sender<()>,
 }
 
 impl DesktopState {
-    fn new(
-        config: RuntimeConfig,
-        config_source: ConfigSource,
-        runtime: Option<Arc<DesktopRuntime>>,
-        startup_error: Option<String>,
-    ) -> Self {
+    fn new(config: RuntimeConfig, config_source: ConfigSource, startup_error: Option<String>) -> Self {
+        let (startup_signal, _receiver) = watch::channel(());
         Self {
             config: RwLock::new(config),
             config_source: RwLock::new(config_source),
-            runtime: RwLock::new(runtime),
+            runtime: RwLock::new(None),
             startup_error: RwLock::new(startup_error),
+            startup_signal,
+        }
+    }
+
+    fn notify_startup_changed(&self) {
+        self.startup_signal.send_replace(());
+    }
+}
+
+#[tauri::command]
+async fn load_snapshot(state: State<'_, Arc<DesktopState>>) -> Result<AppSnapshot, String> {
+    let mut startup_signal = state.startup_signal.subscribe();
+    loop {
+        if let Some(runtime) = state.runtime.read().await.clone() {
+            return Ok(runtime.snapshot().await);
+        }
+        if let Some(message) = state.startup_error.read().await.clone() {
+            return Err(message);
+        }
+        if startup_signal.changed().await.is_err() {
+            return Err("Desktop monitor startup channel closed".to_string());
         }
     }
 }
 
 #[tauri::command]
-async fn load_snapshot(state: State<'_, DesktopState>) -> Result<AppSnapshot, String> {
-    let runtime = state.runtime.read().await.clone();
-    match runtime {
-        Some(runtime) => Ok(runtime.snapshot().await),
-        None => {
-            let message = state
-                .startup_error
-                .read()
-                .await
-                .clone()
-                .unwrap_or_else(|| "Desktop monitor runtime is not started".to_string());
-            Err(message)
-        }
-    }
-}
-
-#[tauri::command]
-async fn load_config(state: State<'_, DesktopState>) -> Result<ConfigApiView, String> {
+async fn load_config(state: State<'_, Arc<DesktopState>>) -> Result<ConfigApiView, String> {
     let config = state.config.read().await;
     Ok(config_api_view(&config))
 }
 
 #[tauri::command]
 async fn save_config(
-    state: State<'_, DesktopState>,
+    state: State<'_, Arc<DesktopState>>,
     update: EditableConfigUpdate,
 ) -> Result<ConfigApiView, String> {
     let source = state.config_source.read().await.clone();
@@ -89,15 +90,16 @@ pub fn run() {
             })?;
             let config_path = desktop_config_path(&app_config_dir);
             let startup = load_desktop_startup(&config_path);
-            if let Some(runtime) = startup.runtime.clone() {
-                spawn_event_bridge(app.handle().clone(), runtime);
-            }
-            app.manage(DesktopState::new(
+            let should_start_runtime = startup.startup_error.is_none();
+            let state = Arc::new(DesktopState::new(
                 startup.config,
                 startup.config_source,
-                startup.runtime,
                 startup.startup_error,
             ));
+            app.manage(Arc::clone(&state));
+            if should_start_runtime {
+                spawn_desktop_runtime(app.handle().clone(), state);
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -112,7 +114,6 @@ pub fn run() {
 struct DesktopStartup {
     config: RuntimeConfig,
     config_source: ConfigSource,
-    runtime: Option<Arc<DesktopRuntime>>,
     startup_error: Option<String>,
 }
 
@@ -139,7 +140,6 @@ fn load_desktop_startup(config_path: &Path) -> DesktopStartup {
             return DesktopStartup {
                 config,
                 config_source: ConfigSource::InMemory,
-                runtime: None,
                 startup_error: Some(format!(
                     "Config directory could not be created: {}",
                     safe_io_error(&error)
@@ -157,7 +157,6 @@ fn load_desktop_startup(config_path: &Path) -> DesktopStartup {
             return DesktopStartup {
                 config,
                 config_source: source,
-                runtime: None,
                 startup_error: Some(frontend_safe_config_load_error(error)),
             };
         }
@@ -166,24 +165,37 @@ fn load_desktop_startup(config_path: &Path) -> DesktopStartup {
     let config = loaded
         .config
         .into_runtime_with_source(config_source.clone(), &CliConfigOverrides::default());
-    let runtime = match tauri::async_runtime::block_on(DesktopRuntime::start(config.clone())) {
-        Ok(runtime) => Some(Arc::new(runtime)),
-        Err(_error) => {
-            return DesktopStartup {
-                config,
-                config_source,
-                runtime: None,
-                startup_error: Some("Desktop monitor startup failed".to_string()),
-            };
-        }
-    };
 
     DesktopStartup {
         config,
         config_source,
-        runtime,
         startup_error: None,
     }
+}
+
+fn spawn_desktop_runtime(app: tauri::AppHandle, state: Arc<DesktopState>) {
+    tauri::async_runtime::spawn(async move {
+        let config = state.config.read().await.clone();
+        match DesktopRuntime::start(config).await {
+            Ok(runtime) => {
+                let runtime = Arc::new(runtime);
+                {
+                    let mut startup_error = state.startup_error.write().await;
+                    *startup_error = None;
+                }
+                {
+                    let mut stored_runtime = state.runtime.write().await;
+                    *stored_runtime = Some(runtime.clone());
+                }
+                spawn_event_bridge(app, runtime);
+            }
+            Err(_error) => {
+                let mut startup_error = state.startup_error.write().await;
+                *startup_error = Some("Desktop monitor startup failed".to_string());
+            }
+        }
+        state.notify_startup_changed();
+    });
 }
 
 fn spawn_event_bridge(app: tauri::AppHandle, runtime: Arc<DesktopRuntime>) {

@@ -1,3 +1,4 @@
+import type { Page } from "@playwright/test"
 import { expect, test } from "@playwright/test"
 
 test("dashboard scaffold renders monitor state when mock adapter is active", async ({ page }) => {
@@ -145,6 +146,47 @@ test("@connection-status reflects degraded live transport state", async ({ page 
   await expect(page.locator("header")).toContainText("DEGRADED")
   await expect(page.locator("header")).not.toContainText("SYNCED")
 })
+
+test("@loading-screen renders the tactical startup visual while awaiting a snapshot", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto("/?mock_state=loading")
+
+  await expect(page.getByRole("region", { name: "Dashboard startup" })).toBeVisible()
+  await expectLoadingProgress(page)
+  await expect(page.locator("svg").first()).toBeVisible()
+  await expect(page.getByText("Loading dashboard snapshot")).toBeVisible()
+
+  await page.screenshot({
+    path: "../.omo/evidence/gui-webui-tauri/loading-screen.png",
+    fullPage: true,
+  })
+
+  await page.setViewportSize({ width: 768, height: 1024 })
+  await page.goto("/?mock_state=loading")
+  await expect(page.getByRole("region", { name: "Dashboard startup" })).toBeVisible()
+  await expectLoadingProgress(page)
+  await page.screenshot({
+    path: "../.omo/evidence/gui-webui-tauri/loading-screen-tablet.png",
+    fullPage: true,
+  })
+
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.goto("/?mock_state=loading")
+  await expect(page.getByRole("region", { name: "Dashboard startup" })).toBeVisible()
+  await expectLoadingProgress(page)
+  await page.screenshot({
+    path: "../.omo/evidence/gui-webui-tauri/loading-screen-mobile.png",
+    fullPage: true,
+  })
+})
+
+async function expectLoadingProgress(page: Page): Promise<void> {
+  await expect(page.getByText(/PARSING FLIGHT JOURNAL|ESTABLISHING MATRIX RELAY/u)).toBeVisible({
+    timeout: 5_000,
+  })
+}
 
 test("@missions workspace fits a short desktop viewport", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 640 })

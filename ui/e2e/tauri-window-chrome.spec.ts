@@ -72,3 +72,13 @@ test("@tauri-window-chrome visualizes titlebar drag hitmap", async ({ page }) =>
     fullPage: true,
   })
 })
+
+test("@tauri-window-chrome does not block window setup on desktop runtime startup", async () => {
+  const tauriShellSource = await readFile(
+    new URL("../src-tauri/src/lib.rs", import.meta.url),
+    "utf8",
+  )
+
+  expect(tauriShellSource).not.toContain("block_on(DesktopRuntime::start")
+  expect(tauriShellSource).toContain("spawn_desktop_runtime")
+})
