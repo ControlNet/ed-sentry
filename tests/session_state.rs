@@ -221,6 +221,32 @@ fn session_state_tracks_identity_status_and_damage_from_typed_events() {
 }
 
 #[test]
+fn session_state_preserves_localised_ship_display_when_loadout_only_has_raw_key() {
+    let mut state = SessionState::new();
+
+    state.apply_event(&JournalEvent::LoadGame(LoadGameEvent {
+        timestamp: timestamp(0),
+        event: "LoadGame".to_string(),
+        raw: None,
+        commander: Some("Cmdr Fixture State".to_string()),
+        ship: Some("Type9_Military".to_string()),
+        ship_localised: Some("Type-10 Defender".to_string()),
+        game_mode: Some("Open".to_string()),
+        odyssey: Some(true),
+    }));
+    state.apply_event(&JournalEvent::Loadout(LoadoutEvent {
+        timestamp: timestamp(1),
+        event: "Loadout".to_string(),
+        raw: None,
+        ship: Some("type9_military".to_string()),
+        ship_localised: None,
+        fuel_capacity_main: Some(64.0),
+    }));
+
+    assert_eq!(state.ship.as_deref(), Some("Type-10 Defender"));
+}
+
+#[test]
 fn session_state_bounty_and_faction_kill_bond_increment_observed_kills() {
     let mut state = SessionState::new();
 

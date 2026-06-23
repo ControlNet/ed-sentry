@@ -82,6 +82,7 @@ pub struct SessionState {
     pub mission_completed: u64,
     pub last_kill_at: Option<DateTime<Utc>>,
     pub last_scan_at: Option<DateTime<Utc>>,
+    ship_key: Option<String>,
     kill_timestamps: Vec<DateTime<Utc>>,
     scan_timestamps: Vec<DateTime<Utc>>,
 }
@@ -96,13 +97,11 @@ impl SessionState {
             JournalEvent::Commander(event) => assign_if_some(&mut self.commander, &event.name),
             JournalEvent::LoadGame(event) => {
                 assign_if_some(&mut self.commander, &event.commander);
-                assign_if_some(&mut self.ship, &event.ship);
-                assign_if_some(&mut self.ship, &event.ship_localised);
+                self.apply_ship(&event.ship, &event.ship_localised);
                 assign_if_some(&mut self.mode, &event.game_mode);
             }
             JournalEvent::Loadout(event) => {
-                assign_if_some(&mut self.ship, &event.ship);
-                assign_if_some(&mut self.ship, &event.ship_localised);
+                self.apply_ship(&event.ship, &event.ship_localised);
             }
             JournalEvent::Location(event) => self.apply_location(event),
             JournalEvent::SupercruiseDestinationDrop(event) => self.apply_destination_drop(event),
@@ -280,6 +279,24 @@ impl SessionState {
 
         if event.player_pilot != Some(false) {
             self.ship_hull = event.health;
+        }
+    }
+
+    fn apply_ship(&mut self, ship: &Option<String>, ship_localised: &Option<String>) {
+        let same_ship = ship.as_deref().is_some_and(|ship| {
+            self.ship_key
+                .as_deref()
+                .is_some_and(|known| known.eq_ignore_ascii_case(ship))
+        });
+
+        assign_if_some(&mut self.ship_key, ship);
+        if ship_localised
+            .as_ref()
+            .is_some_and(|value| !value.is_empty())
+        {
+            assign_if_some(&mut self.ship, ship_localised);
+        } else if !same_ship {
+            assign_if_some(&mut self.ship, ship);
         }
     }
 
