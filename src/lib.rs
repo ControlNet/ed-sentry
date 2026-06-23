@@ -1,6 +1,7 @@
 pub mod app;
 pub mod config;
 pub mod delivery;
+pub mod desktop_gui;
 pub mod event;
 pub mod journal;
 pub mod matrix;
