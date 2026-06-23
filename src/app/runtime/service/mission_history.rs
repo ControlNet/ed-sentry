@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 use crate::config::RuntimeConfig;
 use crate::event::parse_journal_line;
 use crate::journal::{
-    discover_journal_files, discover_runtime_journal_files, preload_journal_file, JournalFile,
+    discover_journal_files, discover_runtime_journal_files, preload_journal_file, JournalError,
+    JournalFile,
 };
 use crate::mission::MissionTracker;
 
@@ -55,7 +56,11 @@ fn discover_history_candidates(
         let Some(parent) = selected_file.parent() else {
             return Ok(Vec::new());
         };
-        return discover_journal_files(parent).map_err(RuntimeError::from);
+        return match discover_journal_files(parent) {
+            Ok(files) => Ok(files),
+            Err(JournalError::NoJournalFiles { .. }) => Ok(Vec::new()),
+            Err(error) => Err(RuntimeError::from(error)),
+        };
     }
 
     discover_runtime_journal_files(config).map_err(RuntimeError::from)

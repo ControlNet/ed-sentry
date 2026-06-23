@@ -192,3 +192,28 @@ fn runtime_service_rebuilds_mission_details_from_recent_journal_history() {
         other => panic!("expected massacre progress, got {other:?}"),
     }
 }
+
+#[test]
+fn runtime_service_starts_with_explicit_non_journal_named_file() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let journal_path = temp_dir.path().join("fixture.log");
+    std::fs::write(
+        &journal_path,
+        r#"{"timestamp":"2035-01-04T12:00:00Z","event":"LoadGame","Commander":"Cmdr Fixture","Odyssey":true}"#,
+    )
+    .unwrap();
+
+    let config = AppConfig::default().into_runtime(&CliConfigOverrides {
+        set_file: Some(journal_path),
+        ..CliConfigOverrides::default()
+    });
+
+    let runtime = MonitorRuntime::start(
+        &config,
+        &mut ConfiguredJournalSelector,
+        MatrixStartupStatus::disabled(),
+        WebStartupStatus::disabled(),
+    );
+
+    assert!(runtime.is_ok());
+}
