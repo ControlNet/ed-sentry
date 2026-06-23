@@ -1,6 +1,8 @@
 use chrono::{TimeZone, Utc};
 use ed_sentry::app::runtime::{ConfiguredJournalSelector, MonitorRuntime};
-use ed_sentry::app::{JournalSourceView, MatrixStartupStatus, WebStartupStatus};
+use ed_sentry::app::{
+    JournalSourceView, MatrixStartupStatus, MissionProgressView, WebStartupStatus,
+};
 use ed_sentry::config::{AppConfig, CliConfigOverrides};
 
 #[test]
@@ -129,4 +131,64 @@ fn runtime_service_emits_sanitized_snapshot_and_notifications_from_fixture() {
         violations.push("snapshot JSON contains escaped ANSI/control text".to_string());
     }
     assert!(violations.is_empty(), "{}", violations.join("\n"));
+}
+
+#[test]
+fn runtime_service_rebuilds_mission_details_from_recent_journal_history() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let accepted_path = temp_dir.path().join("Journal.2035-01-04T120000.01.log");
+    let active_path = temp_dir.path().join("Journal.2035-01-04T121000.01.log");
+    std::fs::write(
+        &accepted_path,
+        concat!(
+            r#"{"timestamp":"2035-01-04T12:00:00Z","event":"LoadGame","Commander":"Cmdr Fixture","Odyssey":true}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-04T12:01:00Z","event":"Location","StarSystem":"Mission Test System","SystemAddress":100,"StationName":"Task Board Hub","MarketID":200,"Docked":true}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-04T12:02:00Z","event":"MissionAccepted","Faction":"Issuer A","Name":"Mission_Massacre_name","MissionID":7001003,"DestinationSystem":"Target System","TargetFaction":"Fixture Raiders","Target":"Pirate Wing","TargetType":"MissionUtil_FactionTag_Pirate","KillCount":12,"Reward":500000}"#,
+            "\n",
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        &active_path,
+        r#"{"timestamp":"2035-01-04T12:10:00Z","event":"Missions","Active":[{"MissionID":7001003,"Name":"Mission_Massacre_name","PassengerMission":false,"Expires":1800}],"Failed":[],"Complete":[]}"#,
+    )
+    .unwrap();
+
+    let config = AppConfig::default().into_runtime(&CliConfigOverrides {
+        journal_folder: Some(temp_dir.path().to_path_buf()),
+        ..CliConfigOverrides::default()
+    });
+    let mut runtime = MonitorRuntime::start(
+        &config,
+        &mut ConfiguredJournalSelector,
+        MatrixStartupStatus::disabled(),
+        WebStartupStatus::disabled(),
+    )
+    .unwrap();
+    runtime.process_preload(Utc.with_ymd_and_hms(2035, 1, 4, 12, 11, 0).unwrap());
+    let snapshot = runtime.snapshot(Utc.with_ymd_and_hms(2035, 1, 4, 12, 11, 0).unwrap());
+    let mission = snapshot
+        .missions
+        .items
+        .iter()
+        .find(|mission| mission.mission_id == 7001003)
+        .unwrap();
+
+    assert_eq!(mission.kind, "massacre");
+    assert_eq!(mission.target_faction.as_deref(), Some("Fixture Raiders"));
+    assert_eq!(mission.destination_system.as_deref(), Some("Target System"));
+    match &mission.progress {
+        MissionProgressView::Massacre {
+            kills,
+            kill_count,
+            display,
+            ..
+        } => {
+            assert_eq!((*kills, *kill_count), (0, 12));
+            assert_eq!(display, "0/12 kills");
+        }
+        other => panic!("expected massacre progress, got {other:?}"),
+    }
 }

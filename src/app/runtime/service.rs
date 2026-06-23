@@ -17,6 +17,7 @@ use super::types::{
     RuntimeNotificationDelivery, RuntimeStatusSnapshot,
 };
 
+mod mission_history;
 mod snapshot;
 
 pub struct MonitorRuntime {
@@ -48,7 +49,7 @@ impl MonitorRuntime {
         };
         let tail = LiveTail::from_preload(&journal_file, &preload);
         let monitor = EventMonitor::from_runtime_config(config);
-        let missions = MissionTracker::new();
+        let missions = mission_history::preload_mission_history(config, &journal_file)?;
         let events = AppEventStore::from_state(
             monitor.state(),
             &missions,
