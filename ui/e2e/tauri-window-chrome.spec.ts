@@ -10,6 +10,7 @@ const tauriConfigSchema = z.object({
   app: z.object({
     windows: z.array(
       z.object({
+        label: z.string().optional(),
         decorations: z.boolean().optional(),
       }),
     ),
@@ -35,6 +36,7 @@ test("@tauri-window-chrome enables frameless drag and window controls", async ()
   )
 
   expect(tauriConfig.app.windows[0]?.decorations).toBe(false)
+  expect(tauriConfig.app.windows[0]?.label).toBe("main")
   expect(capability.permissions).toEqual(
     expect.arrayContaining([
       "core:window:allow-close",
@@ -92,11 +94,19 @@ test("@tauri-window-chrome visualizes titlebar drag hitmap", async ({ page }) =>
 })
 
 test("@tauri-window-chrome does not block window setup on desktop runtime startup", async () => {
-  const tauriShellSource = await readFile(
-    new URL("../src-tauri/src/lib.rs", import.meta.url),
+  const desktopGuiSource = await readFile(
+    new URL("../../src/desktop_gui/mod.rs", import.meta.url),
     "utf8",
   )
+  const launcherSource = await readFile(
+    new URL("../src-tauri/src/main.rs", import.meta.url),
+    "utf8",
+  )
+  const rootBuildSource = await readFile(new URL("../../build.rs", import.meta.url), "utf8")
 
-  expect(tauriShellSource).not.toContain("block_on(DesktopRuntime::start")
-  expect(tauriShellSource).toContain("spawn_desktop_runtime")
+  expect(desktopGuiSource).not.toContain("block_on(DesktopRuntime::start")
+  expect(desktopGuiSource).toContain("spawn_desktop_runtime")
+  expect(launcherSource).toContain('command.arg("--gui")')
+  expect(rootBuildSource).toContain('join("ui").join("src-tauri")')
+  expect(rootBuildSource).toContain("tauri_build::build()")
 })
