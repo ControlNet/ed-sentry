@@ -11,9 +11,9 @@ EXTRACTED_DIR="$DIST_DIR/$PACKAGE_NAME"
 ZIP_PATH="$DIST_DIR/${PACKAGE_NAME}-${TARGET}.zip"
 EXE_PATH="$REPO_ROOT/target/$TARGET/release/${PACKAGE_NAME}.exe"
 GUI_EXE_PATH="$REPO_ROOT/ui/src-tauri/target/$TARGET/release/${PACKAGE_NAME}-gui.exe"
-WEBVIEW2_LOADER_PATH="$REPO_ROOT/ui/src-tauri/target/$TARGET/release/WebView2Loader.dll"
 CONFIG_TEMPLATE="$REPO_ROOT/config.example.toml"
 WEBUI_DIST="$REPO_ROOT/ui/dist"
+WEBVIEW2_LOADER_PATH=""
 
 require_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -33,11 +33,18 @@ printf 'Building WebUI assets...\n'
 pnpm --dir ui install --frozen-lockfile
 pnpm --dir ui build
 
-printf 'Building %s release binary...\n' "$TARGET"
+printf 'Building %s release binary with desktop GUI mode...\n' "$TARGET"
 cargo build --release --target "$TARGET"
 
-printf 'Building %s Tauri GUI binary...\n' "$TARGET"
-pnpm --dir ui exec tauri build --target "$TARGET"
+printf 'Building %s tiny GUI launcher...\n' "$TARGET"
+cargo build --manifest-path "$REPO_ROOT/ui/src-tauri/Cargo.toml" --release --target "$TARGET"
+
+for candidate in "$REPO_ROOT"/target/$TARGET/release/build/webview2-com-sys-*/out/x64/WebView2Loader.dll; do
+    if [[ -f "$candidate" ]]; then
+        WEBVIEW2_LOADER_PATH="$candidate"
+        break
+    fi
+done
 
 if [[ ! -f "$EXE_PATH" ]]; then
     printf 'Expected binary was not produced: %s\n' "$EXE_PATH" >&2
@@ -49,7 +56,7 @@ if [[ ! -f "$GUI_EXE_PATH" ]]; then
     exit 1
 fi
 
-if [[ ! -f "$WEBVIEW2_LOADER_PATH" ]]; then
+if [[ -z "$WEBVIEW2_LOADER_PATH" ]]; then
     printf 'Expected WebView2 loader DLL was not produced: %s\n' "$WEBVIEW2_LOADER_PATH" >&2
     exit 1
 fi
