@@ -14,3 +14,8 @@ Verification signals used for this fix:
 
 - `cargo test --test mission_tracker mission_tracker_creates_active_missions_from_snapshot_without_accept_event` failed before implementation because mission `7001001` was absent.
 - After implementation, `/api/snapshot` from a live WebUI runtime using `tests/fixtures/journal_missions.log` returned `mission_ids=[7001001, 7001002]`, `active_count=1`, and `7001001` as `state=active`, `kind=trade`, with expiry preserved from the snapshot.
+
+Follow-up learned from OD Elite Tracker comparison:
+
+- OD Elite Tracker does not derive Massacre target counts from `Missions.Active`; its `MassacreMissionStore` creates massacre missions from `MissionAccepted` only when `KillCount`, `TargetFaction`, and pirate `TargetType` are present.
+- This project must preload recent journal history into `MissionTracker` before processing the selected/current journal so active snapshot rows can be joined back to the earlier `MissionAccepted` details. Do not fake Massacre `0/0` as a complete progress value when the earlier accepted event was simply outside the selected journal file.
