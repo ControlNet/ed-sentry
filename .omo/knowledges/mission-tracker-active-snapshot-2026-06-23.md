@@ -19,3 +19,4 @@ Follow-up learned from OD Elite Tracker comparison:
 
 - OD Elite Tracker does not derive Massacre target counts from `Missions.Active`; its `MassacreMissionStore` creates massacre missions from `MissionAccepted` only when `KillCount`, `TargetFaction`, and pirate `TargetType` are present.
 - This project must preload recent journal history into `MissionTracker` before processing the selected/current journal so active snapshot rows can be joined back to the earlier `MissionAccepted` details. Do not fake Massacre `0/0` as a complete progress value when the earlier accepted event was simply outside the selected journal file.
+- Explicit `--set-file` paths may use fixture or user-selected filenames that do not match `Journal.*.log`; mission-history sibling discovery must treat that as no older history, not a runtime startup error.
