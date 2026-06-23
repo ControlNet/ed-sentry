@@ -29,6 +29,10 @@ test("@tauri-window-chrome enables frameless drag and window controls", async ()
     new URL("../src/components/dashboard/dashboard-shell.tsx", import.meta.url),
     "utf8",
   )
+  const loadingSource = await readFile(
+    new URL("../src/components/dashboard/loading-screen.tsx", import.meta.url),
+    "utf8",
+  )
 
   expect(tauriConfig.app.windows[0]?.decorations).toBe(false)
   expect(capability.permissions).toEqual(
@@ -53,6 +57,10 @@ test("@tauri-window-chrome enables frameless drag and window controls", async ()
   expect(shellSource).toContain('data-titlebar-no-drag="workspace-tab"')
   expect(shellSource).toContain('data-titlebar-no-drag="window-control"')
   expect(shellSource).toContain("readTitlebarDragDebugFlag")
+  expect(loadingSource).toContain("startDragging()")
+  expect(loadingSource).toContain('data-titlebar-drag-region="loading-titlebar"')
+  expect(loadingSource).toContain("data-tauri-drag-region={tauriDragRegion}")
+  expect(loadingSource).toContain("readTitlebarDragDebugFlag")
 })
 
 test("@tauri-window-chrome visualizes titlebar drag hitmap", async ({ page }) => {

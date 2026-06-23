@@ -3,14 +3,18 @@ import { useEffect, useMemo, useState } from "react"
 
 type LoadingScreenProps = {
   readonly detail: string
+  readonly isTauri: boolean
 }
 
 const RADIUS = 70
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 const MAX_PENDING_PROGRESS = 96
 
-export function LoadingScreen({ detail }: LoadingScreenProps): React.JSX.Element {
+export function LoadingScreen({ detail, isTauri }: LoadingScreenProps): React.JSX.Element {
   const [progress, setProgress] = useState(0)
+  const titlebarDragDebugEnabled = readTitlebarDragDebugFlag()
+  const showTauriDragRegion = isTauri || titlebarDragDebugEnabled
+  const tauriDragRegion = showTauriDragRegion ? "" : undefined
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -30,7 +34,21 @@ export function LoadingScreen({ detail }: LoadingScreenProps): React.JSX.Element
   const strokeDashoffset = CIRCUMFERENCE - (progress / 100) * CIRCUMFERENCE
 
   return (
-    <main className="bg-tactical relative flex min-h-[100dvh] w-full select-none items-center justify-center overflow-hidden font-mono text-slate-300">
+    <main
+      className="bg-tactical relative flex min-h-[100dvh] w-full select-none items-center justify-center overflow-hidden font-mono text-slate-300"
+      data-titlebar-drag-debug={titlebarDragDebugEnabled ? "true" : undefined}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 z-20 h-14"
+        data-tauri-drag-region={tauriDragRegion}
+        data-titlebar-drag-region="loading-titlebar"
+        onPointerDownCapture={(event) => {
+          if (isTauri && shouldStartWindowDrag(event)) {
+            void startWindowDrag()
+          }
+        }}
+      />
       <section
         aria-label="Dashboard startup"
         aria-live="polite"
@@ -93,6 +111,22 @@ export function LoadingScreen({ detail }: LoadingScreenProps): React.JSX.Element
       </section>
     </main>
   )
+}
+
+async function startWindowDrag(): Promise<void> {
+  const { getCurrentWindow } = await import("@tauri-apps/api/window")
+  await getCurrentWindow().startDragging()
+}
+
+function shouldStartWindowDrag(event: React.PointerEvent<HTMLElement>): boolean {
+  return event.button === 0
+}
+
+function readTitlebarDragDebugFlag(): boolean {
+  if (typeof window === "undefined") {
+    return false
+  }
+  return new URLSearchParams(window.location.search).get("debug_titlebar_drag") === "1"
 }
 
 function loadingStatus(progress: number, detail: string): string {

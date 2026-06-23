@@ -34,7 +34,7 @@ export function App(): React.JSX.Element {
   }
 
   if (snapshot === null) {
-    return <LoadingScreen detail={connection.detail} />
+    return <LoadingScreen detail={connection.detail} isTauri={adapter.mode === "tauri"} />
   }
 
   return (
