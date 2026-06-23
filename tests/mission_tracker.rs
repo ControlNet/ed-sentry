@@ -102,6 +102,31 @@ fn mission_tracker_empty_active_snapshot_clears_active_missions() {
 }
 
 #[test]
+fn mission_tracker_creates_active_missions_from_snapshot_without_accept_event() {
+    let tracker = apply_lines(&[
+        r#"{"timestamp":"2035-01-04T12:01:00Z","event":"Location","StarSystem":"Mission Test System","SystemAddress":100,"StationName":"Task Board Hub","MarketID":200,"Docked":true}"#,
+        r#"{"timestamp":"2035-01-04T12:02:00Z","event":"Missions","Active":[{"MissionID":7001001,"Name":"Mission_Delivery_name","PassengerMission":false,"Expires":1800}],"Failed":[],"Complete":[]}"#,
+    ]);
+
+    let mission = tracker.mission(7001001).unwrap();
+    assert_eq!(mission.state, MissionState::Active);
+    assert_eq!(mission.kind, MissionKind::Trade);
+    assert_eq!(mission.name.as_deref(), Some("Mission_Delivery_name"));
+    assert_eq!(
+        mission.expiry.map(|expiry| expiry.to_rfc3339()),
+        Some("2035-01-04T12:32:00+00:00".to_string())
+    );
+    assert_eq!(
+        mission.origin.system_name.as_deref(),
+        Some("Mission Test System")
+    );
+    assert_eq!(
+        mission.origin.station_name.as_deref(),
+        Some("Task Board Hub")
+    );
+}
+
+#[test]
 fn mission_tracker_massacre_bounty_progresses_one_mission_per_issuing_faction() {
     let tracker = apply_lines(&[
         r#"{"timestamp":"2035-01-04T12:01:00Z","event":"MissionAccepted","Faction":"Issuer A","Name":"Mission_Massacre_name","MissionID":1,"TargetFaction":"Raiders","KillCount":3}"#,
