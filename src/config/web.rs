@@ -40,16 +40,6 @@ pub(super) fn read_web_config(
         &mut web.open_browser,
         warnings,
     );
-    if !is_localhost_bind(&web.host) {
-        warnings.push(format!(
-            "config key web.host binds to non-localhost address {}; WebUI remains local-first and future write endpoints must stay protected",
-            web.host
-        ));
-    }
-}
-
-fn is_localhost_bind(host: &str) -> bool {
-    matches!(host, "127.0.0.1" | "localhost" | "::1" | "[::1]")
 }
 
 #[cfg(test)]
@@ -118,7 +108,7 @@ pub(super) mod test_support {
         assert!(loaded.warnings[3].contains("web.open_browser"));
     }
 
-    pub(in crate::config) fn assert_non_localhost_warns_without_blocking() {
+    pub(in crate::config) fn assert_non_localhost_is_accepted_without_warning() {
         let loaded = AppConfig::from_toml_str(
             r#"
             [web]
@@ -130,9 +120,7 @@ pub(super) mod test_support {
 
         assert!(loaded.config.web.enabled);
         assert_eq!(loaded.config.web.host, "0.0.0.0");
-        assert_eq!(loaded.warnings.len(), 1);
-        assert!(loaded.warnings[0].contains("web.host"));
-        assert!(loaded.warnings[0].contains("non-localhost"));
+        assert!(loaded.warnings.is_empty());
     }
 }
 
@@ -156,7 +144,7 @@ mod tests {
     }
 
     #[test]
-    fn config_web_non_localhost_warns_without_blocking() {
-        test_support::assert_non_localhost_warns_without_blocking();
+    fn config_web_non_localhost_is_accepted_without_warning() {
+        test_support::assert_non_localhost_is_accepted_without_warning();
     }
 }

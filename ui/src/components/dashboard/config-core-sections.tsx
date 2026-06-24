@@ -1,7 +1,6 @@
 import { Activity, Database, Server } from "lucide-react"
 import { FieldMessage, NumberField, TextField, ToggleField } from "./config-form-fields"
 import type { ConfigFormState } from "./config-form-model"
-import { isLoopbackHost } from "./config-form-model"
 
 type ConfigSectionProps = {
   readonly form: ConfigFormState
@@ -71,11 +70,6 @@ export function WebConfigSection({ form, onChange }: ConfigSectionProps): React.
           onChange={(port) => onChange({ ...form, web: { ...form.web, port } })}
         />
       </div>
-      {isLoopbackHost(form.web.host) ? null : (
-        <FieldMessage tone="warning">
-          Non-loopback hosts disable remote state-changing config writes by policy.
-        </FieldMessage>
-      )}
     </section>
   )
 }

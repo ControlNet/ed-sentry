@@ -77,6 +77,25 @@ async fn web_serves_temp_env_dist_root() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn web_non_localhost_bind_does_not_emit_state_change_warning() {
+    let _env = env_lock().await;
+    let dist = tempfile::tempdir().unwrap();
+    fixture_index(dist.path(), "remote bind");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let config = WebConfig {
+        enabled: true,
+        host: "0.0.0.0".to_string(),
+        port: 0,
+        ..WebConfig::default()
+    };
+
+    let server = start(&config).await;
+
+    assert!(server.warnings().is_empty());
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn web_resolves_packaged_sibling_webui_before_repo_dist() {
     let _env = env_lock().await;
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");

@@ -100,8 +100,7 @@ pub async fn start_with_state(config: &RuntimeConfig, events: AppEventStore) -> 
             ));
         }
     };
-    let remote_bind = !is_localhost_bind(&config.web.host);
-    let mut warnings = security_warnings(&config.web, remote_bind);
+    let mut warnings = startup_warnings(&config.web);
     let url = web_url(&config.web.host, local_addr.port());
     let status = WebStartupStatus::running(local_addr.to_string(), url, Utc::now());
     let app = router(WebApiState::new(
@@ -133,14 +132,8 @@ pub async fn start_with_state(config: &RuntimeConfig, events: AppEventStore) -> 
     }
 }
 
-fn security_warnings(config: &WebConfig, remote_bind: bool) -> Vec<String> {
+fn startup_warnings(config: &WebConfig) -> Vec<String> {
     let mut warnings = Vec::new();
-    if remote_bind {
-        warnings.push(format!(
-            "WebUI security warning: non-localhost bind {}; state-changing endpoints disabled",
-            line_safe(&config.host)
-        ));
-    }
     if config.open_browser {
         warnings.push(
             "WebUI open_browser is configured but browser launch is not implemented".to_string(),
@@ -173,8 +166,4 @@ fn web_url(host: &str, port: u16) -> String {
         return format!("http://{trimmed}:{port}");
     }
     format!("http://[{trimmed}]:{port}")
-}
-
-fn is_localhost_bind(host: &str) -> bool {
-    matches!(host.trim(), "127.0.0.1" | "localhost" | "::1" | "[::1]")
 }
