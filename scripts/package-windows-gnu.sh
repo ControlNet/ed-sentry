@@ -6,11 +6,12 @@ REPO_ROOT=$(cd -- "$SCRIPT_DIR/.." && pwd)
 
 TARGET="x86_64-pc-windows-gnu"
 PACKAGE_NAME="ed-sentry"
+CORE_PACKAGE_NAME="ed-sentry-core"
 DIST_DIR="$REPO_ROOT/dist"
 EXTRACTED_DIR="$DIST_DIR/$PACKAGE_NAME"
 ZIP_PATH="$DIST_DIR/${PACKAGE_NAME}-${TARGET}.zip"
-EXE_PATH="$REPO_ROOT/target/$TARGET/release/${PACKAGE_NAME}.exe"
-GUI_EXE_PATH="$REPO_ROOT/ui/src-tauri/target/$TARGET/release/${PACKAGE_NAME}-gui.exe"
+CORE_EXE_PATH="$REPO_ROOT/target/$TARGET/release/${CORE_PACKAGE_NAME}.exe"
+GUI_EXE_PATH="$REPO_ROOT/ui/src-tauri/target/$TARGET/release/${PACKAGE_NAME}.exe"
 CONFIG_TEMPLATE="$REPO_ROOT/config.example.toml"
 WEBUI_DIST="$REPO_ROOT/ui/dist"
 WEBVIEW2_LOADER_PATH=""
@@ -46,8 +47,8 @@ for candidate in "$REPO_ROOT"/target/$TARGET/release/build/webview2-com-sys-*/ou
     fi
 done
 
-if [[ ! -f "$EXE_PATH" ]]; then
-    printf 'Expected binary was not produced: %s\n' "$EXE_PATH" >&2
+if [[ ! -f "$CORE_EXE_PATH" ]]; then
+    printf 'Expected core binary was not produced: %s\n' "$CORE_EXE_PATH" >&2
     exit 1
 fi
 
@@ -75,8 +76,8 @@ STAGING_DIR=$(mktemp -d "${TMPDIR:-/tmp}/ed-sentry-windows-gnu.XXXXXX")
 trap 'rm -rf "$STAGING_DIR"' EXIT
 
 mkdir -p "$STAGING_DIR/$PACKAGE_NAME/webui" "$DIST_DIR"
-cp "$EXE_PATH" "$STAGING_DIR/$PACKAGE_NAME/${PACKAGE_NAME}.exe"
-cp "$GUI_EXE_PATH" "$STAGING_DIR/$PACKAGE_NAME/${PACKAGE_NAME}-gui.exe"
+cp "$GUI_EXE_PATH" "$STAGING_DIR/$PACKAGE_NAME/${PACKAGE_NAME}.exe"
+cp "$CORE_EXE_PATH" "$STAGING_DIR/$PACKAGE_NAME/${CORE_PACKAGE_NAME}.exe"
 cp "$WEBVIEW2_LOADER_PATH" "$STAGING_DIR/$PACKAGE_NAME/WebView2Loader.dll"
 cp "$CONFIG_TEMPLATE" "$STAGING_DIR/$PACKAGE_NAME/config.toml"
 cp -R "$WEBUI_DIST"/. "$STAGING_DIR/$PACKAGE_NAME/webui/"
@@ -104,5 +105,5 @@ printf '  %s\n' "$ZIP_PATH"
 printf '  %s\n' "$EXTRACTED_DIR"
 printf '  WebUI: %s\n' "$EXTRACTED_DIR/webui"
 test -f "$EXTRACTED_DIR/webui/index.html"
-sha256sum "$ZIP_PATH" "$EXTRACTED_DIR/${PACKAGE_NAME}.exe" "$EXTRACTED_DIR/webui/index.html"
-sha256sum "$EXTRACTED_DIR/${PACKAGE_NAME}-gui.exe" "$EXTRACTED_DIR/WebView2Loader.dll"
+sha256sum "$ZIP_PATH" "$EXTRACTED_DIR/${PACKAGE_NAME}.exe" "$EXTRACTED_DIR/${CORE_PACKAGE_NAME}.exe" "$EXTRACTED_DIR/webui/index.html"
+sha256sum "$EXTRACTED_DIR/WebView2Loader.dll"

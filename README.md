@@ -17,7 +17,7 @@ Supported now:
 - Render terminal event logs and a live status line when the output is a TTY.
 - Send watch-mode notifications to an unencrypted Matrix room when `[matrix] enabled = true` is configured.
 - Start the local WebUI dashboard in watch-capable runtimes when `[web] enabled = true` is configured.
-- Build the shared Web/Tauri frontend under `ui/`, including the local `ed-sentry-gui` desktop entry.
+- Build the shared Web/Tauri frontend under `ui/`, including the local `ed-sentry` desktop launcher entry.
 
 Out of scope for Phase 1:
 
@@ -169,7 +169,7 @@ Replay remains terminal-only and ignores WebUI by design. Even when `[web] enabl
 The first milestone uses a local-first WebUI security model:
 
 - Static dashboard assets and read-only status endpoints may be served from the configured bind address.
-- Config mutation is allowed only for loopback WebUI binds such as `127.0.0.1`; non-loopback binds reject state-changing config updates.
+- Config mutation is allowed for trusted WebUI clients on the configured bind address, including deliberate non-loopback binds.
 - Config update requests are also checked against host/origin policy. Do not expose the WebUI publicly unless a later authenticated remote mode is designed.
 - The config editor uses the same sanitized config view as the backend APIs. Matrix token values are never echoed back to the frontend; saving can keep, replace, or explicitly clear the local token without displaying the existing value.
 
@@ -179,7 +179,7 @@ WebUI assets are not embedded in the Rust binary in this milestone. `ed-sentry` 
 2. A `webui/` directory beside the running `ed-sentry` executable, used by release archives.
 3. The repo-local `ui/dist` directory, used during development after `pnpm --dir ui build`.
 
-The browser WebUI and desktop GUI share the same React/Vite frontend. The browser path talks to the local WebUI backend; the desktop path is the `ed-sentry-gui` Tauri entry under `ui/src-tauri/` and uses desktop adapter code while reusing the same dashboard pages and Rust application services.
+The browser WebUI and desktop GUI share the same React/Vite frontend. The browser path talks to the local WebUI backend; the desktop path is the `ed-sentry` Tauri launcher under `ui/src-tauri/` and uses desktop adapter code while reusing the same dashboard pages and Rust application services.
 
 Replay summary log levels control individual summary fragments:
 
@@ -251,9 +251,9 @@ For a local Windows GNU package, run:
 scripts/package-windows-gnu.sh
 ```
 
-This rebuilds `target/x86_64-pc-windows-gnu/release/ed-sentry.exe`, builds `ui/dist`, refreshes `dist/ed-sentry/`, copies `ui/dist` to `dist/ed-sentry/webui/`, and writes `dist/ed-sentry-x86_64-pc-windows-gnu.zip` using `config.example.toml` as the packaged `config.toml`.
+This rebuilds `target/x86_64-pc-windows-gnu/release/ed-sentry-core.exe`, builds `ui/src-tauri/target/x86_64-pc-windows-gnu/release/ed-sentry.exe`, builds `ui/dist`, refreshes `dist/ed-sentry/`, copies `ui/dist` to `dist/ed-sentry/webui/`, and writes `dist/ed-sentry-x86_64-pc-windows-gnu.zip` using `config.example.toml` as the packaged `config.toml`.
 
-Desktop GUI artifacts are not published by CI in this first milestone. Build `ed-sentry-gui` locally with:
+Desktop GUI artifacts are not published by CI in this first milestone. Build `ed-sentry` locally with:
 
 ```bash
 pnpm --dir ui tauri:build
