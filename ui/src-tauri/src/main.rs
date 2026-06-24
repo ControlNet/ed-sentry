@@ -14,7 +14,7 @@ fn main() -> ExitCode {
     match launch_gui() {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("Error: failed to launch ed-sentry.exe --gui: {error}");
+            eprintln!("Error: failed to launch ed-sentry-core.exe --gui: {error}");
             ExitCode::from(1)
         }
     }
@@ -47,12 +47,12 @@ fn backend_exe_path(current_exe: &Path) -> PathBuf {
 
 #[cfg(windows)]
 const fn backend_exe_name() -> &'static str {
-    "ed-sentry.exe"
+    "ed-sentry-core.exe"
 }
 
 #[cfg(not(windows))]
 const fn backend_exe_name() -> &'static str {
-    "ed-sentry"
+    "ed-sentry-core"
 }
 
 #[cfg(test)]
@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn backend_exe_path_uses_launcher_sibling() {
-        let launcher = Path::new("C:/Users/user/Downloads/ed-sentry/ed-sentry-gui.exe");
+        let launcher = Path::new("C:/Users/user/Downloads/ed-sentry/ed-sentry.exe");
 
         assert_eq!(
             backend_exe_path(launcher),

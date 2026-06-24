@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "ed-sentry-gui"
+name = "ed-sentry"
 version = "0.1.0"

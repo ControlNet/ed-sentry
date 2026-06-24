@@ -1,11 +1,11 @@
 [package]
-name = "ed-sentry-gui"
+name = "ed-sentry"
 version = "0.1.0"
 description = "ed-sentry desktop GUI"
 authors = ["ed-sentry contributors"]
 license = ""
 repository = ""
-default-run = "ed-sentry-gui"
+default-run = "ed-sentry"
 edition = "2021"
 rust-version = "1.77"
 
