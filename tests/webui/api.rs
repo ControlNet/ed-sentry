@@ -80,7 +80,7 @@ async fn webui_api_config_update_clears_matrix_token_only_when_explicit() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn webui_api_rejects_remote_bind_and_untrusted_host_origin_config_writes() {
+async fn webui_api_allows_remote_bind_but_rejects_untrusted_host_origin_config_writes() {
     let _env = env_lock().await;
     let temp_dir = tempfile::tempdir().unwrap();
     let dist = tempfile::tempdir().unwrap();
@@ -90,7 +90,7 @@ async fn webui_api_rejects_remote_bind_and_untrusted_host_origin_config_writes()
     write_api_config(&config_path, temp_dir.path());
     let loopback = api_runtime(&config_path, 0, "127.0.0.1");
     let loopback_server = start_with_state(&loopback, api_store(&loopback)).await;
-    let body = r#"{"web":{"enabled":true,"host":"127.0.0.1","port":8765,"open_browser":false}}"#;
+    let body = r#"{"web":{"enabled":true,"host":"0.0.0.0","port":8765,"open_browser":false}}"#;
     let bad_host = put_config(
         loopback_server.bound_port().unwrap(),
         body,
@@ -113,14 +113,14 @@ async fn webui_api_rejects_remote_bind_and_untrusted_host_origin_config_writes()
         "{bad_origin}"
     );
     assert!(
-        remote_response.starts_with("HTTP/1.1 403 Forbidden"),
+        remote_response.starts_with("HTTP/1.1 200 OK"),
         "{remote_response}"
     );
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn webui_api_allows_remote_bind_snapshot_but_rejects_config_read_and_write() {
+async fn webui_api_allows_remote_bind_snapshot_config_read_and_write() {
     let _env = env_lock().await;
     let temp_dir = tempfile::tempdir().unwrap();
     let dist = tempfile::tempdir().unwrap();
@@ -142,24 +142,21 @@ async fn webui_api_allows_remote_bind_snapshot_but_rejects_config_read_and_write
         "GET /api/config HTTP/1.1\r\nHost: 192.168.50.10\r\nConnection: close\r\n\r\n",
     );
     let write_response = put_config(port, body, "192.168.50.10", "http://127.0.0.1:3000");
-    let raw_temp_root = temp_dir.path().to_string_lossy();
-    let raw_config_path = config_path.to_string_lossy();
 
     assert!(snapshot.starts_with("HTTP/1.1 200 OK"), "{snapshot}");
-    assert!(config_read.starts_with("HTTP/1.1 403 Forbidden"));
+    assert!(config_read.starts_with("HTTP/1.1 200 OK"), "{config_read}");
+    assert_eq!(json_body(&config_read)["policy"]["remote_bind"], true);
     assert_eq!(
-        json_body(&config_read)["error"]["code"],
-        "config_read_disabled"
+        json_body(&config_read)["policy"]["state_changing_enabled"],
+        true
     );
-    assert!(!config_read.contains(raw_temp_root.as_ref()));
-    assert!(!config_read.contains(raw_config_path.as_ref()));
     assert!(
-        write_response.starts_with("HTTP/1.1 403 Forbidden"),
+        write_response.starts_with("HTTP/1.1 200 OK"),
         "{write_response}"
     );
     assert_eq!(
-        json_body(&write_response)["error"]["code"],
-        "state_change_disabled"
+        json_body(&write_response)["config"]["web"]["host"],
+        "127.0.0.1"
     );
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }

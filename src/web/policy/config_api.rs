@@ -15,12 +15,6 @@ pub(super) async fn config_view(
     headers: HeaderMap,
 ) -> Result<Json<ConfigApiView>, WebErrorResponse> {
     validate_host(&state, &headers)?;
-    if state.policy.remote_bind {
-        return Err(forbidden(
-            "config_read_disabled",
-            "config reads are disabled for non-loopback WebUI binds",
-        ));
-    }
     let config = state.config.read().await;
     Ok(Json(ConfigApiView {
         version: 1,
@@ -53,10 +47,9 @@ pub(super) async fn update_config(
 
 fn write_error(error: ConfigWriteError) -> WebErrorResponse {
     match error {
-        ConfigWriteError::UnsafeRemoteBind { .. } => unprocessable(
-            "unsafe_remote_bind",
-            "Remote WebUI config writes are disabled.",
-        ),
+        ConfigWriteError::UnsafeRemoteBind { .. } => {
+            unprocessable("unsafe_remote_bind", "Invalid WebUI bind host.")
+        }
         ConfigWriteError::NoWritableTarget | ConfigWriteError::Blocked { .. } => forbidden(
             "config_write_blocked",
             "This config source cannot be saved from the WebUI.",

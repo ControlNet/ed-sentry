@@ -93,7 +93,7 @@ let mockConfigView: ConfigApiView = {
   },
   policy: {
     state_changing_enabled: true,
-    state_changing_reason: "enabled for loopback WebUI clients only",
+    state_changing_reason: "enabled for trusted WebUI clients",
     remote_bind: false,
   },
 }

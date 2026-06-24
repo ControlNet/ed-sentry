@@ -29,8 +29,8 @@ pub type WebEndpointPolicy = ConfigEndpointPolicy;
 impl WebEndpointPolicy {
     pub fn new(remote_bind: bool) -> Self {
         Self {
-            state_changing_enabled: !remote_bind,
-            state_changing_reason: state_changing_reason(remote_bind).to_string(),
+            state_changing_enabled: true,
+            state_changing_reason: state_changing_reason().to_string(),
             remote_bind,
         }
     }
@@ -157,12 +157,6 @@ fn authorize_state_change(
 ) -> Result<(), WebErrorResponse> {
     validate_host(state, headers)?;
     validate_origin(state, headers)?;
-    if state.policy.remote_bind {
-        return Err(forbidden(
-            "state_change_disabled",
-            "config writes are disabled for non-loopback WebUI binds",
-        ));
-    }
     Ok(())
 }
 
@@ -229,11 +223,8 @@ fn is_wildcard_bind_host(host: &str) -> bool {
     matches!(host.trim(), "0.0.0.0" | "::" | "[::]")
 }
 
-fn state_changing_reason(remote_bind: bool) -> &'static str {
-    if remote_bind {
-        return "disabled because WebUI is bound to a non-localhost address";
-    }
-    "enabled for loopback WebUI clients only"
+fn state_changing_reason() -> &'static str {
+    "enabled for trusted WebUI clients"
 }
 
 fn forbidden(code: &'static str, message: impl Into<String>) -> WebErrorResponse {
@@ -284,4 +275,17 @@ struct SnapshotApiView {
     #[serde(flatten)]
     snapshot: AppSnapshot,
     events: Vec<EventFeedItem>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::WebEndpointPolicy;
+
+    #[test]
+    fn remote_bind_keeps_config_state_changes_enabled() {
+        let policy = WebEndpointPolicy::new(true);
+
+        assert!(policy.state_changing_enabled);
+        assert!(policy.remote_bind);
+    }
 }
