@@ -101,7 +101,7 @@ pub(crate) fn frontend_safe_config_write_error(error: ConfigWriteError) -> Strin
             format!("Config save failed: config write blocked by source state: {reason:?}")
         }
         ConfigWriteError::UnsafeRemoteBind { .. } => {
-            "Config save failed: web.host is not loopback; remote writes are disabled".to_string()
+            "Config save failed: invalid web.host".to_string()
         }
         ConfigWriteError::MalformedToml { .. } => {
             "Config save failed: malformed TOML config".to_string()

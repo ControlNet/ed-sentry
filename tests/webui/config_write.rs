@@ -86,6 +86,34 @@ fn webui_config_write_targets_and_toml_editing_are_documented() {
     );
 }
 
+#[test]
+fn webui_config_write_allows_non_loopback_web_host() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let config = temp_dir.path().join("config.toml");
+    let update = EditableConfigUpdate {
+        web: Some(ed_sentry::app::WebConfigEdit {
+            enabled: Some(true),
+            host: Some("0.0.0.0".to_string()),
+            port: Some(8765),
+            open_browser: Some(false),
+        }),
+        ..EditableConfigUpdate::default()
+    };
+
+    AppConfig::write_update_to_source(
+        &ConfigSource::Defaults {
+            first_save_target: ConfigPath::first_save(config.clone()),
+        },
+        &update,
+    )
+    .unwrap();
+
+    assert_eq!(
+        AppConfig::load_from_path(&config).unwrap().config.web.host,
+        "0.0.0.0"
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn webui_config_write_permission_failure_is_reported() {

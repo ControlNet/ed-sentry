@@ -6,15 +6,8 @@ use crate::app::{
 };
 
 pub(super) fn validate_update(
-    update: &EditableConfigUpdate,
+    _update: &EditableConfigUpdate,
 ) -> Result<(), super::ConfigWriteError> {
-    if let Some(web) = &update.web {
-        if let Some(host) = &web.host {
-            if !is_loopback_host(host) {
-                return Err(super::ConfigWriteError::UnsafeRemoteBind { host: host.clone() });
-            }
-        }
-    }
     Ok(())
 }
 
@@ -175,8 +168,4 @@ fn set_u64(table: &mut Table, key: &str, value_in: Option<u64>) {
     if let Some(value_in) = value_in {
         table[key] = value(value_in as i64);
     }
-}
-
-fn is_loopback_host(host: &str) -> bool {
-    matches!(host.trim(), "127.0.0.1" | "localhost" | "::1" | "[::1]")
 }
