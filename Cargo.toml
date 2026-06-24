@@ -1,7 +1,14 @@
 [package]
-name = "ed-sentry"
+name = "ed-sentry-core"
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+name = "ed_sentry"
+
+[[bin]]
+name = "ed-sentry-core"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
