@@ -1,3 +1,4 @@
+use ed_sentry::app::MissionListView;
 use ed_sentry::event::parse_journal_line;
 use ed_sentry::mission::{MissionKind, MissionProgress, MissionState, MissionTracker};
 
@@ -164,6 +165,24 @@ fn mission_tracker_completion_donation_and_failed_state_update_rewards() {
     assert_eq!(tracker.mission(1).unwrap().reward, Some(-12000));
     assert_eq!(tracker.mission(2).unwrap().reward, Some(0));
     assert_eq!(tracker.mission(2).unwrap().state, MissionState::Failed);
+}
+
+#[test]
+fn mission_list_view_removes_completed_missions_from_active_items() {
+    let tracker = apply_lines(&[
+        r#"{"timestamp":"2035-01-04T12:01:00Z","event":"MissionAccepted","Faction":"Issuer A","Name":"Mission_Massacre_name","MissionID":1,"TargetFaction":"Raiders","KillCount":3}"#,
+        r#"{"timestamp":"2035-01-04T12:02:00Z","event":"Bounty","TotalReward":1000,"VictimFaction":"Raiders","Target":"viper"}"#,
+        r#"{"timestamp":"2035-01-04T12:03:00Z","event":"MissionCompleted","MissionID":1,"Name":"Mission_Massacre_name","Reward":500000}"#,
+    ]);
+
+    let view = MissionListView::from_tracker(&tracker);
+
+    assert_eq!(view.active_count, 0);
+    assert!(
+        view.items.iter().all(|mission| mission.mission_id != 1),
+        "completed mission must not remain in active mission items: {:?}",
+        view.items
+    );
 }
 
 #[test]

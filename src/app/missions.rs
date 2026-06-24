@@ -57,16 +57,16 @@ pub enum MissionProgressView {
 
 impl MissionListView {
     pub fn from_tracker(tracker: &MissionTracker) -> Self {
-        let items: Vec<_> = tracker.missions().values().map(MissionView::from).collect();
+        let items: Vec<_> = tracker
+            .missions()
+            .values()
+            .filter(|mission| is_active_mission_state(mission.state))
+            .map(MissionView::from)
+            .collect();
         let active_count = tracker
             .missions()
             .values()
-            .filter(|mission| {
-                matches!(
-                    mission.state,
-                    MissionState::Active | MissionState::Redirected
-                )
-            })
+            .filter(|mission| is_active_mission_state(mission.state))
             .count();
         let completed_count = tracker
             .missions()
@@ -82,6 +82,10 @@ impl MissionListView {
             items,
         }
     }
+}
+
+const fn is_active_mission_state(state: MissionState) -> bool {
+    matches!(state, MissionState::Active | MissionState::Redirected)
 }
 
 impl From<&TrackedMission> for MissionView {
