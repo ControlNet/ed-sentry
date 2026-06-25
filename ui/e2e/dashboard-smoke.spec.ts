@@ -217,9 +217,8 @@ test("@config-edit saves a non-secret setting and reloads the config view", asyn
   const port = page.getByRole("spinbutton", { name: "Port", exact: true })
   await expect(port).toHaveValue("4173")
   await port.fill("4273")
-  await expect(page.getByRole("button", { name: "Commit Modifications" })).toBeEnabled()
-  await page.getByRole("button", { name: "Commit Modifications" }).click()
-  await expect(page.getByText("Config saved")).toBeVisible()
+  await expect(page.getByText("Autosave pending")).toBeVisible()
+  await expect(page.getByText("All changes saved")).toBeVisible()
 
   await page.getByRole("button", { name: "Telemetry" }).click()
   await page.getByRole("button", { name: /Systems/u }).click()
@@ -238,10 +237,8 @@ test("@config-edit allows clearing Journal folder to use the default", async ({ 
   const journalFolder = page.getByRole("textbox", { name: "Journal folder" })
   await journalFolder.fill("")
   await expect(page.getByText("Journal folder is required.")).toHaveCount(0)
-  await expect(page.getByRole("button", { name: "Commit Modifications" })).toBeEnabled()
-
-  await page.getByRole("button", { name: "Commit Modifications" }).click()
-  await expect(page.getByText("Config saved")).toBeVisible()
+  await expect(page.getByText("Autosave pending")).toBeVisible()
+  await expect(page.getByText("All changes saved")).toBeVisible()
 
   await page.getByRole("button", { name: "Telemetry" }).click()
   await page.getByRole("button", { name: /Systems/u }).click()

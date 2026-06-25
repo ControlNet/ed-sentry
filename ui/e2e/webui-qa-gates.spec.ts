@@ -57,11 +57,14 @@ test("@keyboard-focus reaches core controls and shows focus affordance", async (
   await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A")
   await page.keyboard.type("Sanitized Journal source QA")
 
-  const saveButton = page.getByRole("button", { name: "Commit Modifications" })
+  const tokenInput = page.getByRole("textbox", { name: "Replace access token" })
+  await tokenInput.fill("SANITIZED_QA_TOKEN")
+
+  const saveButton = page.getByRole("button", { name: "Save Protected Change" })
   await expect(saveButton).toBeEnabled()
 
   await pressTabUntilFocused(page, saveButton, { maxSteps: 90 })
-  await expectVisibleFocus(saveButton, "Commit Modifications")
+  await expectVisibleFocus(saveButton, "Save Protected Change")
 
   await page.screenshot({
     path: `${evidenceDir}/task-12-keyboard-focus.png`,
