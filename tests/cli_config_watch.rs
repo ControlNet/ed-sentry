@@ -17,7 +17,7 @@ const WATCH_READINESS_DEADLINE: Duration = Duration::from_secs(10);
 
 #[test]
 fn cli_config_replay_flag_and_default_watch_mode() {
-    let mut before = Command::cargo_bin("ed-sentry").unwrap();
+    let mut before = Command::cargo_bin("ed-sentry-core").unwrap();
     before
         .args([
             "--replay",

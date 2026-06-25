@@ -3,7 +3,7 @@ use predicates::prelude::*;
 
 #[test]
 fn cli_config_help_lists_required_flags() {
-    let mut command = Command::cargo_bin("ed-sentry").unwrap();
+    let mut command = Command::cargo_bin("ed-sentry-core").unwrap();
 
     command
         .arg("--help")
@@ -22,7 +22,7 @@ fn cli_config_help_lists_required_flags() {
 
 #[test]
 fn cli_config_bad_flag_exits_clap_code_2() {
-    let mut command = Command::cargo_bin("ed-sentry").unwrap();
+    let mut command = Command::cargo_bin("ed-sentry-core").unwrap();
 
     command
         .arg("--definitely-not-a-flag")
@@ -33,7 +33,7 @@ fn cli_config_bad_flag_exits_clap_code_2() {
 
 #[test]
 fn cli_config_replay_rejects_poll_interval_ms_as_no_effect() {
-    let mut command = Command::cargo_bin("ed-sentry").unwrap();
+    let mut command = Command::cargo_bin("ed-sentry-core").unwrap();
 
     command
         .args([
@@ -52,7 +52,7 @@ fn cli_config_replay_rejects_poll_interval_ms_as_no_effect() {
 
 #[test]
 fn cli_config_replay_requires_set_file() {
-    let mut command = Command::cargo_bin("ed-sentry").unwrap();
+    let mut command = Command::cargo_bin("ed-sentry-core").unwrap();
 
     command
         .arg("--replay")
@@ -65,7 +65,7 @@ fn cli_config_replay_requires_set_file() {
 
 #[test]
 fn cli_config_replay_rejects_journal() {
-    let mut command = Command::cargo_bin("ed-sentry").unwrap();
+    let mut command = Command::cargo_bin("ed-sentry-core").unwrap();
 
     command
         .args([
@@ -82,7 +82,7 @@ fn cli_config_replay_rejects_journal() {
 
 #[test]
 fn cli_config_debug_prints_runtime_diagnostics() {
-    let mut command = Command::cargo_bin("ed-sentry").unwrap();
+    let mut command = Command::cargo_bin("ed-sentry-core").unwrap();
 
     command
         .args([
@@ -111,7 +111,7 @@ fn cli_config_startup_sanitizes_untrusted_commander_text() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-sentry")
+    let output = Command::cargo_bin("ed-sentry-core")
         .unwrap()
         .args([
             "--replay",
@@ -136,7 +136,7 @@ fn cli_config_startup_sanitizes_untrusted_commander_text() {
 fn cli_config_explicit_missing_config_still_errors() {
     let working_dir = tempfile::tempdir().unwrap();
     let missing_config = working_dir.path().join("missing.toml");
-    let mut command = Command::cargo_bin("ed-sentry").unwrap();
+    let mut command = Command::cargo_bin("ed-sentry-core").unwrap();
 
     command
         .current_dir(working_dir.path())
@@ -151,7 +151,7 @@ fn cli_config_explicit_missing_config_still_errors() {
 fn cli_config_implicit_malformed_config_toml_errors() {
     let working_dir = tempfile::tempdir().unwrap();
     std::fs::write(working_dir.path().join("config.toml"), "[monitor\n").unwrap();
-    let mut command = Command::cargo_bin("ed-sentry").unwrap();
+    let mut command = Command::cargo_bin("ed-sentry-core").unwrap();
 
     command
         .current_dir(working_dir.path())
@@ -166,7 +166,7 @@ fn cli_config_malformed_toml_exits_app_code_1() {
     let config_path = temp_dir.path().join("bad.toml");
     std::fs::write(&config_path, "[monitor\n").unwrap();
 
-    let mut command = Command::cargo_bin("ed-sentry").unwrap();
+    let mut command = Command::cargo_bin("ed-sentry-core").unwrap();
     command
         .arg("--config")
         .arg(&config_path)

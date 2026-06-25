@@ -5,7 +5,7 @@ const ANSI_CLEAR_CURRENT_LINE: &str = "\u{1b}[2K";
 
 #[test]
 fn replay_combat_fixture_outputs_core_fragments() {
-    let output = Command::cargo_bin("ed-sentry")
+    let output = Command::cargo_bin("ed-sentry-core")
         .unwrap()
         .args([
             "--replay",
@@ -58,7 +58,7 @@ fn replay_combat_fixture_outputs_core_fragments() {
 
 #[test]
 fn replay_malformed_fixture_warns_and_continues_to_summary() {
-    let output = Command::cargo_bin("ed-sentry")
+    let output = Command::cargo_bin("ed-sentry-core")
         .unwrap()
         .args([
             "--replay",
@@ -110,7 +110,7 @@ fn replay_broad_events_stay_low_noise_and_malformed_lines_continue() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-sentry")
+    let output = Command::cargo_bin("ed-sentry-core")
         .unwrap()
         .args([
             "--replay",
@@ -142,7 +142,7 @@ fn replay_broad_events_stay_low_noise_and_malformed_lines_continue() {
 
 #[test]
 fn replay_reset_session_warning_is_printed_once() {
-    let output = Command::cargo_bin("ed-sentry")
+    let output = Command::cargo_bin("ed-sentry-core")
         .unwrap()
         .args([
             "--replay",
@@ -185,7 +185,7 @@ fn replay_config_output_options_are_observable() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-sentry")
+    let output = Command::cargo_bin("ed-sentry-core")
         .unwrap()
         .args([
             "--replay",
@@ -231,7 +231,7 @@ fn replay_summary_log_levels_control_summary_fragments() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-sentry")
+    let output = Command::cargo_bin("ed-sentry-core")
         .unwrap()
         .args([
             "--replay",
@@ -273,7 +273,7 @@ fn replay_does_not_emit_live_idle_warnings() {
     )
     .unwrap();
 
-    let output = Command::cargo_bin("ed-sentry")
+    let output = Command::cargo_bin("ed-sentry-core")
         .unwrap()
         .args([
             "--replay",
@@ -314,7 +314,7 @@ fn replay_matrix_config_does_not_initialize_matrix() {
     let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/journal_combat_bounty.log");
 
-    let output = Command::cargo_bin("ed-sentry")
+    let output = Command::cargo_bin("ed-sentry-core")
         .unwrap()
         .current_dir(working_dir.path())
         .env("ED_AFK_DASHBOARD_FAKE_MATRIX_LOG", &matrix_log)
