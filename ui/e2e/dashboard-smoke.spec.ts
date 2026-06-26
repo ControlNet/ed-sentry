@@ -140,6 +140,24 @@ test("@service-nodes expose unified semantic status encoding", async ({ page }) 
   )
 })
 
+test("@service-nodes renders Web Interface URL as a clickable link", async ({ page }) => {
+  await page.goto("/?mock_state=web_url")
+
+  const webInterface = page.locator("[data-service-node='Web Interface']")
+  const webLink = webInterface.getByRole("link", { name: "0.0.0.0:8765" })
+
+  await expect(webLink).toBeVisible()
+  await expect(webLink).toHaveAttribute("href", "http://localhost:8765")
+
+  await page.goto("/?mock_state=web_lan_url")
+  const lanLink = page
+    .locator("[data-service-node='Web Interface']")
+    .getByRole("link", { name: "192.168.50.10:8765" })
+
+  await expect(lanLink).toBeVisible()
+  await expect(lanLink).toHaveAttribute("href", "http://192.168.50.10:8765")
+})
+
 test("@connection-status reflects degraded live transport state", async ({ page }) => {
   await page.goto("/?mock_state=degraded_connection")
 

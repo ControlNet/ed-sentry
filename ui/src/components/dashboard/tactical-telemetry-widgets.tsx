@@ -50,15 +50,18 @@ export function ServiceLine({
   icon: Icon,
   label,
   detail,
+  detailHref,
   badge,
   statusKind,
 }: {
   readonly icon: typeof Activity
   readonly label: string
   readonly detail: string
+  readonly detailHref?: string | null | undefined
   readonly badge: string
   readonly statusKind: ServiceStatusKind
 }): React.JSX.Element {
+  const detailText = lineSafeText(detail)
   return (
     <div
       className="flex items-start justify-between gap-3"
@@ -70,7 +73,18 @@ export function ServiceLine({
           <Icon aria-hidden="true" className="size-3 text-slate-400" />
           {label}
         </p>
-        <p className="mt-1 truncate font-mono text-[8px] text-slate-600">{lineSafeText(detail)}</p>
+        <p className="mt-1 truncate font-mono text-[8px] text-slate-600">
+          {detailHref === null || detailHref === undefined ? (
+            detailText
+          ) : (
+            <a
+              className="text-data-scan underline-offset-2 transition-colors hover:text-orange-300 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400"
+              href={detailHref}
+            >
+              {detailText}
+            </a>
+          )}
+        </p>
       </div>
       <TacticalBadge tone={serviceStatusBadgeTone(statusKind)}>{badge}</TacticalBadge>
     </div>

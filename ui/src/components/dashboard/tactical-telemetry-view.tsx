@@ -108,6 +108,7 @@ export function TacticalTelemetryView({
               snapshot.web.url ??
               snapshot.web.status_label
             }
+            detailHref={webInterfaceHref(snapshot.web)}
             badge={snapshot.web.status_label}
             statusKind={snapshot.web.kind}
           />
@@ -118,4 +119,11 @@ export function TacticalTelemetryView({
       <TacticalRecentAlerts snapshot={snapshot} />
     </div>
   )
+}
+
+function webInterfaceHref(web: AppSnapshot["web"]): string | null {
+  if (web.message !== null || web.url === null || web.url === undefined) {
+    return null
+  }
+  return web.url.replace("://0.0.0.0:", "://localhost:")
 }
