@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::extract::State;
-use axum::http::header::{HOST, ORIGIN};
+use axum::http::header::HOST;
 use axum::http::{HeaderMap, Method, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -156,7 +156,6 @@ fn authorize_state_change(
     headers: &HeaderMap,
 ) -> Result<(), WebErrorResponse> {
     validate_host(state, headers)?;
-    validate_origin(state, headers)?;
     Ok(())
 }
 
@@ -168,19 +167,6 @@ fn validate_host(state: &WebApiState, headers: &HeaderMap) -> Result<(), WebErro
         return Ok(());
     }
     Err(forbidden("host_rejected", "Host header is not trusted"))
-}
-
-fn validate_origin(state: &WebApiState, headers: &HeaderMap) -> Result<(), WebErrorResponse> {
-    let Some(origin) = headers.get(ORIGIN) else {
-        return Ok(());
-    };
-    let Ok(origin) = origin.to_str() else {
-        return Err(forbidden("origin_rejected", "Origin header is malformed"));
-    };
-    if is_trusted_origin(origin) && origin_host_allowed(origin, &state.bind_host) {
-        return Ok(());
-    }
-    Err(forbidden("origin_rejected", "Origin header is not trusted"))
 }
 
 fn host_allowed(host: &str, bind_host: &str) -> bool {
@@ -197,16 +183,6 @@ fn host_allowed(host: &str, bind_host: &str) -> bool {
     (is_wildcard_bind_host(bind_host) && !host_without_port.is_empty())
         || host_without_port == bind_host
         || (is_loopback_host(bind_host) && is_loopback_host(host_without_port))
-}
-
-fn origin_host_allowed(origin: &str, bind_host: &str) -> bool {
-    let Ok(url) = origin.parse::<axum::http::Uri>() else {
-        return false;
-    };
-    let Some(authority) = url.authority() else {
-        return false;
-    };
-    host_allowed(authority.as_str(), bind_host)
 }
 
 fn is_trusted_origin(origin: &str) -> bool {

@@ -1,10 +1,9 @@
-use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::{ConnectInfo, State};
+use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::response::Response;
 use serde::Serialize;
@@ -12,10 +11,7 @@ use serde::Serialize;
 use crate::app::{AppLiveUpdate, AppSnapshot, EventFeedItem};
 use crate::text::line_safe;
 
-use super::{
-    forbidden, is_loopback_host, validate_host, validate_origin, WebApiState, WebErrorBody,
-    WebErrorResponse,
-};
+use super::{validate_host, WebApiState, WebErrorBody, WebErrorResponse};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -42,17 +38,9 @@ pub(super) enum WebSocketEnvelope {
 pub(super) async fn websocket(
     State(state): State<WebApiState>,
     headers: HeaderMap,
-    ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
     upgrade: WebSocketUpgrade,
 ) -> Result<Response, WebErrorResponse> {
     validate_host(&state, &headers)?;
-    validate_origin(&state, &headers)?;
-    if !remote_addr.ip().is_loopback() && !is_loopback_host(&state.bind_host) {
-        return Err(forbidden(
-            "remote_websocket_rejected",
-            "remote WebSocket clients are disabled",
-        ));
-    }
     Ok(upgrade.on_upgrade(move |socket| websocket_session(socket, state)))
 }
 

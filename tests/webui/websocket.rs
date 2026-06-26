@@ -1,6 +1,7 @@
 use ed_sentry::web::start_with_state;
 use futures_util::StreamExt;
 use serde_json::Value;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 use crate::support::{
     api_runtime, api_store, env_lock, runtime_backed_store, write_api_config, write_dist,
@@ -86,5 +87,33 @@ async fn webui_websocket_sends_hello_buffer_and_live_update() {
     assert_eq!(live_json["type"], "event");
     assert_eq!(live_json["version"], 1);
     assert_eq!(live_json["item"]["event_type"], "live_event");
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn webui_websocket_accepts_remote_origin_when_host_is_allowed() {
+    let _env = env_lock().await;
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dist = tempfile::tempdir().unwrap();
+    write_dist(dist.path(), "ws dist");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let config_path = temp_dir.path().join("config.toml");
+    write_api_config(&config_path, temp_dir.path());
+    let runtime = api_runtime(&config_path, 0, "0.0.0.0");
+    let server = start_with_state(&runtime, api_store(&runtime)).await;
+    let port = server.bound_port().unwrap();
+    let mut request = format!("ws://127.0.0.1:{port}/api/events")
+        .into_client_request()
+        .unwrap();
+    request
+        .headers_mut()
+        .insert("Origin", "http://192.168.50.10:8765".parse().unwrap());
+
+    let (mut socket, _) = tokio_tungstenite::connect_async(request).await.unwrap();
+    let hello = socket.next().await.unwrap().unwrap().into_text().unwrap();
+
+    let hello_json: Value = serde_json::from_str(&hello).unwrap();
+    assert_eq!(hello_json["type"], "hello");
+    assert_eq!(hello_json["version"], 1);
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }

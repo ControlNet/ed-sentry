@@ -80,7 +80,7 @@ async fn webui_api_config_update_clears_matrix_token_only_when_explicit() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn webui_api_allows_remote_bind_but_rejects_untrusted_host_origin_config_writes() {
+async fn webui_api_config_writes_ignore_origin_but_keep_host_validation() {
     let _env = env_lock().await;
     let temp_dir = tempfile::tempdir().unwrap();
     let dist = tempfile::tempdir().unwrap();
@@ -97,7 +97,7 @@ async fn webui_api_allows_remote_bind_but_rejects_untrusted_host_origin_config_w
         "evil.invalid",
         "",
     );
-    let bad_origin = put_config(
+    let remote_origin = put_config(
         loopback_server.bound_port().unwrap(),
         body,
         "127.0.0.1",
@@ -109,8 +109,8 @@ async fn webui_api_allows_remote_bind_but_rejects_untrusted_host_origin_config_w
 
     assert!(bad_host.starts_with("HTTP/1.1 403 Forbidden"), "{bad_host}");
     assert!(
-        bad_origin.starts_with("HTTP/1.1 403 Forbidden"),
-        "{bad_origin}"
+        remote_origin.starts_with("HTTP/1.1 200 OK"),
+        "{remote_origin}"
     );
     assert!(
         remote_response.starts_with("HTTP/1.1 200 OK"),
