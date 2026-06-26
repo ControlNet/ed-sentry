@@ -19,6 +19,17 @@ test("dashboard scaffold renders monitor state when mock adapter is active", asy
   })
 })
 
+test("@webui-assets serves the configured favicon", async ({ page }) => {
+  await page.goto("/")
+
+  await expect(page.locator("link[rel='icon']")).toHaveAttribute("href", "/favicon.ico")
+
+  const response = await page.request.get("/favicon.ico")
+  expect(response.ok()).toBe(true)
+  expect(response.headers()["content-type"]).toContain("image/")
+  expect((await response.body()).length).toBeGreaterThan(1_000)
+})
+
 test("@mock-dashboard renders the adapter-backed dashboard shell", async ({ page }) => {
   await page.goto("/")
 
