@@ -32,6 +32,22 @@ export const longFeedMockDashboardSnapshot = {
   }),
 } satisfies AppSnapshot
 
+export const afkChecklistUnknownMockDashboardSnapshot = {
+  ...mockDashboardSnapshot,
+  afk_checklist: {
+    rows: mockDashboardSnapshot.afk_checklist.rows.map((row) =>
+      row.id === "hardpoints_deployed"
+        ? {
+            ...row,
+            detail: "Status Flags are unavailable",
+            state: "unknown",
+            source: "unknown",
+          }
+        : row,
+    ),
+  },
+} satisfies AppSnapshot
+
 export const privatePathMockDashboardSnapshot = {
   ...mockDashboardSnapshot,
   journal_source: {

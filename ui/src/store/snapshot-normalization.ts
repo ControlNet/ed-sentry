@@ -27,6 +27,7 @@ function stableSnapshotKey(snapshot: AppSnapshot): string {
   return JSON.stringify({
     session: snapshot.session,
     missions: snapshot.missions,
+    afk_checklist: snapshot.afk_checklist,
     journal_source: snapshot.journal_source,
     matrix: snapshot.matrix,
     web: snapshot.web,
