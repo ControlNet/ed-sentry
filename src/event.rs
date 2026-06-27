@@ -238,6 +238,7 @@ pub struct LoadGameEvent {
     pub commander: Option<String>,
     pub ship: Option<String>,
     pub ship_localised: Option<String>,
+    pub ship_name: Option<String>,
     pub game_mode: Option<String>,
     pub odyssey: Option<bool>,
 }
@@ -249,6 +250,7 @@ pub struct LoadoutEvent {
     pub raw: Option<Value>,
     pub ship: Option<String>,
     pub ship_localised: Option<String>,
+    pub ship_name: Option<String>,
     pub fuel_capacity_main: Option<f64>,
 }
 
@@ -1145,6 +1147,7 @@ fn load_game_event(
         commander: fields.commander,
         ship: fields.ship,
         ship_localised: fields.ship_localised,
+        ship_name: fields.ship_name,
         game_mode: fields.game_mode,
         odyssey: fields.odyssey,
     }))
@@ -1162,6 +1165,7 @@ fn loadout_event(
         raw: Some(value.clone()),
         ship: fields.ship,
         ship_localised: fields.ship_localised,
+        ship_name: fields.ship_name,
         fuel_capacity_main: fields.fuel_capacity.and_then(|capacity| capacity.main),
     }))
 }
@@ -1716,6 +1720,8 @@ struct LoadGameFields {
     ship: Option<String>,
     #[serde(rename = "Ship_Localised")]
     ship_localised: Option<String>,
+    #[serde(rename = "ShipName")]
+    ship_name: Option<String>,
     #[serde(rename = "GameMode")]
     game_mode: Option<String>,
     #[serde(rename = "Odyssey")]
@@ -1728,6 +1734,8 @@ struct LoadoutFields {
     ship: Option<String>,
     #[serde(rename = "Ship_Localised")]
     ship_localised: Option<String>,
+    #[serde(rename = "ShipName")]
+    ship_name: Option<String>,
     #[serde(rename = "FuelCapacity")]
     fuel_capacity: Option<FuelCapacityFields>,
 }

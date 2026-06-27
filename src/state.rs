@@ -83,6 +83,8 @@ pub struct SessionState {
     pub last_kill_at: Option<DateTime<Utc>>,
     pub last_scan_at: Option<DateTime<Utc>>,
     ship_key: Option<String>,
+    ship_display_name: Option<String>,
+    ship_model: Option<String>,
     kill_timestamps: Vec<DateTime<Utc>>,
     scan_timestamps: Vec<DateTime<Utc>>,
 }
@@ -97,11 +99,14 @@ impl SessionState {
             JournalEvent::Commander(event) => assign_if_some(&mut self.commander, &event.name),
             JournalEvent::LoadGame(event) => {
                 assign_if_some(&mut self.commander, &event.commander);
-                self.apply_ship(&event.ship, &event.ship_localised);
+                self.apply_ship(&event.ship, &event.ship_localised, &event.ship_name);
                 assign_if_some(&mut self.mode, &event.game_mode);
             }
             JournalEvent::Loadout(event) => {
-                self.apply_ship(&event.ship, &event.ship_localised);
+                self.apply_ship(&event.ship, &event.ship_localised, &event.ship_name);
+            }
+            JournalEvent::ShipyardSwap(event) => {
+                self.apply_ship(&event.ship_type, &event.ship_type_localised, &None);
             }
             JournalEvent::Location(event) => self.apply_location(event),
             JournalEvent::SupercruiseDestinationDrop(event) => self.apply_destination_drop(event),
@@ -156,7 +161,6 @@ impl SessionState {
             | JournalEvent::RedeemVoucher(_)
             | JournalEvent::EjectCargo(_)
             | JournalEvent::ReservoirReplenished(_)
-            | JournalEvent::ShipyardSwap(_)
             | JournalEvent::Unknown { .. } => {}
             event if event.is_known_raw_event() => {}
             _ => {}
@@ -282,19 +286,34 @@ impl SessionState {
         }
     }
 
-    fn apply_ship(&mut self, ship: &Option<String>, ship_localised: &Option<String>) {
+    fn apply_ship(
+        &mut self,
+        ship: &Option<String>,
+        ship_localised: &Option<String>,
+        ship_name: &Option<String>,
+    ) {
         let same_ship = ship.as_deref().is_some_and(|ship| {
             self.ship_key
                 .as_deref()
                 .is_some_and(|known| known.eq_ignore_ascii_case(ship))
         });
 
+        if !same_ship {
+            self.ship_display_name = None;
+            self.ship_model = None;
+        }
+
         assign_if_some(&mut self.ship_key, ship);
-        if ship_localised
-            .as_ref()
-            .is_some_and(|value| !value.is_empty())
-        {
-            assign_if_some(&mut self.ship, ship_localised);
+        assign_if_some(&mut self.ship_display_name, ship_name);
+        let model = ship_model_display(ship.as_deref(), ship_localised.as_deref());
+        if model.is_some() {
+            self.ship_model = model;
+        }
+        if let Some(display) = ship_display(
+            self.ship_display_name.as_deref(),
+            self.ship_model.as_deref(),
+        ) {
+            self.ship = Some(display);
         } else if !same_ship {
             assign_if_some(&mut self.ship, ship);
         }
@@ -395,6 +414,68 @@ fn assign_if_some(destination: &mut Option<String>, source: &Option<String>) {
     if let Some(value) = source.as_ref().filter(|value| !value.is_empty()) {
         *destination = Some(value.clone());
     }
+}
+
+fn ship_display(ship_name: Option<&str>, ship_localised: Option<&str>) -> Option<String> {
+    match (non_empty(ship_name), non_empty(ship_localised)) {
+        (Some(name), Some(localised)) if name.eq_ignore_ascii_case(localised) => {
+            Some(name.to_string())
+        }
+        (Some(name), Some(localised)) => Some(format!("{name} ({localised})")),
+        (Some(name), None) => Some(name.to_string()),
+        (None, Some(localised)) => Some(localised.to_string()),
+        (None, None) => None,
+    }
+}
+
+fn ship_model_display(raw: Option<&str>, localised: Option<&str>) -> Option<String> {
+    if let Some(localised) = non_empty(localised) {
+        return Some(localised.to_string());
+    }
+    let raw = non_empty(raw)?;
+    Some(match raw.to_ascii_lowercase().as_str() {
+        "adder" => "Adder".to_string(),
+        "anaconda" => "Anaconda".to_string(),
+        "asp" => "Asp Explorer".to_string(),
+        "asp_scout" => "Asp Scout".to_string(),
+        "cobramkiii" => "Cobra Mk III".to_string(),
+        "cobramkiv" => "Cobra Mk IV".to_string(),
+        "diamondback" => "Diamondback Scout".to_string(),
+        "diamondbackxl" => "Diamondback Explorer".to_string(),
+        "eagle" => "Eagle".to_string(),
+        "empire_courier" => "Imperial Courier".to_string(),
+        "empire_eagle" => "Imperial Eagle".to_string(),
+        "federation_gunship" => "Federal Gunship".to_string(),
+        "ferdelance" => "Fer-de-Lance".to_string(),
+        "krait_mkii" => "Krait Mk II".to_string(),
+        "python" => "Python".to_string(),
+        "sidewinder" => "Sidewinder".to_string(),
+        "type9_military" => "Type-10 Defender".to_string(),
+        "typex" | "typex_2" | "typex_3" => "Alliance Combat Ship".to_string(),
+        "viper" => "Viper Mk III".to_string(),
+        "viper_mkiv" => "Viper Mk IV".to_string(),
+        "vulture" => "Vulture".to_string(),
+        other => title_identifier(other),
+    })
+}
+
+fn title_identifier(value: &str) -> String {
+    value
+        .split(['_', '-'])
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => format!("{}{}", first.to_uppercase(), chars.as_str()),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn non_empty(value: Option<&str>) -> Option<&str> {
+    value.filter(|value| !value.is_empty())
 }
 
 fn location_is_planetary_ring(event: &LocationEvent) -> bool {

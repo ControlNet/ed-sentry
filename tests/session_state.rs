@@ -1,5 +1,5 @@
 use chrono::{DateTime, Duration, TimeZone, Utc};
-use ed_sentry::event::{parse_journal_line, LoadoutEvent};
+use ed_sentry::event::{parse_journal_line, LoadoutEvent, ShipyardSwapEvent};
 use ed_sentry::event::{
     BasicJournalEvent, BountyEvent, BountyReward, CommanderEvent, FactionKillBondEvent,
     HullDamageEvent, JournalEvent, LaunchFighterEvent, LoadGameEvent, LocationEvent, MissionEvent,
@@ -165,6 +165,7 @@ fn session_state_tracks_identity_status_and_damage_from_typed_events() {
         commander: Some("Cmdr Fixture State".to_string()),
         ship: Some("krait_mkii".to_string()),
         ship_localised: Some("Krait Mk II".to_string()),
+        ship_name: None,
         game_mode: Some("Open".to_string()),
         odyssey: Some(true),
     }));
@@ -174,6 +175,7 @@ fn session_state_tracks_identity_status_and_damage_from_typed_events() {
         raw: None,
         ship: Some("python".to_string()),
         ship_localised: Some("Python".to_string()),
+        ship_name: None,
         fuel_capacity_main: Some(32.0),
     }));
     state.apply_event(&location(3, None, Some("Fixture Belt")));
@@ -231,6 +233,7 @@ fn session_state_preserves_localised_ship_display_when_loadout_only_has_raw_key(
         commander: Some("Cmdr Fixture State".to_string()),
         ship: Some("Type9_Military".to_string()),
         ship_localised: Some("Type-10 Defender".to_string()),
+        ship_name: None,
         game_mode: Some("Open".to_string()),
         odyssey: Some(true),
     }));
@@ -240,10 +243,104 @@ fn session_state_preserves_localised_ship_display_when_loadout_only_has_raw_key(
         raw: None,
         ship: Some("type9_military".to_string()),
         ship_localised: None,
+        ship_name: None,
         fuel_capacity_main: Some(64.0),
     }));
 
     assert_eq!(state.ship.as_deref(), Some("Type-10 Defender"));
+}
+
+#[test]
+fn session_state_updates_localised_ship_display_after_shipyard_swap() {
+    let mut state = SessionState::new();
+
+    state.apply_event(&JournalEvent::LoadGame(LoadGameEvent {
+        timestamp: timestamp(0),
+        event: "LoadGame".to_string(),
+        raw: None,
+        commander: Some("Cmdr Fixture State".to_string()),
+        ship: Some("krait_mkii".to_string()),
+        ship_localised: Some("Krait Mk II".to_string()),
+        ship_name: None,
+        game_mode: Some("Open".to_string()),
+        odyssey: Some(true),
+    }));
+    state.apply_event(&JournalEvent::ShipyardSwap(ShipyardSwapEvent {
+        timestamp: timestamp(1),
+        event: "ShipyardSwap".to_string(),
+        raw: None,
+        ship_type: Some("type9_military".to_string()),
+        ship_type_localised: Some("Type-10 Defender".to_string()),
+    }));
+
+    assert_eq!(state.ship.as_deref(), Some("Type-10 Defender"));
+}
+
+#[test]
+fn session_state_combines_ship_name_and_localised_model_for_display() {
+    let mut state = SessionState::new();
+
+    state.apply_event(&JournalEvent::LoadGame(LoadGameEvent {
+        timestamp: timestamp(0),
+        event: "LoadGame".to_string(),
+        raw: None,
+        commander: Some("Cmdr Fixture State".to_string()),
+        ship: Some("krait_mkii".to_string()),
+        ship_localised: Some("Krait Mk II".to_string()),
+        ship_name: Some("AFK Runner".to_string()),
+        game_mode: Some("Open".to_string()),
+        odyssey: Some(true),
+    }));
+
+    assert_eq!(state.ship.as_deref(), Some("AFK Runner (Krait Mk II)"));
+}
+
+#[test]
+fn session_state_combines_ship_name_and_raw_ship_model_when_localised_model_is_missing() {
+    let mut state = SessionState::new();
+
+    state.apply_event(&JournalEvent::LoadGame(LoadGameEvent {
+        timestamp: timestamp(0),
+        event: "LoadGame".to_string(),
+        raw: None,
+        commander: Some("Cmdr Fixture State".to_string()),
+        ship: Some("krait_mkii".to_string()),
+        ship_localised: None,
+        ship_name: Some("AFK Runner".to_string()),
+        game_mode: Some("Open".to_string()),
+        odyssey: Some(true),
+    }));
+
+    assert_eq!(state.ship.as_deref(), Some("AFK Runner (Krait Mk II)"));
+}
+
+#[test]
+fn session_state_preserves_known_ship_name_and_localised_model_when_later_same_ship_event_is_partial(
+) {
+    let mut state = SessionState::new();
+
+    state.apply_event(&JournalEvent::LoadGame(LoadGameEvent {
+        timestamp: timestamp(0),
+        event: "LoadGame".to_string(),
+        raw: None,
+        commander: Some("Cmdr Fixture State".to_string()),
+        ship: Some("krait_mkii".to_string()),
+        ship_localised: Some("Krait Mk II".to_string()),
+        ship_name: Some("AFK Runner".to_string()),
+        game_mode: Some("Open".to_string()),
+        odyssey: Some(true),
+    }));
+    state.apply_event(&JournalEvent::Loadout(LoadoutEvent {
+        timestamp: timestamp(1),
+        event: "Loadout".to_string(),
+        raw: None,
+        ship: Some("krait_mkii".to_string()),
+        ship_localised: None,
+        ship_name: None,
+        fuel_capacity_main: Some(32.0),
+    }));
+
+    assert_eq!(state.ship.as_deref(), Some("AFK Runner (Krait Mk II)"));
 }
 
 #[test]
@@ -430,7 +527,10 @@ fn session_state_public_api_can_be_driven_by_sanitized_parser_fixture() {
     }
 
     assert_eq!(state.commander.as_deref(), Some("Cmdr Fixture Delta"));
-    assert_eq!(state.ship.as_deref(), Some("krait_mkii"));
+    assert_eq!(
+        state.ship.as_deref(),
+        Some("Fixture Defender (Krait Mk II)")
+    );
     assert_eq!(state.mode.as_deref(), Some("Solo"));
     assert_eq!(state.shields_up, Some(false));
     assert_eq!(state.ship_hull, Some(0.0));
