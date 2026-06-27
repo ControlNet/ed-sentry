@@ -13,10 +13,7 @@ test("dashboard scaffold renders monitor state when mock adapter is active", asy
     "No production API configured",
   )
 
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/task-4-dashboard-smoke.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/task-4-dashboard-smoke.png")
 })
 
 test("@webui-assets serves the configured favicon", async ({ page }) => {
@@ -47,37 +44,52 @@ test("@mock-dashboard renders the adapter-backed dashboard shell", async ({ page
     "Sanitized Journal source",
   )
 
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/task-9-dashboard-shell.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/task-9-dashboard-shell.png")
 
   await page.setViewportSize({ width: 768, height: 1024 })
   await page.goto("/")
   await expect(page.getByRole("region", { name: "Mission progress" })).toContainText(
     "Massacre pirates",
   )
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/task-9-dashboard-tablet.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/task-9-dashboard-tablet.png")
 
   await page.setViewportSize({ width: 375, height: 900 })
   await page.goto("/")
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible()
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/task-9-dashboard-mobile.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/task-9-dashboard-mobile.png")
 })
 
 test("@todo10-dashboard renders all first-milestone operational regions", async ({ page }) => {
+  const consoleErrors: string[] = []
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text())
+    }
+  })
+
   await page.goto("/")
+
+  const checklist = page.getByRole("region", { name: "Checklist" })
 
   await expect(page.locator("main")).toContainText("Local Commander")
   await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Combat Analytics" })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Ship Integrity" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Ship Integrity" })).toHaveCount(0)
+  await expect(checklist).toBeVisible()
+  const checklistRows = checklist.getByTestId("afk-checklist-row")
+  const expectedChecklistRows = [
+    ["Hardpoints deployed", "PASS"],
+    ["Engine pips zero", "PASS"],
+    ["Cargo loaded", "FAIL"],
+  ] as const
+  await expect(checklistRows).toHaveCount(expectedChecklistRows.length)
+  for (const [index, [label, stateLabel]] of expectedChecklistRows.entries()) {
+    await expect(checklistRows.nth(index)).toContainText(label)
+    await expect(checklistRows.nth(index)).toContainText(stateLabel)
+  }
+  await expect(checklist).not.toContainText("Status Flags")
+  await expect(checklist).not.toContainText("Status.json")
+  await expect(checklist).not.toContainText("Cargo.json")
   await expect(page.getByRole("region", { name: "Service Nodes" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Recent event feed" })).toContainText(
     "Bounty voucher",
@@ -93,6 +105,12 @@ test("@todo10-dashboard renders all first-milestone operational regions", async 
   )
   await expect(page.getByRole("region", { name: "Service Nodes" })).toContainText("Disabled")
   await expect(page.getByRole("region", { name: "Service Nodes" })).toContainText("Mock live")
+
+  await checklist.scrollIntoViewIfNeeded()
+  await checklist.screenshot({
+    path: "../.omo/evidence/afk-checklist-watcher/task-10-checklist-panel.png",
+  })
+  expect(consoleErrors).toEqual([])
 })
 
 test("@event-feed keeps long history bounded and newest first", async ({ page }) => {
@@ -117,10 +135,7 @@ test("@event-feed keeps long history bounded and newest first", async ({ page })
   }))
   expect(listMetrics.scrollHeight).toBeGreaterThan(listMetrics.clientHeight)
 
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/event-feed-long-bounded.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/event-feed-long-bounded.png")
 })
 
 test("@privacy redacts absolute Journal source details in service nodes", async ({ page }) => {
@@ -187,28 +202,19 @@ test("@loading-screen renders the tactical startup visual while awaiting a snaps
   await expect(page.locator("svg").first()).toBeVisible()
   await expect(page.getByText("Loading dashboard snapshot")).toBeVisible()
 
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/loading-screen.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/loading-screen.png")
 
   await page.setViewportSize({ width: 768, height: 1024 })
   await page.goto("/?mock_state=loading")
   await expect(page.getByRole("region", { name: "Dashboard startup" })).toBeVisible()
   await expectLoadingProgress(page)
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/loading-screen-tablet.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/loading-screen-tablet.png")
 
   await page.setViewportSize({ width: 375, height: 812 })
   await page.goto("/?mock_state=loading")
   await expect(page.getByRole("region", { name: "Dashboard startup" })).toBeVisible()
   await expectLoadingProgress(page)
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/loading-screen-mobile.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/loading-screen-mobile.png")
 })
 
 async function expectLoadingProgress(page: Page): Promise<void> {
@@ -232,10 +238,7 @@ test("@missions workspace fits a short desktop viewport", async ({ page }) => {
   }))
   expect(mainMetrics.scrollHeight).toBeLessThanOrEqual(mainMetrics.clientHeight + 4)
 
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/missions-short-viewport.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/missions-short-viewport.png")
 })
 
 test("@config-edit saves a non-secret setting and reloads the config view", async ({ page }) => {
@@ -253,10 +256,7 @@ test("@config-edit saves a non-secret setting and reloads the config view", asyn
   await page.getByRole("button", { name: /Systems/u }).click()
   await expect(page.getByRole("spinbutton", { name: "Port", exact: true })).toHaveValue("4273")
 
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/task-11-config-edit.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/task-11-config-edit.png")
 })
 
 test("@config-edit allows clearing Journal folder to use the default", async ({ page }) => {
@@ -287,8 +287,9 @@ test("@token-mask does not render the stored Matrix token fixture", async ({ pag
   expect(textDump ?? "").not.toContain(fixtureToken)
   expect(htmlDump).not.toContain(fixtureToken)
 
-  await page.screenshot({
-    path: "../.omo/evidence/gui-webui-tauri/task-11-token-mask.png",
-    fullPage: true,
-  })
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/task-11-token-mask.png")
 })
+
+async function captureFullPage(page: Page, path: string): Promise<void> {
+  await page.screenshot({ path, fullPage: true })
+}

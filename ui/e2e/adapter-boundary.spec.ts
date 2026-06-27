@@ -7,6 +7,7 @@ import {
   type EditableConfigUpdate,
 } from "@/adapters/dashboard"
 import { mockDashboardSnapshot } from "@/adapters/mock-data"
+import { parseAppSnapshot } from "@/adapters/types"
 import { shouldApplySnapshotUpdate } from "@/store/snapshot-normalization"
 import { mockConfigView } from "./adapter-boundary-fixtures"
 
@@ -134,6 +135,26 @@ test("dashboard store ignores volatile-only snapshot updates", () => {
 
   expect(shouldApplySnapshotUpdate(mockDashboardSnapshot, volatileOnlySnapshot)).toBe(false)
   expect(shouldApplySnapshotUpdate(mockDashboardSnapshot, changedSnapshot)).toBe(true)
+})
+
+test("dashboard store applies afk checklist-only snapshot updates", () => {
+  const checklistOnlySnapshot = {
+    ...mockDashboardSnapshot,
+    afk_checklist: {
+      rows: mockDashboardSnapshot.afk_checklist.rows.map((row) =>
+        row.id === "cargo_loaded" ? { ...row, state: "pass" as const } : row,
+      ),
+    },
+  }
+
+  expect(shouldApplySnapshotUpdate(mockDashboardSnapshot, checklistOnlySnapshot)).toBe(true)
+})
+
+test("adapter schema rejects snapshots missing afk checklist", () => {
+  const { afk_checklist: checklist, ...snapshotWithoutChecklist } = mockDashboardSnapshot
+
+  expect(checklist.rows).toHaveLength(3)
+  expect(() => parseAppSnapshot(snapshotWithoutChecklist)).toThrow(/Invalid input/)
 })
 
 test("web adapter loadSnapshot reads only the snapshot endpoint", async () => {
