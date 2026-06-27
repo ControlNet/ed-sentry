@@ -1,8 +1,10 @@
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 
 use chrono::{DateTime, Utc};
 
-use crate::app::{AppEventStore, AppSnapshot, MatrixStartupStatus, WebStartupStatus};
+use crate::app::{
+    AfkChecklistState, AppEventStore, AppSnapshot, MatrixStartupStatus, WebStartupStatus,
+};
 use crate::config::RuntimeConfig;
 use crate::event::{parse_journal_line, JournalEvent};
 use crate::journal::{live_poll_interval, preload_journal_file, LiveTail, PreloadRecord};
@@ -13,12 +15,16 @@ use crate::text::line_safe;
 
 use super::paths::{journal_basename, startup_commander};
 use super::types::{
-    JournalSelector, MonitorStartup, RuntimeBatch, RuntimeError, RuntimeNotification,
-    RuntimeNotificationDelivery, RuntimeStatusSnapshot,
+    JournalSelector, MonitorStartup, RuntimeBatch, RuntimeError, RuntimeNotificationDelivery,
+    RuntimeStatusSnapshot,
 };
 
+mod batch;
+mod companion;
 mod mission_history;
 mod snapshot;
+
+use companion::{CompanionFile, CompanionPaths};
 
 pub struct MonitorRuntime {
     config: RuntimeConfig,
@@ -30,6 +36,8 @@ pub struct MonitorRuntime {
     matrix_status: MatrixStartupStatus,
     pub(super) web_status: WebStartupStatus,
     events: AppEventStore,
+    companion_paths: Option<CompanionPaths>,
+    pub(super) afk_checklist: AfkChecklistState,
 }
 
 impl MonitorRuntime {
@@ -50,6 +58,10 @@ impl MonitorRuntime {
         let tail = LiveTail::from_preload(&journal_file, &preload);
         let monitor = EventMonitor::from_runtime_config(config);
         let missions = mission_history::preload_mission_history(config, &journal_file)?;
+        let companion_paths = CompanionPaths::from_journal_file(&journal_file);
+        let afk_checklist = companion_paths
+            .as_ref()
+            .map_or_else(AfkChecklistState::unknown, CompanionPaths::startup_state);
         let events = AppEventStore::from_state(
             monitor.state(),
             &missions,
@@ -68,6 +80,8 @@ impl MonitorRuntime {
             matrix_status,
             web_status,
             events,
+            companion_paths,
+            afk_checklist,
         })
     }
 
@@ -190,6 +204,25 @@ impl MonitorRuntime {
         }
     }
 
+    pub fn process_companion_update(
+        &mut self,
+        path: &Path,
+        now: DateTime<Utc>,
+    ) -> Result<RuntimeBatch, RuntimeError> {
+        let mut batch = self.empty_batch(now);
+        let changed = match self.companion_paths.as_ref() {
+            Some(paths) => paths.refresh_path(&mut self.afk_checklist, path),
+            None => false,
+        };
+
+        if changed {
+            batch.snapshot = self.snapshot(now);
+            self.events.publish_snapshot(batch.snapshot.clone());
+        }
+
+        Ok(batch)
+    }
+
     pub fn poll_interval(&self) -> Duration {
         live_poll_interval(&self.config)
     }
@@ -207,46 +240,15 @@ impl MonitorRuntime {
         self.missions.apply_event(event);
         let notifications = self.monitor.process_event(event);
         self.extend_notifications(notifications, delivery, batch);
-    }
-
-    fn batch_from_notifications(
-        &mut self,
-        notifications: impl IntoIterator<Item = Notification>,
-        delivery: RuntimeNotificationDelivery,
-        now: DateTime<Utc>,
-    ) -> RuntimeBatch {
-        let mut batch = self.empty_batch(now);
-        self.extend_notifications(notifications, delivery, &mut batch);
-        batch.snapshot = self.snapshot(now);
-        self.events.publish_snapshot(batch.snapshot.clone());
-        batch
-    }
-
-    fn extend_notifications(
-        &mut self,
-        notifications: impl IntoIterator<Item = Notification>,
-        delivery: RuntimeNotificationDelivery,
-        batch: &mut RuntimeBatch,
-    ) {
-        for notification in notifications {
-            if let Some(stored) = self.events.record_notification(&notification) {
-                batch.notifications.push(RuntimeNotification {
-                    notification,
-                    view: stored.view,
-                    feed_item: stored.feed_item,
-                    delivery,
-                });
-            }
+        if matches!(event, JournalEvent::Cargo(_)) {
+            self.refresh_companion_file(CompanionFile::Cargo);
         }
     }
 
-    fn push_warning(&self, batch: &mut RuntimeBatch, warning: String, now: DateTime<Utc>) {
-        let warning = line_safe(&warning);
-        self.events.record_warning(&warning, now);
-        batch.warnings.push(warning);
-    }
-
-    fn empty_batch(&self, now: DateTime<Utc>) -> RuntimeBatch {
-        RuntimeBatch::empty(self.snapshot(now))
+    fn refresh_companion_file(&mut self, file: CompanionFile) -> bool {
+        match self.companion_paths.as_ref() {
+            Some(paths) => paths.refresh_file(&mut self.afk_checklist, file),
+            None => false,
+        }
     }
 }
