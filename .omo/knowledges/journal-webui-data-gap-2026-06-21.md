@@ -1,7 +1,7 @@
 # Journal/WebUI Data Gap Audit
 
 Date: 2026-06-21
-Scope: current webui data contract versus the local Elite Dangerous Journal folder under `/home/ubuntu/Elite Dangerous`.
+Scope: current webui data contract versus a local personal Elite Dangerous Journal folder.
 
 ## Summary
 
