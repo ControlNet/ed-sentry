@@ -5,6 +5,8 @@ use ed_sentry::app::{
 };
 use ed_sentry::config::{AppConfig, CliConfigOverrides};
 
+mod runtime_service_afk_checklist;
+
 #[test]
 fn runtime_service_emits_sanitized_snapshot_and_notifications_from_fixture() {
     let temp_dir = tempfile::tempdir().unwrap();
@@ -41,6 +43,7 @@ fn runtime_service_emits_sanitized_snapshot_and_notifications_from_fixture() {
     let snapshot = runtime.snapshot(now);
     let configured_source = JournalSourceView::from_runtime_config(&config);
     let json = serde_json::to_string(&snapshot).unwrap();
+    let json_value: serde_json::Value = serde_json::from_str(&json).unwrap();
     let full_path = journal_path.to_string_lossy();
 
     assert_eq!(
@@ -64,6 +67,23 @@ fn runtime_service_emits_sanitized_snapshot_and_notifications_from_fixture() {
     assert_eq!(snapshot.notifications.len(), 1);
     assert!(snapshot.notifications[0].text.contains("Runtime Viper [2K"));
     assert_eq!(snapshot.event_feed.len(), 1);
+    assert!(json_value.get("afk_checklist").is_some());
+    assert_eq!(
+        json_value["afk_checklist"]["rows"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+    assert!(json_value["session"]["ship_hull_display"].is_string());
+    println!(
+        "snapshot_contract afk_checklist_rows={} session.ship_hull_display={}",
+        json_value["afk_checklist"]["rows"]
+            .as_array()
+            .unwrap()
+            .len(),
+        json_value["session"]["ship_hull_display"]
+    );
 
     let mut violations = Vec::new();
     if snapshot.journal_source.selected_file.as_deref() != Some("Journal.2035-01-03T100000.01.log")
