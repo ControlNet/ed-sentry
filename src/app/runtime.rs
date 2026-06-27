@@ -2,6 +2,7 @@ mod delivery;
 #[cfg(debug_assertions)]
 mod delivery_debug;
 mod desktop;
+pub mod file_watcher;
 mod paths;
 mod service;
 mod terminal;
