@@ -1,8 +1,11 @@
-import { Activity, Crosshair, Database, Server, Shield, Wifi } from "lucide-react"
+import { Activity, ClipboardCheck, Crosshair, Database, Server, Wifi } from "lucide-react"
 import type { AppSnapshot } from "@/adapters/dashboard"
+import { assertNever } from "./dashboard-helpers"
 import { TacticalMissionSummary, TacticalRecentAlerts } from "./tactical-telemetry-summary"
-import { JournalServiceLine, Meter, MetricValue, ServiceLine } from "./tactical-telemetry-widgets"
-import { DataRow, TacticalBadge, TacticalPanel } from "./tactical-ui"
+import { JournalServiceLine, MetricValue, ServiceLine } from "./tactical-telemetry-widgets"
+import { DataRow, TacticalBadge, type TacticalBadgeTone, TacticalPanel } from "./tactical-ui"
+
+type ChecklistRow = AppSnapshot["afk_checklist"]["rows"][number]
 
 export function TacticalTelemetryView({
   snapshot,
@@ -37,29 +40,12 @@ export function TacticalTelemetryView({
         </div>
       </TacticalPanel>
 
-      <TacticalPanel title="Ship Integrity" icon={Shield}>
-        <div className="space-y-5">
-          <Meter
-            label="Hull plating"
-            value={snapshot.session.ship_hull_display}
-            percent={snapshot.session.ship_hull_percent}
-          />
-          <div className="rounded-sm border border-slate-800/50 bg-slate-900/30 p-2">
-            <DataRow
-              label="Deflector shield"
-              value={snapshot.session.shields_display}
-              valueClassName={
-                snapshot.session.shields_up === false ? "text-status-danger" : "text-tactical"
-              }
-            />
-          </div>
-          <Meter
-            label="SLF fighter"
-            value={snapshot.session.fighter_hull_display}
-            percent={snapshot.session.fighter_hull_percent}
-            tone="scan"
-          />
-        </div>
+      <TacticalPanel title="Checklist" icon={ClipboardCheck}>
+        <ul aria-label="AFK readiness checks" className="space-y-2">
+          {snapshot.afk_checklist.rows.map((row) => (
+            <ChecklistItem key={row.id} row={row} />
+          ))}
+        </ul>
       </TacticalPanel>
 
       <TacticalPanel title="Combat Analytics" icon={Crosshair}>
@@ -119,6 +105,63 @@ export function TacticalTelemetryView({
       <TacticalRecentAlerts snapshot={snapshot} />
     </div>
   )
+}
+
+function ChecklistItem({ row }: { readonly row: ChecklistRow }): React.JSX.Element {
+  return (
+    <li
+      className={`grid grid-cols-[minmax(0,1fr)_auto] gap-3 border p-2 font-mono ${checklistRowClass(
+        row.state,
+      )}`}
+      data-testid="afk-checklist-row"
+    >
+      <p className="min-w-0 truncate text-[11px] font-bold uppercase tracking-wider text-text-primary">
+        {row.label}
+      </p>
+      <TacticalBadge tone={checklistBadgeTone(row.state)}>
+        {checklistStateLabel(row.state)}
+      </TacticalBadge>
+    </li>
+  )
+}
+
+function checklistStateLabel(state: ChecklistRow["state"]): string {
+  switch (state) {
+    case "pass":
+      return "PASS"
+    case "fail":
+      return "FAIL"
+    case "unknown":
+      return "UNKNOWN"
+    default:
+      return assertNever(state)
+  }
+}
+
+function checklistBadgeTone(state: ChecklistRow["state"]): TacticalBadgeTone {
+  switch (state) {
+    case "pass":
+      return "success"
+    case "fail":
+      return "danger"
+    case "unknown":
+      return "default"
+    default:
+      return assertNever(state)
+  }
+}
+
+function checklistRowClass(state: ChecklistRow["state"]): string {
+  switch (state) {
+    case "pass":
+      return "border-status-online/25 bg-status-online/5"
+    case "fail":
+      return "border-status-danger/25 bg-status-danger/5"
+    case "unknown":
+      return "border-status-neutral/25 bg-surface-raised/30"
+    default:
+      return assertNever(state)
+  }
 }
 
 function webInterfaceHref(web: AppSnapshot["web"]): string | null {
