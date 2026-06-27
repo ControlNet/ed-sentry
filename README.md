@@ -14,6 +14,7 @@ Supported now:
 - Watch a selected Journal file, print matching events already present in that file, then tail appended complete lines.
 - Replay one sanitized or local Journal file from start to end.
 - Track cargo scans, observed kills, bounties, massacre mission progress, shield and hull state, fighter events, fuel reports, cargo loss, death, and session summaries.
+- Update the AFK `Checklist` from the selected Journal file plus local `Status.json` and `Cargo.json` companion files during watch-capable runs.
 - Render terminal event logs and a live status line when the output is a TTY.
 - Send watch-mode notifications to an unencrypted Matrix room when `[matrix] enabled = true` is configured.
 - Start the local WebUI dashboard in watch-capable runtimes when `[web] enabled = true` is configured.
@@ -116,10 +117,14 @@ Common flags:
 - `--reset-session` clears watch counters after startup preload output. In replay it is accepted for compatibility and prints one no-effect warning.
 - `--debug` prints runtime diagnostics such as selected Journal file and preload offsets.
 - `--no-status-line` disables the live status line and keeps output newline-safe.
-- `--poll-interval-ms <ms>` changes the live polling interval in the default watch mode. `--replay` rejects this flag because it has no replay effect.
+- `--poll-interval-ms <ms>` changes the fallback and housekeeping cadence in the default watch mode. Watcher events drive low-latency updates when available. `--replay` rejects this flag because it has no replay effect.
 - `--replay` reads the selected Journal file from start to finish and exits.
 
 No subcommands are used. If `--replay` is absent, the CLI runs in watch mode.
+
+In watch-capable terminal, WebUI, and desktop runtimes, file watcher events from the selected Journal file, `Status.json`, and `Cargo.json` update the current snapshot without waiting for the interval. The watcher filters to those files in the selected Journal folder; unrelated Journal files are ignored. `poll_interval_ms` remains the fallback and housekeeping cadence for missed watcher events, status publication, and warning checks.
+
+The WebUI and desktop dashboard show a `Checklist` panel with tri-state `PASS`/`FAIL`/`UNKNOWN` values for `Hardpoints deployed`, `Engine pips zero`, and `Cargo loaded`. `Hardpoints deployed` and `Engine pips zero` come from `Status.json`. `Cargo loaded` means non-empty ship cargo from `Cargo.json`, not cargo market value.
 
 ## Configuration
 
@@ -148,7 +153,7 @@ Important monitor defaults:
 
 - `live_status = true` enables the TTY status line unless `--no-status-line` is passed.
 - `use_utc = false` prints local time by default.
-- `poll_interval_ms = 1000` is the default watch polling interval.
+- `poll_interval_ms = 1000` is the default fallback and housekeeping interval for watch mode.
 - `warn_kill_rate = 20`, `warn_no_kills_initial_minutes = 5`, `warn_no_kills_minutes = 20`, and `warn_cooldown_minutes = 30` control idle and low-rate warnings.
 - `duplicate_max = 5` is retained for future remote delivery controls; Phase 1 terminal output does not suppress duplicate notifications so it stays aligned with the upstream console stream.
 - `pirate_names = false`, `bounty_faction = false`, and `bounty_value = false` keep default cargo-scan and kill lines concise; set them to `true` to include pilot names, victim factions, and credit values.
@@ -210,7 +215,7 @@ Matrix end-to-end encryption is unsupported. Use an unencrypted Matrix room for 
 
 ## Privacy And Fixtures
 
-Raw local Journals are read-only inputs and must not be committed. This includes files under `/home/ubuntu/Elite Dangerous` and any personal Journal folder.
+Raw local Journals are read-only inputs and must not be committed. This includes files under any personal Journal folder.
 
 The committed files under `tests/fixtures/` are synthetic and sanitized. They use fake commander, system, faction, ship, mission, and message values. Keep raw commander names, carrier names, chat text, local paths, tokens, credentials, and private log content out of fixtures, docs, and evidence files.
 

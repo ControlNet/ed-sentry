@@ -12,4 +12,4 @@
 ./scripts/package-windows-gnu.sh
 ```
 
-Expected signal: `dist/ed-sentry-x86_64-pc-windows-gnu.zip` is regenerated, and the script prints SHA-256 lines for `ed-sentry.exe`, `ed-sentry-gui.exe`, `WebView2Loader.dll`, and `webui/index.html`.
+Expected signal: `dist/ed-sentry-x86_64-pc-windows-gnu.zip` is regenerated, and the script prints SHA-256 lines for `ed-sentry.exe`, `ed-sentry-core.exe`, `WebView2Loader.dll`, and `webui/index.html`.
