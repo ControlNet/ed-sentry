@@ -57,11 +57,7 @@ pub async fn run_watch(config: &RuntimeConfig) -> Result<(), RuntimeError> {
     )
     .await?;
 
-    loop {
-        tokio::time::sleep(runtime.poll_interval()).await;
-        watch_runner::poll_and_deliver(&mut runtime, &mut delivery, TitleMode::PlatformWindow)
-            .await?;
-    }
+    watch_loop::run(&mut runtime, &mut delivery, &startup.journal_file).await
 }
 
 pub async fn run_replay(config: &RuntimeConfig) -> Result<(), RuntimeError> {
@@ -87,6 +83,11 @@ pub async fn run_replay(config: &RuntimeConfig) -> Result<(), RuntimeError> {
 }
 
 struct TerminalJournalSelector;
+
+mod watch_loop;
+
+#[cfg(test)]
+mod tests;
 
 impl JournalSelector for TerminalJournalSelector {
     fn select(&mut self, config: &RuntimeConfig) -> Result<PathBuf, RuntimeError> {
