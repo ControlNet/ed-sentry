@@ -1,5 +1,6 @@
 import { mockDashboardSnapshot } from "@/adapters/mock-data"
 import {
+  afkChecklistUnknownMockDashboardSnapshot,
   emptyMockDashboardSnapshot,
   longFeedMockDashboardSnapshot,
   privatePathMockDashboardSnapshot,
@@ -16,6 +17,7 @@ import {
 
 const mockScenarioValues = [
   "default",
+  "afk_checklist_unknown",
   "empty",
   "error",
   "loading",
@@ -114,6 +116,8 @@ export const mockDashboardAdapter: DashboardAdapter = {
   async loadSnapshot() {
     const scenario = readMockScenario()
     switch (scenario) {
+      case "afk_checklist_unknown":
+        return afkChecklistUnknownMockDashboardSnapshot
       case "empty":
         return emptyMockDashboardSnapshot
       case "error":

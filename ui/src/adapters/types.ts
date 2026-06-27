@@ -7,12 +7,16 @@ export const serviceStatusKinds = ["disabled", "starting", "running", "warning",
 export const missionStates = ["active", "redirected", "completed", "failed", "abandoned"] as const
 export const missionKinds = ["massacre", "trade", "other"] as const
 export const connectionStatuses = ["idle", "loading", "connected", "degraded", "error"] as const
+export const afkChecklistStates = ["pass", "fail", "unknown"] as const
+export const afkChecklistSources = ["Status.json", "Cargo.json", "unknown"] as const
 
 export type AdapterMode = (typeof adapterModes)[number]
 export type ServiceStatusKind = (typeof serviceStatusKinds)[number]
 export type MissionState = (typeof missionStates)[number]
 export type MissionKind = (typeof missionKinds)[number]
 export type ConnectionStatus = (typeof connectionStatuses)[number]
+export type AfkChecklistState = (typeof afkChecklistStates)[number]
+export type AfkChecklistSource = (typeof afkChecklistSources)[number]
 
 const valueDisplayNumberSchema = z.object({
   value: z.number(),
@@ -145,11 +149,24 @@ export const serviceStatusViewSchema = z.object({
   checked_at_display: z.string().nullable().optional(),
 })
 
+export const afkChecklistRowViewSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  detail: z.string(),
+  state: z.enum(afkChecklistStates),
+  source: z.enum(afkChecklistSources),
+})
+
+export const afkChecklistViewSchema = z.object({
+  rows: z.array(afkChecklistRowViewSchema),
+})
+
 export const appSnapshotSchema = z.object({
   generated_at: z.string(),
   generated_at_display: z.string(),
   session: sessionViewSchema,
   missions: missionListViewSchema,
+  afk_checklist: afkChecklistViewSchema,
   notifications: z.array(notificationViewSchema).default([]),
   event_feed: z.array(eventFeedItemSchema).default([]),
   journal_source: journalSourceViewSchema,
@@ -167,6 +184,8 @@ export type NotificationView = Readonly<z.infer<typeof notificationViewSchema>>
 export type EventFeedItem = Readonly<z.infer<typeof eventFeedItemSchema>>
 export type JournalSourceView = Readonly<z.infer<typeof journalSourceViewSchema>>
 export type ServiceStatusView = Readonly<z.infer<typeof serviceStatusViewSchema>>
+export type AfkChecklistRowView = Readonly<z.infer<typeof afkChecklistRowViewSchema>>
+export type AfkChecklistView = Readonly<z.infer<typeof afkChecklistViewSchema>>
 export type AppSnapshot = Readonly<z.infer<typeof appSnapshotSchema>>
 
 export type DashboardConnectionState = {

@@ -116,6 +116,31 @@ export const mockDashboardSnapshot: AppSnapshot = {
       },
     ],
   },
+  afk_checklist: {
+    rows: [
+      {
+        id: "hardpoints_deployed",
+        label: "Hardpoints deployed",
+        detail: "Status Flags bit 0x40 is set",
+        state: "pass",
+        source: "Status.json",
+      },
+      {
+        id: "engine_pips_zero",
+        label: "Engine pips zero",
+        detail: "Status Pips[1] is 0",
+        state: "pass",
+        source: "Status.json",
+      },
+      {
+        id: "cargo_loaded",
+        label: "Cargo loaded",
+        detail: "Cargo.json Ship cargo is non-empty",
+        state: "fail",
+        source: "Cargo.json",
+      },
+    ],
+  },
   notifications: [
     {
       event_type: "kill",
