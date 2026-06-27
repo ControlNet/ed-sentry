@@ -6,8 +6,9 @@ use crate::state::SessionState;
 
 use super::display::display_timestamp;
 use super::{
-    EventFeedItem, JournalSourceView, MatrixStartupStatus, MatrixStatusView, MissionListView,
-    NotificationView, SessionView, WebStartupStatus, WebStatusView,
+    AfkChecklistState, AfkChecklistView, EventFeedItem, JournalSourceView, MatrixStartupStatus,
+    MatrixStatusView, MissionListView, NotificationView, SessionView, WebStartupStatus,
+    WebStatusView,
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -15,6 +16,7 @@ pub struct AppSnapshot {
     pub generated_at: DateTime<Utc>,
     pub generated_at_display: String,
     pub session: SessionView,
+    pub afk_checklist: AfkChecklistView,
     pub missions: MissionListView,
     pub notifications: Vec<NotificationView>,
     pub event_feed: Vec<EventFeedItem>,
@@ -35,6 +37,7 @@ impl AppSnapshot {
             generated_at: now,
             generated_at_display: display_timestamp(now),
             session: SessionView::from_state(state, now),
+            afk_checklist: AfkChecklistState::unknown().to_view(),
             missions: MissionListView::from_tracker(missions),
             notifications: Vec::new(),
             event_feed: Vec::new(),
