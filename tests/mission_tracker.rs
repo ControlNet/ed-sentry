@@ -186,6 +186,23 @@ fn mission_list_view_removes_completed_missions_from_active_items() {
 }
 
 #[test]
+fn mission_list_view_status_label_reports_active_count_only() {
+    let tracker = apply_lines(&[
+        r#"{"timestamp":"2035-01-04T12:01:00Z","event":"MissionAccepted","Name":"Mission_Delivery_name","MissionID":1,"Count":1}"#,
+        r#"{"timestamp":"2035-01-04T12:02:00Z","event":"MissionCompleted","MissionID":1,"Reward":1000}"#,
+        r#"{"timestamp":"2035-01-04T12:03:00Z","event":"MissionAccepted","Name":"Mission_Delivery_name","MissionID":2,"Count":1}"#,
+        r#"{"timestamp":"2035-01-04T12:04:00Z","event":"MissionAccepted","Name":"Mission_Delivery_name","MissionID":3,"Count":1}"#,
+    ]);
+
+    let view = MissionListView::from_tracker(&tracker);
+
+    assert_eq!(view.active_count, 2);
+    assert_eq!(view.completed_count, 1);
+    assert_eq!(view.total_count, 3);
+    assert_eq!(view.status_label, "2");
+}
+
+#[test]
 fn mission_tracker_uses_docked_and_undocked_origin_context() {
     let tracker = apply_lines(&[
         r#"{"timestamp":"2035-01-04T12:01:00Z","event":"Docked","StarSystem":"Dock System","SystemAddress":44,"StationName":"Dock Hub","MarketID":55}"#,

@@ -78,7 +78,7 @@ impl MissionListView {
             active_count,
             completed_count,
             total_count,
-            status_label: format!("{completed_count}/{active_count} active"),
+            status_label: active_count.to_string(),
             items,
         }
     }
