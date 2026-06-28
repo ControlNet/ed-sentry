@@ -56,7 +56,7 @@ export const mockDashboardSnapshot: AppSnapshot = {
     active_count: 2,
     completed_count: 1,
     total_count: 3,
-    status_label: "1/2 active",
+    status_label: "2",
     items: [
       {
         mission_id: 410024,

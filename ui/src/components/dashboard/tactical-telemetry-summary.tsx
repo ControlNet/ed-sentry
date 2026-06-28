@@ -15,7 +15,11 @@ export function TacticalMissionSummary({
       icon={Activity}
       ariaLabel="Mission progress"
       className="tactical-summary-panel md:col-span-2"
-      rightElement={<TacticalBadge>TOTAL {snapshot.missions.total_count}</TacticalBadge>}
+      rightElement={
+        <TacticalBadge>
+          <span data-testid="telemetry-active-mission-count">{snapshot.missions.status_label}</span>
+        </TacticalBadge>
+      }
     >
       <div className="space-y-2">
         {snapshot.missions.items.length === 0 ? (

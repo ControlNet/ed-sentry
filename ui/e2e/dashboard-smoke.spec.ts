@@ -40,6 +40,11 @@ test("@mock-dashboard renders the adapter-backed dashboard shell", async ({ page
   await expect(page.getByRole("region", { name: "Mission progress" })).toContainText(
     "Massacre pirates",
   )
+  await expect(page.getByTestId("telemetry-active-mission-count")).toHaveText("2")
+  await expect(page.getByRole("region", { name: "Mission progress" })).not.toContainText("TOTAL")
+  await expect(page.getByRole("region", { name: "Mission progress" })).not.toContainText(
+    "1/2 active",
+  )
   await expect(page.getByRole("region", { name: "Service Nodes" })).toContainText(
     "Sanitized Journal source",
   )

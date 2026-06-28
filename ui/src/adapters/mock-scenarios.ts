@@ -8,7 +8,7 @@ export const emptyMockDashboardSnapshot = {
     active_count: 0,
     completed_count: 0,
     total_count: 0,
-    status_label: "No tracked missions",
+    status_label: "0",
     items: [],
   },
   event_feed: [],
