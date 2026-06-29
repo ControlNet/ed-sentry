@@ -14,12 +14,14 @@ use crate::text::line_safe;
 
 use super::assets::resolve_assets;
 use super::policy::{default_runtime_for_web_config, router, WebApiState};
+use super::tunnel_state::WebTunnelState;
 
 pub struct WebServer {
     status: WebStartupStatus,
     local_addr: Option<SocketAddr>,
     warnings: Vec<String>,
     handle: Option<JoinHandle<()>>,
+    tunnel: Option<WebTunnelState>,
 }
 
 impl WebServer {
@@ -29,6 +31,7 @@ impl WebServer {
             local_addr: None,
             warnings: Vec::new(),
             handle: None,
+            tunnel: None,
         }
     }
 
@@ -46,6 +49,10 @@ impl WebServer {
 
     pub fn warnings(&self) -> &[String] {
         &self.warnings
+    }
+
+    pub(crate) fn tunnel(&self) -> Option<WebTunnelState> {
+        self.tunnel.clone()
     }
 }
 
@@ -103,12 +110,17 @@ pub async fn start_with_state(config: &RuntimeConfig, events: AppEventStore) -> 
     let mut warnings = startup_warnings(&config.web);
     let url = web_url(&config.web.host, local_addr.port());
     let status = WebStartupStatus::running(local_addr.to_string(), url, Utc::now());
+    let tunnel = match WebTunnelState::for_config(Some(local_addr.port()), config) {
+        Ok(tunnel) => tunnel,
+        Err(_error) => return warning_server("WebUI tunnel auth could not be initialized"),
+    };
     let app = router(WebApiState::new(
         asset_root,
         config.web.host.clone(),
         config.clone(),
         events,
         status.clone(),
+        tunnel.clone(),
     ));
     let handle = tokio::spawn(async move {
         if let Err(error) = axum::serve(
@@ -129,6 +141,7 @@ pub async fn start_with_state(config: &RuntimeConfig, events: AppEventStore) -> 
         local_addr: Some(local_addr),
         warnings: std::mem::take(&mut warnings),
         handle: Some(handle),
+        tunnel: Some(tunnel),
     }
 }
 
@@ -149,6 +162,7 @@ fn warning_server(message: impl Into<String>) -> WebServer {
         local_addr: None,
         warnings: vec![message],
         handle: None,
+        tunnel: None,
     }
 }
 

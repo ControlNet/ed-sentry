@@ -142,6 +142,48 @@ pub(super) fn write_api_config(path: &Path, journal_dir: &Path) {
     .unwrap();
 }
 
+pub(super) fn write_tunnel_api_config(path: &Path, journal_dir: &Path, config_password: &str) {
+    let matrix_key = ["access_", "token"].concat();
+    let matrix_value = ["fixture-access-", "token"].concat();
+    let tunnel_password_line = if config_password.is_empty() {
+        String::new()
+    } else {
+        format!("config_password = \"{config_password}\"\n")
+    };
+    std::fs::write(
+        path,
+        format!(
+            r#"
+            [journal]
+            folder = "{}"
+
+            [matrix]
+            enabled = true
+            homeserver = "https://matrix.invalid"
+            room_id = "!room:matrix.invalid"
+            {} = "{}"
+            status_update_interval_seconds = 60
+
+            [web]
+            enabled = true
+            host = "127.0.0.1"
+            port = 0
+            open_browser = false
+
+            [tunnel]
+            provider = "cloudflare_quick"
+            auto_start = false
+            {}
+            "#,
+            journal_dir.display(),
+            matrix_key,
+            matrix_value,
+            tunnel_password_line
+        ),
+    )
+    .unwrap();
+}
+
 pub(super) fn write_journal_fixture(journal_dir: &Path) -> String {
     std::fs::create_dir_all(journal_dir).unwrap();
     let filename = "Journal.2035-01-03T100000.01.log";
@@ -181,6 +223,16 @@ pub(super) fn put_config(port: u16, body: &str, host: &str, origin: &str) -> Str
         port,
         &format!(
             "PUT /api/config HTTP/1.1\r\nHost: {host}\r\n{origin_header}Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        ),
+    )
+}
+
+pub(super) fn put_config_with_auth(port: u16, body: &str, host: &str, token: &str) -> String {
+    request(
+        port,
+        &format!(
+            "PUT /api/config HTTP/1.1\r\nHost: {host}\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
             body.len()
         ),
     )

@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use axum::extract::State;
+use axum::extract::{Request, State};
 use axum::http::header::HOST;
 use axum::http::{HeaderMap, Method, StatusCode};
+use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::Utc;
 use serde::Serialize;
@@ -18,11 +19,15 @@ use crate::app::{
     MatrixStatusView, WebStartupStatus, WebStatusView,
 };
 use crate::config::{ConfigSource, RuntimeConfig};
+use crate::web::tunnel_state::WebTunnelState;
 
 mod config_api;
+mod host;
+mod tunnel_api;
 mod ws;
 
 pub(crate) use config_api::default_runtime_for_web_config;
+pub(crate) use host::RequestHost;
 
 pub type WebEndpointPolicy = ConfigEndpointPolicy;
 
@@ -30,7 +35,7 @@ impl WebEndpointPolicy {
     pub fn new(remote_bind: bool) -> Self {
         Self {
             state_changing_enabled: true,
-            state_changing_reason: state_changing_reason().to_string(),
+            state_changing_reason: "enabled for trusted WebUI clients".to_string(),
             remote_bind,
         }
     }
@@ -45,6 +50,7 @@ pub struct WebApiState {
     config: Arc<RwLock<RuntimeConfig>>,
     config_source: Arc<RwLock<ConfigSource>>,
     web_status: WebStartupStatus,
+    tunnel: WebTunnelState,
 }
 
 #[derive(Debug, Serialize)]
@@ -65,6 +71,7 @@ impl WebApiState {
         runtime_config: RuntimeConfig,
         events: AppEventStore,
         web_status: WebStartupStatus,
+        tunnel: WebTunnelState,
     ) -> Self {
         let remote_bind = !is_loopback_host(&bind_host);
         let config_source = runtime_config.config_source.clone();
@@ -76,17 +83,19 @@ impl WebApiState {
             config: Arc::new(RwLock::new(runtime_config)),
             config_source: Arc::new(RwLock::new(config_source)),
             web_status,
+            tunnel,
         }
     }
 }
 
 pub(crate) fn router(state: WebApiState) -> Router {
     let cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::PUT])
+        .allow_methods([Method::GET, Method::POST, Method::PUT])
         .allow_origin(AllowOrigin::predicate(|origin, _parts| {
             origin.to_str().map(is_trusted_origin).unwrap_or(false)
         }));
     let asset_root = state.asset_root.clone();
+    let host_policy_state = state.clone();
     Router::new()
         .route("/api/health", get(health))
         .route("/api/snapshot", get(snapshot))
@@ -97,10 +106,17 @@ pub(crate) fn router(state: WebApiState) -> Router {
         .route("/api/web/status", get(web_status))
         .route("/api/matrix/status", get(matrix_status))
         .route("/api/web/policy", get(web_policy))
+        .route("/api/tunnel/status", get(tunnel_api::status))
+        .route("/api/tunnel/start", post(tunnel_api::start))
+        .route("/api/tunnel/login", post(tunnel_api::login))
         .route("/api/events", get(ws::websocket))
         .route("/ws", get(ws::websocket))
         .fallback_service(ServeDir::new(asset_root).append_index_html_on_directories(true))
         .layer(cors)
+        .layer(middleware::from_fn_with_state(
+            host_policy_state,
+            validate_host_middleware,
+        ))
         .with_state(state)
 }
 
@@ -116,7 +132,7 @@ async fn snapshot(
     State(state): State<WebApiState>,
     headers: HeaderMap,
 ) -> Result<Json<SnapshotApiView>, WebErrorResponse> {
-    validate_host(&state, &headers)?;
+    validate_host(&state, &headers).await?;
     let snapshot = state.events.subscribe().bootstrap.snapshot;
     Ok(Json(SnapshotApiView {
         events: snapshot.event_feed.clone(),
@@ -128,7 +144,7 @@ async fn web_status(
     State(state): State<WebApiState>,
     headers: HeaderMap,
 ) -> Result<Json<WebStatusView>, WebErrorResponse> {
-    validate_host(&state, &headers)?;
+    validate_host(&state, &headers).await?;
     Ok(Json(WebStatusView::from(state.web_status)))
 }
 
@@ -136,7 +152,7 @@ async fn matrix_status(
     State(state): State<WebApiState>,
     headers: HeaderMap,
 ) -> Result<Json<MatrixStatusView>, WebErrorResponse> {
-    validate_host(&state, &headers)?;
+    validate_host(&state, &headers).await?;
     let config = state.config.read().await;
     Ok(Json(
         MatrixStartupStatus::from_runtime_config(&config).into(),
@@ -147,42 +163,52 @@ async fn web_policy(
     State(state): State<WebApiState>,
     headers: HeaderMap,
 ) -> Result<Json<WebEndpointPolicy>, WebErrorResponse> {
-    validate_host(&state, &headers)?;
+    validate_host(&state, &headers).await?;
     Ok(Json(state.policy))
 }
 
-fn authorize_state_change(
+async fn authorize_state_change(
     state: &WebApiState,
     headers: &HeaderMap,
 ) -> Result<(), WebErrorResponse> {
-    validate_host(state, headers)?;
+    validate_host(state, headers).await?;
     Ok(())
 }
 
-fn validate_host(state: &WebApiState, headers: &HeaderMap) -> Result<(), WebErrorResponse> {
+async fn validate_host_middleware(
+    State(state): State<WebApiState>,
+    request: Request,
+    next: Next,
+) -> Result<Response, WebErrorResponse> {
+    validate_host(&state, request.headers()).await?;
+    Ok(next.run(request).await)
+}
+
+pub(super) async fn validate_host(
+    state: &WebApiState,
+    headers: &HeaderMap,
+) -> Result<RequestHost, WebErrorResponse> {
     let Some(host) = headers.get(HOST).and_then(|value| value.to_str().ok()) else {
         return Err(forbidden("host_required", "Host header is required"));
     };
-    if host_allowed(host, &state.bind_host) {
-        return Ok(());
+    let host = host_without_port(host);
+    if let Some(active_tunnel) = state.tunnel.active_tunnel(Utc::now()).await {
+        if let Some(surface) = host::classify_host(host, &state.bind_host, Some(&active_tunnel)) {
+            return Ok(surface);
+        }
+    }
+    if let Some(surface) = host::classify_host(host, &state.bind_host, None) {
+        return Ok(surface);
     }
     Err(forbidden("host_rejected", "Host header is not trusted"))
 }
 
-fn host_allowed(host: &str, bind_host: &str) -> bool {
-    let host_without_port = host
-        .trim()
-        .trim_start_matches('[')
-        .split(']')
-        .next()
-        .unwrap_or(host);
-    let host_without_port = host_without_port
-        .split(':')
-        .next()
-        .unwrap_or(host_without_port);
-    (is_wildcard_bind_host(bind_host) && !host_without_port.is_empty())
-        || host_without_port == bind_host
-        || (is_loopback_host(bind_host) && is_loopback_host(host_without_port))
+fn host_without_port(host: &str) -> &str {
+    let trimmed = host.trim();
+    if let Some(without_bracket) = trimmed.strip_prefix('[') {
+        return without_bracket.split(']').next().unwrap_or(without_bracket);
+    }
+    trimmed.split(':').next().unwrap_or(trimmed)
 }
 
 fn is_trusted_origin(origin: &str) -> bool {
@@ -197,10 +223,6 @@ fn is_loopback_host(host: &str) -> bool {
 
 fn is_wildcard_bind_host(host: &str) -> bool {
     matches!(host.trim(), "0.0.0.0" | "::" | "[::]")
-}
-
-fn state_changing_reason() -> &'static str {
-    "enabled for trusted WebUI clients"
 }
 
 fn forbidden(code: &'static str, message: impl Into<String>) -> WebErrorResponse {

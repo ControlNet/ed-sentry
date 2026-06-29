@@ -40,7 +40,7 @@ pub(super) async fn websocket(
     headers: HeaderMap,
     upgrade: WebSocketUpgrade,
 ) -> Result<Response, WebErrorResponse> {
-    validate_host(&state, &headers)?;
+    validate_host(&state, &headers).await?;
     Ok(upgrade.on_upgrade(move |socket| websocket_session(socket, state)))
 }
 

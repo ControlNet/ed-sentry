@@ -1,12 +1,17 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use ed_sentry::web::start_with_state;
 use futures_util::StreamExt;
 use serde_json::Value;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 use crate::support::{
-    api_runtime, api_store, env_lock, runtime_backed_store, write_api_config, write_dist,
-    write_journal_fixture,
+    api_runtime, api_store, env_lock, request, runtime_backed_store, write_api_config, write_dist,
+    write_journal_fixture, write_tunnel_api_config,
 };
+
+const FIRST_TUNNEL_HOST: &str = "fixture.trycloudflare.com";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn webui_websocket_hello_redacts_configured_journal_folder_path() {
@@ -116,4 +121,55 @@ async fn webui_websocket_accepts_remote_origin_when_host_is_allowed() {
     assert_eq!(hello_json["type"], "hello");
     assert_eq!(hello_json["version"], 1);
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tunnel_websocket_accepts_active_tunnel_host_without_bearer_token() {
+    let _env = env_lock().await;
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dist = tempfile::tempdir().unwrap();
+    write_dist(dist.path(), "tunnel ws dist");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let fake = fake_cloudflared(
+        temp_dir.path(),
+        "printf '%s\n' 'https://fixture.trycloudflare.com'; while :; do sleep 1; done",
+    );
+    std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
+    let config_path = temp_dir.path().join("config.toml");
+    write_tunnel_api_config(&config_path, temp_dir.path(), "fixture-tunnel-password");
+    let runtime = api_runtime(&config_path, 0, "127.0.0.1");
+    let server = start_with_state(&runtime, api_store(&runtime)).await;
+    let port = server.bound_port().unwrap();
+    let started = request(
+        port,
+        "POST /api/tunnel/start HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    assert!(started.starts_with("HTTP/1.1 200 OK"), "{started}");
+
+    let mut request = format!("ws://127.0.0.1:{port}/ws")
+        .into_client_request()
+        .unwrap();
+    request
+        .headers_mut()
+        .insert("Host", FIRST_TUNNEL_HOST.parse().unwrap());
+    let (mut socket, _) = tokio_tungstenite::connect_async(request).await.unwrap();
+    let hello = socket.next().await.unwrap().unwrap().into_text().unwrap();
+
+    let hello_json: Value = serde_json::from_str(&hello).unwrap();
+    assert_eq!(hello_json["type"], "hello");
+    assert_eq!(hello_json["version"], 1);
+    assert!(hello_json.get("event_feed").is_some(), "{hello_json}");
+    std::env::remove_var("ED_SENTRY_CLOUDFLARED_PATH");
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}
+
+fn fake_cloudflared(dir: &Path, script_body: &str) -> PathBuf {
+    let path = dir.join("cloudflared-fixture");
+    fs::write(&path, format!("#!/bin/sh\n{script_body}\n")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    path
 }
