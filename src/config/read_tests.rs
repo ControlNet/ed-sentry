@@ -131,6 +131,11 @@ fn cli_config_wrong_typed_keys_warn_and_keep_defaults() -> Result<(), ConfigErro
 }
 
 #[test]
+fn config_web_characterizes_wrong_typed_keys_warn_and_keep_defaults() {
+    web::test_support::assert_wrong_typed_keys_warn_and_keep_defaults();
+}
+
+#[test]
 fn cli_config_cli_overrides_toml_config() -> Result<(), ConfigError> {
     let loaded = AppConfig::from_toml_str(
         r#"

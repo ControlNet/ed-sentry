@@ -8,6 +8,7 @@ use super::log_levels::read_log_levels;
 use super::matrix::read_matrix_config;
 use super::monitor::read_monitor_config;
 use super::source::{blocked_source, config_source_path};
+use super::tunnel::read_tunnel_config;
 use super::{AppConfig, ConfigBlockReason, ConfigError, ConfigPath, ConfigSource, LoadedConfig};
 
 impl AppConfig {
@@ -147,6 +148,16 @@ impl AppConfig {
             } else {
                 warnings.push(
                     "config key matrix has wrong type; using defaults for section".to_string(),
+                );
+            }
+        }
+
+        if let Some(tunnel) = value.get("tunnel") {
+            if let Some(table) = tunnel.as_table() {
+                read_tunnel_config(table, &mut config.tunnel, &mut warnings);
+            } else {
+                warnings.push(
+                    "config key tunnel has wrong type; using defaults for section".to_string(),
                 );
             }
         }

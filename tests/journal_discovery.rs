@@ -195,6 +195,7 @@ fn journal_discovery_set_file_bypasses_folder_discovery() {
         monitor: Default::default(),
         log_levels: Default::default(),
         matrix: None,
+        tunnel: ed_sentry::config::TunnelConfig::default(),
         web: ed_sentry::config::WebConfig::default(),
         config_source: Default::default(),
         set_file: Some(set_file.clone()),

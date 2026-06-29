@@ -25,6 +25,7 @@ impl AppConfig {
             monitor: self.monitor,
             log_levels: self.log_levels,
             matrix: self.matrix,
+            tunnel: self.tunnel,
             web: self.web,
             config_source: source,
             set_file: overrides.set_file.clone(),

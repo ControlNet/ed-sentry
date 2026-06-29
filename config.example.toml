@@ -64,11 +64,19 @@ duplicate_suppression = 1
 # CLI and desktop runtimes; replay remains terminal-only.
 enabled = false
 # Keep the default loopback bind for local-only access.
-# Config editing is allowed only on loopback binds in the first milestone.
 # Non-localhost binds warn at startup and are intended for deliberate advanced use only.
 host = "127.0.0.1"
 port = 8765
 open_browser = false
+
+[tunnel]
+# Phase 1 supports Cloudflare Quick Tunnel only. Future provider names may parse as unsupported.
+provider = "cloudflare_quick"
+# false means the Service Nodes TUNNEL row waits for a manual START action.
+auto_start = false
+# Empty means remote tunnel visitors can access SYSTEMS/config without tunnel login.
+# Set a local password to require tunnel login and Authorization: Bearer for remote config access.
+config_password = ""
 
 [matrix]
 # Matrix delivery requires an unencrypted room; E2EE/end-to-end encrypted rooms are unsupported.

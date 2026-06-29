@@ -7,6 +7,9 @@ mod monitor;
 mod read;
 mod runtime;
 mod source;
+mod tunnel;
+#[cfg(test)]
+mod tunnel_tests;
 mod value_read;
 mod web;
 mod write;
@@ -21,6 +24,7 @@ pub use matrix::{
 pub use model::{AppConfig, CliConfigOverrides, LoadedConfig, RuntimeConfig};
 pub use monitor::MonitorConfig;
 pub use source::{ConfigBlockReason, ConfigPath, ConfigSource, ConfigWriteState};
+pub use tunnel::TunnelConfig;
 pub use web::WebConfig;
 pub use write::{ConfigWriteError, ConfigWriteOutcome};
 

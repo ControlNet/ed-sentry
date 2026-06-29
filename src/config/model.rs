@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use super::{ConfigSource, JournalConfig, LogLevelConfig, MatrixConfig, MonitorConfig, WebConfig};
+use super::{
+    ConfigSource, JournalConfig, LogLevelConfig, MatrixConfig, MonitorConfig, TunnelConfig,
+    WebConfig,
+};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AppConfig {
@@ -8,6 +11,7 @@ pub struct AppConfig {
     pub monitor: MonitorConfig,
     pub log_levels: LogLevelConfig,
     pub matrix: Option<MatrixConfig>,
+    pub tunnel: TunnelConfig,
     pub web: WebConfig,
 }
 
@@ -28,6 +32,7 @@ pub struct RuntimeConfig {
     pub monitor: MonitorConfig,
     pub log_levels: LogLevelConfig,
     pub matrix: Option<MatrixConfig>,
+    pub tunnel: TunnelConfig,
     pub web: WebConfig,
     pub config_source: ConfigSource,
     pub set_file: Option<PathBuf>,
