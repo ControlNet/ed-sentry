@@ -124,7 +124,6 @@ pub(super) fn write_api_config(path: &Path, journal_dir: &Path) {
             [matrix]
             enabled = true
             homeserver = "https://matrix.invalid"
-            user_id = "@bot:matrix.invalid"
             room_id = "!room:matrix.invalid"
             {} = "{}"
             status_update_interval_seconds = 60
