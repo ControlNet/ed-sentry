@@ -3,7 +3,8 @@ use std::{path::Path, time::Duration};
 use chrono::{DateTime, Utc};
 
 use crate::app::{
-    AfkChecklistState, AppEventStore, AppSnapshot, MatrixStartupStatus, WebStartupStatus,
+    AfkChecklistState, AppEventStore, AppSnapshot, MatrixStartupStatus, TunnelStatus,
+    WebStartupStatus,
 };
 use crate::config::RuntimeConfig;
 use crate::event::{parse_journal_line, JournalEvent};
@@ -35,6 +36,7 @@ pub struct MonitorRuntime {
     preload_records: Vec<PreloadRecord<JournalEvent>>,
     matrix_status: MatrixStartupStatus,
     pub(super) web_status: WebStartupStatus,
+    pub(super) tunnel_status: TunnelStatus,
     events: AppEventStore,
     companion_paths: Option<CompanionPaths>,
     pub(super) afk_checklist: AfkChecklistState,
@@ -79,6 +81,7 @@ impl MonitorRuntime {
             preload_records: preload.records,
             matrix_status,
             web_status,
+            tunnel_status: TunnelStatus::default(),
             events,
             companion_paths,
             afk_checklist,
@@ -91,6 +94,12 @@ impl MonitorRuntime {
 
     pub fn set_matrix_status(&mut self, status: MatrixStartupStatus) {
         self.matrix_status = status;
+    }
+
+    pub fn set_tunnel_status(&mut self, status: TunnelStatus) {
+        let now = status.checked_at.unwrap_or_else(Utc::now);
+        self.tunnel_status = status;
+        self.events.publish_snapshot(self.snapshot(now));
     }
 
     pub fn event_store(&self) -> AppEventStore {

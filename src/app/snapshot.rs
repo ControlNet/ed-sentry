@@ -7,8 +7,8 @@ use crate::state::SessionState;
 use super::display::display_timestamp;
 use super::{
     AfkChecklistState, AfkChecklistView, EventFeedItem, JournalSourceView, MatrixStartupStatus,
-    MatrixStatusView, MissionListView, NotificationView, SessionView, WebStartupStatus,
-    WebStatusView,
+    MatrixStatusView, MissionListView, NotificationView, SessionView, TunnelStatus,
+    TunnelStatusView, WebStartupStatus, WebStatusView,
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -23,6 +23,7 @@ pub struct AppSnapshot {
     pub journal_source: JournalSourceView,
     pub matrix: MatrixStatusView,
     pub web: WebStatusView,
+    pub tunnel: TunnelStatusView,
 }
 
 impl AppSnapshot {
@@ -44,6 +45,12 @@ impl AppSnapshot {
             journal_source: JournalSourceView::unknown(),
             matrix: matrix.into(),
             web: web.into(),
+            tunnel: TunnelStatus::default().into(),
         }
+    }
+
+    pub fn with_tunnel_status(mut self, tunnel: TunnelStatus) -> Self {
+        self.tunnel = tunnel.into();
+        self
     }
 }

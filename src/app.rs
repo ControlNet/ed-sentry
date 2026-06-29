@@ -9,6 +9,7 @@ pub mod runtime;
 mod session;
 mod snapshot;
 mod status;
+mod tunnel;
 
 pub use afk_checklist::{
     AfkChecklistRowView, AfkChecklistState, AfkChecklistView, ChecklistRowSource, ChecklistRowState,
@@ -16,7 +17,8 @@ pub use afk_checklist::{
 pub use config::{
     ConfigApiView, ConfigEndpointPolicy, EditableConfigUpdate, EditableConfigView,
     JournalConfigEdit, JournalConfigView, LogLevelConfigEdit, LogLevelConfigView, MatrixConfigEdit,
-    MatrixConfigView, MonitorConfigEdit, MonitorConfigView, WebConfigEdit, WebConfigView,
+    MatrixConfigView, MonitorConfigEdit, MonitorConfigView, TunnelConfigEdit, TunnelConfigView,
+    WebConfigEdit, WebConfigView,
 };
 pub use display::{RateView, ValueDisplay};
 pub use events::{
@@ -29,6 +31,13 @@ pub use session::SessionView;
 pub use snapshot::AppSnapshot;
 pub use status::{
     MatrixStartupStatus, MatrixStatusView, ServiceStatusKind, WebStartupStatus, WebStatusView,
+};
+pub use tunnel::{
+    cloudflare_trycloudflare_url, ActiveTunnel, CloudflareQuickTunnelProvider, SshTunnelProvider,
+    TunnelAuth, TunnelAuthClaims, TunnelAuthError, TunnelAuthIssue, TunnelAuthPurpose,
+    TunnelAuthToken, TunnelAuthValidation, TunnelAuthValidationResult, TunnelLifecycleManager,
+    TunnelManager, TunnelProvider, TunnelProviderController, TunnelSession, TunnelSessionId,
+    TunnelSigningSecret, TunnelStatus, TunnelStatusKind, TunnelStatusView,
 };
 
 #[cfg(test)]

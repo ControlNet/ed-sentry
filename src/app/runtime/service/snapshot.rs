@@ -13,7 +13,8 @@ pub(super) fn runtime_snapshot(runtime: &MonitorRuntime, now: DateTime<Utc>) -> 
         now,
         runtime.matrix_status.clone(),
         runtime.web_status.clone(),
-    );
+    )
+    .with_tunnel_status(runtime.tunnel_status.clone());
     snapshot.session.commander = snapshot.session.commander.map(|value| line_safe(&value));
     snapshot.session.ship = snapshot.session.ship.map(|value| line_safe(&value));
     snapshot.session.system = snapshot.session.system.map(|value| line_safe(&value));

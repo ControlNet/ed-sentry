@@ -1,0 +1,218 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+use std::time::{Duration, Instant};
+
+use chrono::{TimeZone, Utc};
+use ed_sentry::app::{
+    cloudflare_trycloudflare_url, CloudflareQuickTunnelProvider, TunnelStatusKind,
+};
+use tempfile::TempDir;
+use tokio::sync::{Mutex, MutexGuard};
+
+static CLOUDFLARED_PROCESS_TEST: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
+
+fn fixture_time() -> chrono::DateTime<Utc> {
+    Utc.with_ymd_and_hms(2026, 6, 28, 12, 0, 0)
+        .single()
+        .unwrap()
+}
+
+#[test]
+fn tunnel_provider_url_parser_selects_first_trycloudflare_url() {
+    // Given: cloudflared-style log text with unrelated URLs before the tunnel URL.
+    let output = "open http://127.0.0.1 then https://fixture.trycloudflare.com/path";
+
+    // When: the provider parser scans the line.
+    let parsed = cloudflare_trycloudflare_url(output);
+
+    // Then: only the first TryCloudflare HTTPS URL is accepted.
+    assert_eq!(
+        parsed.as_deref(),
+        Some("https://fixture.trycloudflare.com/path")
+    );
+    assert_eq!(cloudflare_trycloudflare_url("https://example.com"), None);
+}
+
+#[tokio::test]
+async fn tunnel_provider_reads_url_from_stdout_and_uses_required_command_args() {
+    let _guard = lock_cloudflared_process_test().await;
+
+    // Given: a fake cloudflared executable that emits the fixture URL on stdout.
+    let temp = TempDir::new().unwrap();
+    let args_log = temp.path().join("args.log");
+    let fake = fake_cloudflared(
+        temp.path(),
+        &format!(
+            "printf '%s\\n' \"$@\" >> '{}'; printf '%s\\n' 'https://fixture.trycloudflare.com'; sleep 30",
+            args_log.display()
+        ),
+    );
+    let mut provider = provider_with_fake(fake);
+
+    // When: the provider starts for a bound local WebUI port.
+    let status = provider.start_for_port(Some(8765), fixture_time()).await;
+
+    // Then: it runs with the parsed URL and exact cloudflared tunnel command shape.
+    assert_eq!(status.kind, TunnelStatusKind::Running);
+    assert_eq!(
+        status.public_url.as_deref(),
+        Some("https://fixture.trycloudflare.com")
+    );
+    assert_eq!(
+        fs::read_to_string(args_log).unwrap(),
+        "tunnel\n--url\nhttp://127.0.0.1:8765\n--metrics\n127.0.0.1:0\n"
+    );
+}
+
+#[tokio::test]
+async fn tunnel_provider_reads_url_from_stderr() {
+    let _guard = lock_cloudflared_process_test().await;
+
+    // Given: a fake cloudflared executable that logs the tunnel URL on stderr.
+    let temp = TempDir::new().unwrap();
+    let fake = fake_cloudflared(
+        temp.path(),
+        "printf '%s\\n' 'https://fixture.trycloudflare.com' >&2; while :; do sleep 1; done",
+    );
+    let mut provider = provider_with_fake(fake);
+
+    // When: the provider starts.
+    let status = provider.start_for_port(Some(8765), fixture_time()).await;
+
+    // Then: stderr is parsed the same as stdout.
+    assert_eq!(status.kind, TunnelStatusKind::Running);
+    assert_eq!(
+        status.public_url.as_deref(),
+        Some("https://fixture.trycloudflare.com")
+    );
+}
+
+#[tokio::test]
+async fn tunnel_provider_drains_output_after_url_is_reported() {
+    let _guard = lock_cloudflared_process_test().await;
+
+    // Given: real cloudflared emits a URL and then keeps logging connectivity output.
+    let temp = TempDir::new().unwrap();
+    let drained_marker = temp.path().join("drained.marker");
+    let fake = fake_cloudflared(
+        temp.path(),
+        &format!(
+            "printf '%s\n' 'https://fixture.trycloudflare.com'; i=0; while [ $i -lt 200000 ]; do printf '%s\n' 'post-url connectivity precheck log line with enough bytes to fill a pipe'; i=$((i + 1)); done; printf 'drained\n' > {}; while :; do sleep 1; done",
+            shell_quote(&drained_marker)
+        ),
+    );
+    let mut provider = provider_with_fake(fake);
+
+    // When: the provider observes the URL and leaves the child running.
+    let status = provider.start_for_port(Some(8765), fixture_time()).await;
+
+    // Then: output readers continue draining after URL detection instead of blocking the child.
+    assert_eq!(status.kind, TunnelStatusKind::Running);
+    wait_until(Duration::from_secs(2), || drained_marker.exists()).await;
+    assert!(drained_marker.exists());
+}
+
+#[tokio::test]
+async fn tunnel_provider_reports_retryable_error_when_no_url_arrives_before_timeout() {
+    let _guard = lock_cloudflared_process_test().await;
+
+    // Given: a fake cloudflared executable that stays alive but never emits a tunnel URL.
+    let temp = TempDir::new().unwrap();
+    let fake = fake_cloudflared(temp.path(), "sleep 30");
+    let mut provider = provider_with_fake(fake);
+
+    // When: the URL wait expires.
+    let status = provider.start_for_port(Some(8765), fixture_time()).await;
+
+    // Then: startup fails retryably without leaving a trusted active tunnel.
+    assert_eq!(status.kind, TunnelStatusKind::Error);
+    assert!(status.retryable_error);
+    assert!(status.public_url.is_none());
+    assert!(provider.active_tunnel().is_none());
+}
+
+#[tokio::test]
+async fn tunnel_provider_reports_retryable_error_when_child_exits_before_url() {
+    let _guard = lock_cloudflared_process_test().await;
+
+    // Given: a fake cloudflared executable that exits before reporting a URL.
+    let temp = TempDir::new().unwrap();
+    let fake = fake_cloudflared(temp.path(), "exit 42");
+    let mut provider = provider_with_fake(fake);
+
+    // When: the provider observes the early process exit.
+    let status = provider.start_for_port(Some(8765), fixture_time()).await;
+
+    // Then: the status is retryable error data, not a panic.
+    assert_eq!(status.kind, TunnelStatusKind::Error);
+    assert!(status.retryable_error);
+    assert!(status.message.unwrap().contains("exited before URL"));
+}
+
+#[tokio::test]
+async fn tunnel_provider_drop_cleans_up_running_child() {
+    let _guard = lock_cloudflared_process_test().await;
+
+    // Given: a running fake cloudflared process owned by the provider.
+    let temp = TempDir::new().unwrap();
+    let fake = fake_cloudflared(
+        temp.path(),
+        "printf '%s\\n' 'https://fixture.trycloudflare.com'; sleep 30",
+    );
+    let child_id = {
+        let mut provider = provider_with_fake(fake);
+        let status = provider.start_for_port(Some(8765), fixture_time()).await;
+        assert_eq!(status.kind, TunnelStatusKind::Running);
+        provider.active_child_id().unwrap()
+    };
+
+    // When: the provider is dropped.
+    wait_until(Duration::from_secs(2), || !process_is_alive(child_id)).await;
+
+    // Then: the child process no longer remains alive.
+    assert!(!process_is_alive(child_id));
+}
+
+fn provider_with_fake(fake: PathBuf) -> CloudflareQuickTunnelProvider {
+    CloudflareQuickTunnelProvider::with_executable_and_timeout(fake, Duration::from_secs(5))
+}
+
+fn fake_cloudflared(dir: &Path, script_body: &str) -> PathBuf {
+    let path = dir.join("cloudflared-fixture");
+    fs::write(&path, format!("#!/bin/sh\n{script_body}\n")).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    path
+}
+
+fn shell_quote(path: &Path) -> String {
+    format!("'{}'", path.display().to_string().replace('\'', "'\\''"))
+}
+
+async fn wait_until(timeout: Duration, mut predicate: impl FnMut() -> bool) {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        if predicate() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+}
+
+async fn lock_cloudflared_process_test() -> MutexGuard<'static, ()> {
+    CLOUDFLARED_PROCESS_TEST.lock().await
+}
+
+#[cfg(unix)]
+fn process_is_alive(pid: u32) -> bool {
+    Path::new("/proc").join(pid.to_string()).exists()
+}
+
+#[cfg(not(unix))]
+fn process_is_alive(_pid: u32) -> bool {
+    false
+}
