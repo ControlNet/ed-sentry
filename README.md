@@ -203,7 +203,7 @@ Log level values control notification routing:
 Matrix settings live in `[matrix]`:
 
 - `enabled = false` keeps Matrix delivery off.
-- `homeserver`, `user_id`, `room_id`, and `access_token = "<token>"` configure Matrix delivery directly in `config.toml`. `room_id` accepts either a room ID such as `!roomid:example.org` or a legal Matrix room alias such as `#alerts:example.org`.
+- `homeserver`, `room_id`, and `access_token = "<token>"` configure Matrix delivery directly in `config.toml`. `room_id` accepts either a room ID such as `!roomid:example.org` or a legal Matrix room alias such as `#alerts:example.org`. The Matrix account identity is discovered from the access token at startup.
 - `mention_user_id` is optional. Set it to the Matrix user ID that should be mentioned by level `2+` notifications.
 - `status_update_interval_seconds = 60` controls how often watch mode may send status updates.
 

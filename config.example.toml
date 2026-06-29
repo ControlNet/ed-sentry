@@ -74,7 +74,6 @@ open_browser = false
 # Matrix delivery requires an unencrypted room; E2EE/end-to-end encrypted rooms are unsupported.
 enabled = false
 homeserver = "https://matrix.example.org"
-user_id = "@ed-sentry:example.org"
 room_id = "!roomid:example.org"
 # A room alias like "#alerts:example.org" is also accepted.
 access_token = "<token>"
