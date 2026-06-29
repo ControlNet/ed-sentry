@@ -9,5 +9,11 @@ mod api_read;
 mod config_write;
 #[path = "webui/server.rs"]
 mod server;
+#[path = "webui/tunnel_config_api.rs"]
+mod tunnel_config_api;
+#[path = "webui/tunnel_policy.rs"]
+mod tunnel_policy;
+#[path = "webui/tunnel_routes.rs"]
+mod tunnel_routes;
 #[path = "webui/websocket.rs"]
 mod websocket;

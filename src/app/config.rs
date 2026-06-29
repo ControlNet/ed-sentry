@@ -1,5 +1,6 @@
 use crate::config::{
-    JournalConfig, LogLevelConfig, MatrixConfig, MonitorConfig, RuntimeConfig, WebConfig,
+    JournalConfig, LogLevelConfig, MatrixConfig, MonitorConfig, RuntimeConfig, TunnelConfig,
+    WebConfig,
 };
 
 mod types;
@@ -7,7 +8,8 @@ mod types;
 pub use types::{
     ConfigApiView, ConfigEndpointPolicy, EditableConfigUpdate, EditableConfigView,
     JournalConfigEdit, JournalConfigView, LogLevelConfigEdit, LogLevelConfigView, MatrixConfigEdit,
-    MatrixConfigView, MonitorConfigEdit, MonitorConfigView, WebConfigEdit, WebConfigView,
+    MatrixConfigView, MonitorConfigEdit, MonitorConfigView, TunnelConfigEdit, TunnelConfigView,
+    WebConfigEdit, WebConfigView,
 };
 
 impl EditableConfigView {
@@ -17,6 +19,7 @@ impl EditableConfigView {
             monitor: MonitorConfigView::from(&config.monitor),
             log_levels: LogLevelConfigView::from(&config.log_levels),
             matrix: config.matrix.as_ref().map(MatrixConfigView::from),
+            tunnel: TunnelConfigView::from(&config.tunnel),
             web: WebConfigView::from(&config.web),
         }
     }
@@ -103,6 +106,17 @@ impl From<&MatrixConfig> for MatrixConfigView {
     }
 }
 
+impl From<&TunnelConfig> for TunnelConfigView {
+    fn from(config: &TunnelConfig) -> Self {
+        Self {
+            provider: config.provider.clone(),
+            auto_start: config.auto_start,
+            config_password_present: !config.config_password.is_empty(),
+            config_password_replacement: None,
+        }
+    }
+}
+
 impl From<&WebConfig> for WebConfigView {
     fn from(config: &WebConfig) -> Self {
         Self {
@@ -117,5 +131,35 @@ impl From<&WebConfig> for WebConfigView {
             }
             .to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::config::{RuntimeConfig, TunnelConfig};
+
+    use super::EditableConfigView;
+
+    #[test]
+    fn tunnel_config_api_view_redacts_existing_password_when_present() {
+        // Given: a runtime config with a non-empty local tunnel config password.
+        let config = RuntimeConfig {
+            tunnel: TunnelConfig {
+                provider: "cloudflare_quick".to_string(),
+                auto_start: true,
+                config_password: "fixture-tunnel-password".to_string(),
+            },
+            ..RuntimeConfig::default()
+        };
+
+        // When: the editable config API view is serialized for frontend clients.
+        let view = EditableConfigView::from_runtime_config(&config);
+        let json = serde_json::to_string(&view).unwrap();
+
+        // Then: only password presence is exposed; plaintext and replacement fields stay local.
+        assert!(view.tunnel.config_password_present);
+        assert!(json.contains("config_password_present"), "{json}");
+        assert!(!json.contains("fixture-tunnel-password"), "{json}");
+        assert!(!json.contains("config_password_replacement"), "{json}");
     }
 }

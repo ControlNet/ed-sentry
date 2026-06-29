@@ -103,6 +103,9 @@ pub(crate) fn frontend_safe_config_write_error(error: ConfigWriteError) -> Strin
         ConfigWriteError::UnsafeRemoteBind { .. } => {
             "Config save failed: invalid web.host".to_string()
         }
+        ConfigWriteError::InvalidUpdate { .. } => {
+            "Config save failed: config update contains conflicting settings".to_string()
+        }
         ConfigWriteError::MalformedToml { .. } => {
             "Config save failed: malformed TOML config".to_string()
         }

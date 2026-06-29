@@ -3,10 +3,12 @@ import type {
   EditableConfigView,
   LogLevelKey,
   MatrixConfigView,
+  TunnelConfigView,
 } from "@/adapters/config"
 
 export type ConfigFormState = EditableConfigUpdate & {
   readonly token_replacement_input: string
+  readonly tunnel_password_replacement_input: string
 }
 
 const defaultMatrix: MatrixConfigView = {
@@ -18,8 +20,15 @@ const defaultMatrix: MatrixConfigView = {
   access_token_present: false,
 }
 
+const defaultTunnel: TunnelConfigView = {
+  provider: "cloudflare_quick",
+  auto_start: false,
+  config_password_present: false,
+}
+
 export function formFromConfig(config: EditableConfigView): ConfigFormState {
   const matrix = config.matrix ?? defaultMatrix
+  const tunnel = config.tunnel ?? defaultTunnel
   return {
     journal: {
       folder: config.journal.folder,
@@ -36,6 +45,12 @@ export function formFromConfig(config: EditableConfigView): ConfigFormState {
       access_token_replacement: null,
       clear_access_token: false,
     },
+    tunnel: {
+      provider: tunnel.provider,
+      auto_start: tunnel.auto_start,
+      config_password_replacement: null,
+      clear_config_password: false,
+    },
     web: {
       enabled: config.web.enabled,
       host: config.web.host,
@@ -43,6 +58,7 @@ export function formFromConfig(config: EditableConfigView): ConfigFormState {
       open_browser: config.web.open_browser,
     },
     token_replacement_input: "",
+    tunnel_password_replacement_input: "",
   }
 }
 
@@ -62,6 +78,12 @@ export function updateFromForm(form: ConfigFormState): EditableConfigUpdate {
       status_update_interval_seconds: form.matrix.status_update_interval_seconds,
       access_token_replacement: nullableTrimmed(form.token_replacement_input),
       clear_access_token: form.matrix.clear_access_token,
+    },
+    tunnel: {
+      provider: form.tunnel.provider,
+      auto_start: form.tunnel.auto_start,
+      config_password_replacement: nullableTrimmed(form.tunnel_password_replacement_input),
+      clear_config_password: form.tunnel.clear_config_password,
     },
     web: {
       enabled: form.web.enabled,
@@ -99,6 +121,12 @@ export function validateConfigForm(form: ConfigFormState): readonly string[] {
   }
   if (form.matrix.clear_access_token && form.token_replacement_input.trim().length > 0) {
     errors.push("Clear token and token replacement cannot be saved together.")
+  }
+  if (
+    form.tunnel.clear_config_password &&
+    form.tunnel_password_replacement_input.trim().length > 0
+  ) {
+    errors.push("Clear tunnel password and tunnel password replacement cannot be saved together.")
   }
   return errors
 }

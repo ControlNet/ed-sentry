@@ -2,12 +2,26 @@ use toml_edit::{value, DocumentMut, Item, Table};
 
 use crate::app::{
     EditableConfigUpdate, JournalConfigEdit, LogLevelConfigEdit, MatrixConfigEdit,
-    MonitorConfigEdit, WebConfigEdit,
+    MonitorConfigEdit, TunnelConfigEdit, WebConfigEdit,
 };
 
 pub(super) fn validate_update(
-    _update: &EditableConfigUpdate,
+    update: &EditableConfigUpdate,
 ) -> Result<(), super::ConfigWriteError> {
+    if update.matrix.as_ref().is_some_and(|matrix| {
+        matrix.clear_access_token && matrix.access_token_replacement.is_some()
+    }) {
+        return Err(super::ConfigWriteError::InvalidUpdate {
+            reason: "matrix access token cannot be replaced and cleared in one update",
+        });
+    }
+    if update.tunnel.as_ref().is_some_and(|tunnel| {
+        tunnel.clear_config_password && tunnel.config_password_replacement.is_some()
+    }) {
+        return Err(super::ConfigWriteError::InvalidUpdate {
+            reason: "tunnel config password cannot be replaced and cleared in one update",
+        });
+    }
     Ok(())
 }
 
@@ -23,6 +37,9 @@ pub(super) fn apply_update(document: &mut DocumentMut, update: &EditableConfigUp
     }
     if let Some(matrix) = &update.matrix {
         apply_matrix(document, matrix);
+    }
+    if let Some(tunnel) = &update.tunnel {
+        apply_tunnel(document, tunnel);
     }
     if let Some(web) = &update.web {
         apply_web(document, web);
@@ -106,6 +123,17 @@ fn apply_matrix(document: &mut DocumentMut, edit: &MatrixConfigEdit) {
         table.remove("access_token");
     } else if let Some(token) = &edit.access_token_replacement {
         table["access_token"] = value(token.as_str());
+    }
+}
+
+fn apply_tunnel(document: &mut DocumentMut, edit: &TunnelConfigEdit) {
+    let table = section(document, "tunnel");
+    set_string(table, "provider", edit.provider.as_deref());
+    set_bool(table, "auto_start", edit.auto_start);
+    if edit.clear_config_password {
+        table.remove("config_password");
+    } else if let Some(password) = &edit.config_password_replacement {
+        table["config_password"] = value(password.as_str());
     }
 }
 

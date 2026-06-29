@@ -20,6 +20,7 @@ pub struct EditableConfigView {
     pub monitor: MonitorConfigView,
     pub log_levels: LogLevelConfigView,
     pub matrix: Option<MatrixConfigView>,
+    pub tunnel: TunnelConfigView,
     pub web: WebConfigView,
 }
 
@@ -163,6 +164,23 @@ pub struct MatrixConfigEdit {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct TunnelConfigView {
+    pub provider: String,
+    pub auto_start: bool,
+    pub config_password_present: bool,
+    #[serde(default, skip_serializing)]
+    pub config_password_replacement: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct TunnelConfigEdit {
+    pub provider: Option<String>,
+    pub auto_start: Option<bool>,
+    pub config_password_replacement: Option<String>,
+    pub clear_config_password: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct WebConfigView {
     pub enabled: bool,
     pub host: String,
@@ -185,5 +203,6 @@ pub struct EditableConfigUpdate {
     pub monitor: Option<MonitorConfigEdit>,
     pub log_levels: Option<LogLevelConfigEdit>,
     pub matrix: Option<MatrixConfigEdit>,
+    pub tunnel: Option<TunnelConfigEdit>,
     pub web: Option<WebConfigEdit>,
 }

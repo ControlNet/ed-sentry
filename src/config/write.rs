@@ -30,6 +30,9 @@ pub enum ConfigWriteError {
     UnsafeRemoteBind {
         host: String,
     },
+    InvalidUpdate {
+        reason: &'static str,
+    },
     MalformedToml {
         path: PathBuf,
         source: Box<toml_edit::TomlError>,
@@ -54,6 +57,7 @@ impl fmt::Display for ConfigWriteError {
                 formatter,
                 "web.host {host} is not loopback; remote WebUI config writes are disabled"
             ),
+            Self::InvalidUpdate { reason } => write!(formatter, "invalid config update: {reason}"),
             Self::MalformedToml { path, source } => {
                 write!(
                     formatter,

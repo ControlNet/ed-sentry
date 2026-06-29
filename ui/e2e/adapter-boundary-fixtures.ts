@@ -1,5 +1,20 @@
 import type { EditableConfigUpdate } from "@/adapters/dashboard"
 
+export function mockTunnelStatusView() {
+  return {
+    kind: "start",
+    status_label: "Start",
+    provider: "cloudflare_quick",
+    provider_label: "Cloudflare Quick Tunnel",
+    session_id: null,
+    message: null,
+    public_url: null,
+    checked_at: "2026-06-28T12:00:00Z",
+    checked_at_display: "2026-06-28 12:00:00 UTC",
+    retryable_error: false,
+  }
+}
+
 export function mockConfigView() {
   return {
     version: 1,
@@ -64,6 +79,11 @@ export function mockConfigView() {
         status_update_interval_seconds: 60,
         access_token_present: true,
       },
+      tunnel: {
+        provider: "cloudflare_quick",
+        auto_start: false,
+        config_password_present: false,
+      },
       web: {
         enabled: false,
         host: "127.0.0.1",
@@ -98,6 +118,12 @@ export function mockConfigUpdate(): EditableConfigUpdate {
       status_update_interval_seconds: config.matrix.status_update_interval_seconds,
       access_token_replacement: null,
       clear_access_token: false,
+    },
+    tunnel: {
+      provider: config.tunnel.provider,
+      auto_start: config.tunnel.auto_start,
+      config_password_replacement: null,
+      clear_config_password: false,
     },
     web: {
       enabled: config.web.enabled,

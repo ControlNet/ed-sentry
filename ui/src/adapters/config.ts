@@ -102,6 +102,11 @@ export const configApiViewSchema = z.object({
       })
       .nullable()
       .optional(),
+    tunnel: z.object({
+      provider: z.string(),
+      auto_start: z.boolean(),
+      config_password_present: z.boolean(),
+    }),
     web: z.object({
       enabled: z.boolean(),
       host: z.string(),
@@ -121,6 +126,7 @@ export type LogLevelKey = (typeof logLevelKeys)[number]
 export type ConfigApiView = Readonly<z.infer<typeof configApiViewSchema>>
 export type EditableConfigView = ConfigApiView["config"]
 export type MatrixConfigView = NonNullable<EditableConfigView["matrix"]>
+export type TunnelConfigView = EditableConfigView["tunnel"]
 
 export type EditableConfigUpdate = {
   readonly journal: {
@@ -137,6 +143,12 @@ export type EditableConfigUpdate = {
     readonly status_update_interval_seconds: number
     readonly access_token_replacement: string | null
     readonly clear_access_token: boolean
+  }
+  readonly tunnel: {
+    readonly provider: string
+    readonly auto_start: boolean
+    readonly config_password_replacement: string | null
+    readonly clear_config_password: boolean
   }
   readonly web: {
     readonly enabled: boolean
