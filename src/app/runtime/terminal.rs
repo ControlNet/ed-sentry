@@ -32,7 +32,9 @@ pub async fn run_watch(config: &RuntimeConfig) -> Result<(), RuntimeError> {
     )?;
     let startup = runtime.startup().clone();
     print_startup(config, &startup.journal_file, startup.commander.as_deref());
-    let _web_server = start_webui(config, &mut runtime).await;
+    let web_server = start_webui(config, &mut runtime).await;
+    let _tunnel =
+        super::web::start_tunnel_after_webui(config, &mut runtime, &web_server, true).await;
     let super::WatchDelivery {
         hub: mut delivery,
         matrix_status,

@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use tauri::{Manager, State};
 
-use crate::app::{AppSnapshot, ConfigApiView, EditableConfigUpdate};
+use crate::app::{AppSnapshot, ConfigApiView, EditableConfigUpdate, TunnelStatusView};
 
 use self::config::{config_api_view, load_desktop_startup};
 use self::runtime::spawn_desktop_runtime;
@@ -35,6 +35,20 @@ async fn load_config(state: State<'_, Arc<DesktopState>>) -> Result<ConfigApiVie
 }
 
 #[tauri::command]
+async fn load_tunnel_status(
+    state: State<'_, Arc<DesktopState>>,
+) -> Result<TunnelStatusView, String> {
+    let runtime = desktop_runtime(state).await?;
+    Ok(runtime.tunnel_status().await.into())
+}
+
+#[tauri::command]
+async fn start_tunnel(state: State<'_, Arc<DesktopState>>) -> Result<TunnelStatusView, String> {
+    let runtime = desktop_runtime(state).await?;
+    Ok(runtime.start_tunnel().await.into())
+}
+
+#[tauri::command]
 async fn save_config(
     state: State<'_, Arc<DesktopState>>,
     update: EditableConfigUpdate,
@@ -55,6 +69,23 @@ async fn save_config(
         *config_source = outcome.source;
     }
     load_config(state).await
+}
+
+async fn desktop_runtime(
+    state: State<'_, Arc<DesktopState>>,
+) -> Result<Arc<crate::app::runtime::DesktopRuntime>, String> {
+    let mut startup_signal = state.startup_signal.subscribe();
+    loop {
+        if let Some(runtime) = state.runtime.read().await.clone() {
+            return Ok(runtime);
+        }
+        if let Some(message) = state.startup_error.read().await.clone() {
+            return Err(message);
+        }
+        if startup_signal.changed().await.is_err() {
+            return Err("Desktop monitor startup channel closed".to_string());
+        }
+    }
 }
 
 pub fn run() -> tauri::Result<()> {
@@ -80,6 +111,8 @@ pub fn run() -> tauri::Result<()> {
         .invoke_handler(tauri::generate_handler![
             load_snapshot,
             load_config,
+            load_tunnel_status,
+            start_tunnel,
             save_config
         ])
         .run(tauri::generate_context!("ui/src-tauri/tauri.conf.json"))

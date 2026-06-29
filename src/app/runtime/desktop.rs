@@ -8,12 +8,13 @@ use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
 use tokio::time::Interval;
 
-use crate::app::{AppEventStore, AppSnapshot, MatrixStartupStatus, WebStartupStatus};
+use crate::app::{AppEventStore, AppSnapshot, MatrixStartupStatus, TunnelStatus, WebStartupStatus};
 use crate::config::RuntimeConfig;
 use crate::delivery::DeliveryHub;
 use crate::terminal::TerminalNotifier;
 use crate::text::line_safe;
 use crate::time::TimeDisplayZone;
+use crate::web::tunnel_state::WebTunnelState;
 use crate::web::WebServer;
 
 use super::file_watcher::{AfkFileWatcher, AfkFileWatcherStart, AfkWatcherEvent};
@@ -47,6 +48,7 @@ pub struct DesktopRuntime {
     runtime: Arc<Mutex<MonitorRuntime>>,
     event_store: AppEventStore,
     _web_server: WebServer,
+    tunnel: Option<WebTunnelState>,
     monitor_task: JoinHandle<()>,
 }
 
@@ -61,6 +63,8 @@ impl DesktopRuntime {
             WebStartupStatus::from_current_runtime_config(&config),
         )?;
         let web_server = start_webui_silent(&config, &mut runtime).await;
+        let tunnel =
+            super::web::start_tunnel_after_webui(&config, &mut runtime, &web_server, true).await;
         let delivery = desktop_delivery(&config).await;
         let super::WatchDelivery {
             hub: mut delivery,
@@ -93,6 +97,7 @@ impl DesktopRuntime {
             runtime,
             event_store,
             _web_server: web_server,
+            tunnel,
             monitor_task,
         })
     }
@@ -103,6 +108,22 @@ impl DesktopRuntime {
 
     pub async fn snapshot(&self) -> AppSnapshot {
         self.runtime.lock().await.snapshot(Utc::now())
+    }
+
+    pub async fn tunnel_status(&self) -> TunnelStatus {
+        let Some(tunnel) = &self.tunnel else {
+            return TunnelStatus::default();
+        };
+        tunnel.status(Utc::now()).await
+    }
+
+    pub async fn start_tunnel(&self) -> TunnelStatus {
+        let Some(tunnel) = &self.tunnel else {
+            return TunnelStatus::default();
+        };
+        let status = tunnel.start(Utc::now()).await;
+        self.runtime.lock().await.set_tunnel_status(status.clone());
+        status
     }
 }
 

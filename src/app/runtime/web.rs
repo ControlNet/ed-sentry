@@ -1,6 +1,9 @@
-use crate::app::{ServiceStatusKind, WebStartupStatus};
+use chrono::Utc;
+
+use crate::app::{ServiceStatusKind, TunnelProvider, TunnelStatus, WebStartupStatus};
 use crate::config::RuntimeConfig;
 use crate::text::line_safe;
+use crate::web::tunnel_state::WebTunnelState;
 use crate::web::WebServer;
 
 use super::MonitorRuntime;
@@ -16,6 +19,24 @@ pub async fn start_webui_silent(config: &RuntimeConfig, runtime: &mut MonitorRun
     let web_server = crate::web::start_with_state(config, runtime.event_store()).await;
     runtime.web_status = web_server.startup_status();
     web_server
+}
+
+pub(crate) async fn start_tunnel_after_webui(
+    config: &RuntimeConfig,
+    runtime: &mut MonitorRuntime,
+    web_server: &WebServer,
+    watch_capable: bool,
+) -> Option<WebTunnelState> {
+    let Some(tunnel) = web_server.tunnel() else {
+        let status = TunnelStatus::disabled(TunnelProvider::CloudflareQuick);
+        runtime.set_tunnel_status(status);
+        return None;
+    };
+    let status = tunnel
+        .apply_startup_policy(config, watch_capable, Utc::now())
+        .await;
+    runtime.set_tunnel_status(status);
+    Some(tunnel)
 }
 
 fn print_web_startup_status(status: &WebStartupStatus) {

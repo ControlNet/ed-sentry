@@ -10,7 +10,7 @@ use tokio::time::{timeout, Duration};
 use super::*;
 use crate::app::runtime::file_watcher::AfkWatcherEvent;
 use crate::app::runtime::ConfiguredJournalSelector;
-use crate::app::{AppLiveUpdate, ChecklistRowState};
+use crate::app::{AppLiveUpdate, ChecklistRowState, TunnelStatusKind};
 use crate::config::{AppConfig, CliConfigOverrides};
 
 #[tokio::test]
@@ -129,6 +129,51 @@ async fn desktop_watcher_fallback_mode_keeps_polling() {
 
     assert!(file_watcher.events.is_none());
     println!("desktop_watcher fallback_mode=polling_only");
+}
+
+#[tokio::test]
+async fn desktop_gui_runtime_tunnel_commands_use_native_lifecycle_without_auth() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let journal_path = temp_dir.path().join("Journal.2035-01-08T123000.01.log");
+    fs::write(
+        &journal_path,
+        r#"{"timestamp":"2035-01-08T12:30:00Z","event":"LoadGame","Commander":"Cmdr Fixture","Odyssey":true}"#,
+    )
+    .unwrap();
+    let config = AppConfig::default().into_runtime(&CliConfigOverrides {
+        set_file: Some(journal_path),
+        no_status_line: true,
+        ..CliConfigOverrides::default()
+    });
+    let runtime = runtime_from_config(&config);
+    let event_store = runtime.lock().await.event_store();
+    let desktop = DesktopRuntime {
+        runtime: Arc::clone(&runtime),
+        event_store,
+        _web_server: WebServer::disabled(),
+        tunnel: Some(WebTunnelState::new(None).unwrap()),
+        monitor_task: tokio::spawn(async { std::future::pending::<()>().await }),
+    };
+
+    let initial = desktop.tunnel_status().await;
+    let started = desktop.start_tunnel().await;
+
+    assert_eq!(initial.kind, TunnelStatusKind::Disabled);
+    assert_eq!(started.kind, TunnelStatusKind::Disabled);
+    assert_eq!(
+        started.message.as_deref(),
+        Some("WebUI is not bound to a local port")
+    );
+    assert_eq!(
+        runtime
+            .lock()
+            .await
+            .snapshot(Utc.with_ymd_and_hms(2035, 1, 8, 12, 31, 0).unwrap())
+            .tunnel
+            .kind,
+        TunnelStatusKind::Disabled
+    );
+    println!("desktop_runtime tunnel_commands=native_lifecycle_without_auth");
 }
 
 #[tokio::test]
