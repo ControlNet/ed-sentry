@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use matrix_sdk::{
     authentication::matrix::MatrixSession,
     config::SyncSettings,
+    reqwest::Url,
     room::edit::EditedContent,
     ruma::{
         events::{
@@ -17,6 +18,7 @@ use matrix_sdk::{
     store::RoomLoadSettings,
     Client, Room, SessionMeta, SessionTokens,
 };
+use serde::Deserialize;
 use tokio::time::timeout;
 
 use crate::{
@@ -57,6 +59,12 @@ struct MatrixSdkRoomSender {
 enum MatrixRoomReference {
     Id(OwnedRoomId),
     Alias(OwnedRoomAliasId),
+}
+
+#[derive(Deserialize)]
+struct MatrixWhoamiResponse {
+    user_id: OwnedUserId,
+    device_id: Option<OwnedDeviceId>,
 }
 
 impl MatrixDelivery {
@@ -173,10 +181,14 @@ impl MatrixSdkRoomSender {
             .build()
             .await
             .context("failed to build Matrix client")?;
+        let session_meta = discover_session_meta(config).await?;
 
         client
             .matrix_auth()
-            .restore_session(matrix_session(config)?, RoomLoadSettings::default())
+            .restore_session(
+                matrix_session(config, session_meta),
+                RoomLoadSettings::default(),
+            )
             .await
             .context("failed to restore Matrix access-token session")?;
 
@@ -298,17 +310,42 @@ fn html_escape(text: &str) -> String {
     escaped
 }
 
-fn matrix_session(config: &MatrixRuntimeConfig) -> anyhow::Result<MatrixSession> {
-    Ok(MatrixSession {
-        meta: SessionMeta {
-            user_id: parse_user_id(&config.user_id)?,
-            device_id: OwnedDeviceId::from(config.device_id()),
-        },
+async fn discover_session_meta(config: &MatrixRuntimeConfig) -> anyhow::Result<SessionMeta> {
+    let homeserver = Url::parse(&config.homeserver).context("invalid Matrix homeserver URL")?;
+    let whoami_url = homeserver
+        .join("/_matrix/client/v3/account/whoami")
+        .context("failed to build Matrix account identity URL")?;
+    let whoami_response = matrix_sdk::reqwest::Client::new()
+        .get(whoami_url)
+        .bearer_auth(&config.access_token)
+        .send()
+        .await
+        .context("failed to query Matrix account identity")?
+        .error_for_status()
+        .context("Matrix account identity request failed")?;
+    let whoami_bytes = whoami_response
+        .bytes()
+        .await
+        .context("failed to read Matrix account identity response")?;
+    let whoami: MatrixWhoamiResponse = serde_json::from_slice(&whoami_bytes)
+        .context("failed to parse Matrix account identity response")?;
+
+    Ok(SessionMeta {
+        user_id: whoami.user_id,
+        device_id: whoami
+            .device_id
+            .unwrap_or_else(|| OwnedDeviceId::from(config.device_id())),
+    })
+}
+
+fn matrix_session(config: &MatrixRuntimeConfig, meta: SessionMeta) -> MatrixSession {
+    MatrixSession {
+        meta,
         tokens: SessionTokens {
             access_token: config.access_token.clone(),
             refresh_token: None,
         },
-    })
+    }
 }
 
 fn parse_user_id(user_id: &str) -> anyhow::Result<OwnedUserId> {
@@ -467,7 +504,6 @@ mod tests {
     fn config(mention_user_id: Option<&str>, access_token: &str) -> MatrixRuntimeConfig {
         MatrixRuntimeConfig {
             homeserver: "https://matrix.invalid".to_string(),
-            user_id: "@bot:matrix.invalid".to_string(),
             room_id: "!room:matrix.invalid".to_string(),
             access_token: access_token.to_string(),
             mention_user_id: mention_user_id.map(ToOwned::to_owned),
