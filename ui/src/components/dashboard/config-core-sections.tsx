@@ -99,11 +99,6 @@ export function MatrixConfigSection({
           onChange={(homeserver) => onChange({ ...form, matrix: { ...form.matrix, homeserver } })}
         />
         <TextField
-          label="User ID"
-          value={form.matrix.user_id ?? ""}
-          onChange={(user_id) => onChange({ ...form, matrix: { ...form.matrix, user_id } })}
-        />
-        <TextField
           label="Room ID"
           value={form.matrix.room_id ?? ""}
           onChange={(room_id) => onChange({ ...form, matrix: { ...form.matrix, room_id } })}

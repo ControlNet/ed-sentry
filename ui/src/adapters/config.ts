@@ -95,7 +95,6 @@ export const configApiViewSchema = z.object({
       .object({
         enabled: z.boolean(),
         homeserver: z.string().nullable().optional(),
-        user_id: z.string().nullable().optional(),
         room_id: z.string().nullable().optional(),
         mention_user_id: z.string().nullable().optional(),
         status_update_interval_seconds: z.number(),
@@ -133,7 +132,6 @@ export type EditableConfigUpdate = {
   readonly matrix: {
     readonly enabled: boolean
     readonly homeserver: string | null
-    readonly user_id: string | null
     readonly room_id: string | null
     readonly mention_user_id: string | null
     readonly status_update_interval_seconds: number

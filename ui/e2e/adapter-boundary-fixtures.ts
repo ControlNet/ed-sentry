@@ -59,7 +59,6 @@ export function mockConfigView() {
       matrix: {
         enabled: true,
         homeserver: "https://matrix.fixture.invalid",
-        user_id: "@fixture:matrix.fixture.invalid",
         room_id: "!fixture:matrix.fixture.invalid",
         mention_user_id: null,
         status_update_interval_seconds: 60,
@@ -94,7 +93,6 @@ export function mockConfigUpdate(): EditableConfigUpdate {
     matrix: {
       enabled: config.matrix.enabled,
       homeserver: config.matrix.homeserver ?? null,
-      user_id: config.matrix.user_id ?? null,
       room_id: config.matrix.room_id ?? null,
       mention_user_id: config.matrix.mention_user_id ?? null,
       status_update_interval_seconds: config.matrix.status_update_interval_seconds,

@@ -12,7 +12,6 @@ export type ConfigFormState = EditableConfigUpdate & {
 const defaultMatrix: MatrixConfigView = {
   enabled: false,
   homeserver: null,
-  user_id: null,
   room_id: null,
   mention_user_id: null,
   status_update_interval_seconds: 60,
@@ -31,7 +30,6 @@ export function formFromConfig(config: EditableConfigView): ConfigFormState {
     matrix: {
       enabled: matrix.enabled,
       homeserver: matrix.homeserver ?? null,
-      user_id: matrix.user_id ?? null,
       room_id: matrix.room_id ?? null,
       mention_user_id: matrix.mention_user_id ?? null,
       status_update_interval_seconds: matrix.status_update_interval_seconds,
@@ -59,7 +57,6 @@ export function updateFromForm(form: ConfigFormState): EditableConfigUpdate {
     matrix: {
       enabled: form.matrix.enabled,
       homeserver: nullableTrimmed(form.matrix.homeserver),
-      user_id: nullableTrimmed(form.matrix.user_id),
       room_id: nullableTrimmed(form.matrix.room_id),
       mention_user_id: nullableTrimmed(form.matrix.mention_user_id),
       status_update_interval_seconds: form.matrix.status_update_interval_seconds,
