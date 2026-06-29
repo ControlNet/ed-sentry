@@ -19,8 +19,8 @@ async fn webui_api_config_update_preserves_and_replaces_matrix_token() {
     let runtime = api_runtime(&config_path, 0, "127.0.0.1");
     let server = start_with_state(&runtime, api_store(&runtime)).await;
     let port = server.bound_port().unwrap();
-    let preserve = r#"{"matrix":{"enabled":true,"homeserver":"https://matrix.invalid","user_id":"@bot:matrix.invalid","room_id":"!room:matrix.invalid","mention_user_id":null,"status_update_interval_seconds":90,"access_token_replacement":null,"clear_access_token":false}}"#;
-    let replace = r#"{"matrix":{"enabled":true,"homeserver":"https://matrix.invalid","user_id":"@bot:matrix.invalid","room_id":"!room:matrix.invalid","mention_user_id":null,"status_update_interval_seconds":90,"access_token_replacement":"replacement-token","clear_access_token":false}}"#;
+    let preserve = r#"{"matrix":{"enabled":true,"homeserver":"https://matrix.invalid","room_id":"!room:matrix.invalid","mention_user_id":null,"status_update_interval_seconds":90,"access_token_replacement":null,"clear_access_token":false}}"#;
+    let replace = r#"{"matrix":{"enabled":true,"homeserver":"https://matrix.invalid","room_id":"!room:matrix.invalid","mention_user_id":null,"status_update_interval_seconds":90,"access_token_replacement":"replacement-token","clear_access_token":false}}"#;
 
     let preserve_response = put_config(port, preserve, "127.0.0.1", "http://127.0.0.1:3000");
     let preserved = AppConfig::load_from_path(&config_path).unwrap().config;
@@ -62,7 +62,7 @@ async fn webui_api_config_update_clears_matrix_token_only_when_explicit() {
     let runtime = api_runtime(&config_path, 0, "127.0.0.1");
     let server = start_with_state(&runtime, api_store(&runtime)).await;
     let port = server.bound_port().unwrap();
-    let clear = r#"{"matrix":{"enabled":true,"homeserver":"https://matrix.invalid","user_id":"@bot:matrix.invalid","room_id":"!room:matrix.invalid","mention_user_id":null,"status_update_interval_seconds":60,"access_token_replacement":null,"clear_access_token":true}}"#;
+    let clear = r#"{"matrix":{"enabled":true,"homeserver":"https://matrix.invalid","room_id":"!room:matrix.invalid","mention_user_id":null,"status_update_interval_seconds":60,"access_token_replacement":null,"clear_access_token":true}}"#;
 
     let clear_response = put_config(port, clear, "127.0.0.1", "http://127.0.0.1:3000");
     let cleared = AppConfig::load_from_path(&config_path).unwrap().config;

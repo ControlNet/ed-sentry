@@ -104,7 +104,6 @@ poll_interval_ms = 1000
 [matrix]
 enabled = true
 homeserver = "https://matrix.invalid"
-user_id = "@bot:matrix.invalid"
 room_id = "!room:matrix.invalid"
 ${matrix_key} = "$matrix_value"
 status_update_interval_seconds = 60

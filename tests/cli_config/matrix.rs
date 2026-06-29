@@ -29,7 +29,6 @@ pub fn write_matrix_config(
             [matrix]
             enabled = true
             homeserver = "https://matrix.invalid"
-            user_id = "@bot:matrix.invalid"
             room_id = "!room:matrix.invalid"
             access_{} = "fixture-access"
             mention_user_id = "@commander:matrix.invalid"
