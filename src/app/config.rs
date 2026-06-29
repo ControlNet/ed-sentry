@@ -94,7 +94,6 @@ impl From<&MatrixConfig> for MatrixConfigView {
         Self {
             enabled: config.enabled,
             homeserver: config.homeserver.clone(),
-            user_id: config.user_id.clone(),
             room_id: config.room_id.clone(),
             mention_user_id: config.mention_user_id.clone(),
             status_update_interval_seconds: config.status_update_interval_seconds,

@@ -143,7 +143,6 @@ pub struct LogLevelConfigEdit {
 pub struct MatrixConfigView {
     pub enabled: bool,
     pub homeserver: Option<String>,
-    pub user_id: Option<String>,
     pub room_id: Option<String>,
     pub mention_user_id: Option<String>,
     pub status_update_interval_seconds: u64,
@@ -156,7 +155,6 @@ pub struct MatrixConfigView {
 pub struct MatrixConfigEdit {
     pub enabled: bool,
     pub homeserver: Option<String>,
-    pub user_id: Option<String>,
     pub room_id: Option<String>,
     pub mention_user_id: Option<String>,
     pub status_update_interval_seconds: u64,

@@ -108,7 +108,6 @@ fn config_view_redacts_matrix_access_token() {
         matrix: Some(MatrixConfig {
             enabled: true,
             homeserver: Some("https://matrix.fixture.invalid".to_string()),
-            user_id: Some("@fixture:matrix.fixture.invalid".to_string()),
             room_id: Some("!room:matrix.fixture.invalid".to_string()),
             access_token: Some("redaction-fixture-value".to_string()),
             mention_user_id: Some("@mention:matrix.fixture.invalid".to_string()),
@@ -209,7 +208,6 @@ async fn desktop_bootstrap_honors_web_and_matrix_config() {
         matrix: Some(MatrixConfig {
             enabled: true,
             homeserver: Some("https://matrix.fixture.invalid".to_string()),
-            user_id: Some("@desktop:matrix.fixture.invalid".to_string()),
             room_id: Some("!desktop-room:matrix.fixture.invalid".to_string()),
             access_token: Some("desktop-fixture-token".to_string()),
             mention_user_id: Some("@mention:matrix.fixture.invalid".to_string()),

@@ -99,7 +99,6 @@ fn apply_matrix(document: &mut DocumentMut, edit: &MatrixConfigEdit) {
     let table = section(document, "matrix");
     table["enabled"] = value(edit.enabled);
     set_optional_string(table, "homeserver", edit.homeserver.as_deref());
-    set_optional_string(table, "user_id", edit.user_id.as_deref());
     set_optional_string(table, "room_id", edit.room_id.as_deref());
     set_optional_string(table, "mention_user_id", edit.mention_user_id.as_deref());
     table["status_update_interval_seconds"] = value(edit.status_update_interval_seconds as i64);
