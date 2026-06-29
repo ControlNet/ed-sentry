@@ -173,7 +173,7 @@ export function FieldMessage({
         tone === "success" && "border-emerald-800 text-emerald-400",
         tone === "warning" && "border-amber-800 text-amber-400",
         tone === "error" && "border-rose-800 text-rose-400",
-        tone === "info" && "border-slate-800 text-slate-500",
+        tone === "info" && "border-slate-800 text-slate-400",
       )}
     >
       {children}

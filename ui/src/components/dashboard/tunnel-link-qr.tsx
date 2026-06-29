@@ -7,6 +7,10 @@ type TunnelLinkQrProps = {
   readonly anchor: HTMLElement | null
 }
 
+const QR_BOX_SIZE = 128
+const VIEWPORT_MARGIN = 8
+const ANCHOR_GAP = 4
+
 export function TunnelLinkQr({ url, anchor }: TunnelLinkQrProps): React.JSX.Element | null {
   const [dataUrl, setDataUrl] = useState<string | null>(null)
   const [position, setPosition] = useState<React.CSSProperties | null>(null)
@@ -33,7 +37,18 @@ export function TunnelLinkQr({ url, anchor }: TunnelLinkQrProps): React.JSX.Elem
     }
     const updatePosition = (): void => {
       const rect = anchor.getBoundingClientRect()
-      setPosition({ left: rect.left, top: rect.bottom + 4 })
+      const maxLeft = Math.max(VIEWPORT_MARGIN, window.innerWidth - QR_BOX_SIZE - VIEWPORT_MARGIN)
+      const maxTop = Math.max(VIEWPORT_MARGIN, window.innerHeight - QR_BOX_SIZE - VIEWPORT_MARGIN)
+      const preferredTop = rect.bottom + ANCHOR_GAP
+      const flippedTop = rect.top - QR_BOX_SIZE - ANCHOR_GAP
+      const visibleTop =
+        preferredTop + QR_BOX_SIZE + VIEWPORT_MARGIN > window.innerHeight
+          ? flippedTop
+          : preferredTop
+      setPosition({
+        left: clamp(rect.left, VIEWPORT_MARGIN, maxLeft),
+        top: clamp(visibleTop, VIEWPORT_MARGIN, maxTop),
+      })
     }
     updatePosition()
     window.addEventListener("resize", updatePosition)
@@ -70,4 +85,8 @@ export function TunnelLinkQr({ url, anchor }: TunnelLinkQrProps): React.JSX.Elem
     </div>,
     document.body,
   )
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
 }

@@ -49,7 +49,8 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
 
   useEffect(() => {
     let active = true
-    setSaveMessage(loadRevision === 0 ? null : "Tunnel login accepted; loading config")
+    setState({ status: "loading" })
+    setSaveMessage(null)
     adapter
       .loadConfig()
       .then((view) => {
@@ -58,6 +59,8 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
         }
         const form = formFromConfig(view.config)
         setState({ status: "ready", view, form, savedForm: form })
+        setSaveState(loadRevision > 0 ? "saved" : "idle")
+        setSaveMessage(loadRevision > 0 ? "Tunnel access unlocked" : null)
       })
       .catch((error: unknown) => {
         if (!active) {
