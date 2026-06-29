@@ -10,7 +10,6 @@ pub const MATRIX_DEVICE_ID: &str = "EDAFKDASHBOARD";
 pub struct MatrixConfig {
     pub enabled: bool,
     pub homeserver: Option<String>,
-    pub user_id: Option<String>,
     pub room_id: Option<String>,
     pub access_token: Option<String>,
     pub mention_user_id: Option<String>,
@@ -20,7 +19,6 @@ pub struct MatrixConfig {
 #[derive(Clone, PartialEq, Eq)]
 pub struct MatrixRuntimeConfig {
     pub homeserver: String,
-    pub user_id: String,
     pub room_id: String,
     pub access_token: String,
     pub mention_user_id: Option<String>,
@@ -38,7 +36,6 @@ impl Default for MatrixConfig {
         Self {
             enabled: true,
             homeserver: None,
-            user_id: None,
             room_id: None,
             access_token: None,
             mention_user_id: None,
@@ -53,7 +50,6 @@ impl fmt::Debug for MatrixConfig {
             .debug_struct("MatrixConfig")
             .field("enabled", &self.enabled)
             .field("homeserver", &self.homeserver)
-            .field("user_id", &self.user_id)
             .field("room_id", &self.room_id)
             .field(
                 "access_token",
@@ -73,7 +69,6 @@ impl fmt::Debug for MatrixRuntimeConfig {
         formatter
             .debug_struct("MatrixRuntimeConfig")
             .field("homeserver", &self.homeserver)
-            .field("user_id", &self.user_id)
             .field("room_id", &self.room_id)
             .field("access_token", &"<redacted>")
             .field("mention_user_id", &self.mention_user_id)
@@ -99,11 +94,9 @@ impl MatrixConfig {
         }
 
         let homeserver = self.homeserver.clone();
-        let user_id = self.user_id.clone();
         let room_id = self.room_id.clone();
         let access_token = self.access_token.clone();
-        let missing_fields =
-            Self::missing_runtime_fields(&homeserver, &user_id, &room_id, &access_token);
+        let missing_fields = Self::missing_runtime_fields(&homeserver, &room_id, &access_token);
         if !missing_fields.is_empty() {
             return MatrixRuntimeConfigResult {
                 config: None,
@@ -114,8 +107,8 @@ impl MatrixConfig {
             };
         }
 
-        let (Some(homeserver), Some(user_id), Some(room_id), Some(access_token)) =
-            (homeserver, user_id, room_id, access_token)
+        let (Some(homeserver), Some(room_id), Some(access_token)) =
+            (homeserver, room_id, access_token)
         else {
             return MatrixRuntimeConfigResult::default();
         };
@@ -123,7 +116,6 @@ impl MatrixConfig {
         MatrixRuntimeConfigResult {
             config: Some(MatrixRuntimeConfig {
                 homeserver,
-                user_id,
                 room_id,
                 access_token,
                 mention_user_id: self.mention_user_id.clone(),
@@ -135,16 +127,12 @@ impl MatrixConfig {
 
     fn missing_runtime_fields(
         homeserver: &Option<String>,
-        user_id: &Option<String>,
         room_id: &Option<String>,
         access_token: &Option<String>,
     ) -> Vec<&'static str> {
         let mut missing_fields = Vec::new();
         if homeserver.is_none() {
             missing_fields.push("homeserver");
-        }
-        if user_id.is_none() {
-            missing_fields.push("user_id");
         }
         if room_id.is_none() {
             missing_fields.push("room_id");
@@ -189,12 +177,6 @@ pub(super) fn read_matrix_config(
         table.get("homeserver"),
         "matrix.homeserver",
         &mut matrix.homeserver,
-        warnings,
-    );
-    read_optional_string(
-        table.get("user_id"),
-        "matrix.user_id",
-        &mut matrix.user_id,
         warnings,
     );
     read_optional_string(

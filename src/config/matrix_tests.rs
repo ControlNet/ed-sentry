@@ -37,7 +37,6 @@ fn config_matrix_enabled_preserves_present_fields_for_runtime_validation() -> Re
         [matrix]
         enabled = true
         homeserver = "https://matrix.invalid"
-        user_id = "@fixture:matrix.invalid"
         room_id = "!fixture-room:matrix.invalid"
         access_"#,
         "token",
@@ -51,7 +50,6 @@ fn config_matrix_enabled_preserves_present_fields_for_runtime_validation() -> Re
     assert!(loaded.warnings.is_empty());
     assert!(matrix.enabled);
     assert_eq!(matrix.homeserver.as_deref(), Some("https://matrix.invalid"));
-    assert_eq!(matrix.user_id.as_deref(), Some("@fixture:matrix.invalid"));
     assert_eq!(
         matrix.room_id.as_deref(),
         Some("!fixture-room:matrix.invalid")
@@ -90,7 +88,6 @@ fn config_matrix_enabled_wrong_typed_keys_warn_and_keep_defaults() -> Result<()>
         [matrix]
         enabled = true
         homeserver = false
-        user_id = 42
         room_id = []
         access_token = {}
         mention_user_id = 99
@@ -100,19 +97,17 @@ fn config_matrix_enabled_wrong_typed_keys_warn_and_keep_defaults() -> Result<()>
 
     let matrix = require_some(loaded.config.matrix, "matrix config should be present")?;
     assert_eq!(matrix.homeserver, None);
-    assert_eq!(matrix.user_id, None);
     assert_eq!(matrix.room_id, None);
     assert_eq!(matrix.access_token, None);
     assert_eq!(matrix.mention_user_id, None);
     assert_eq!(matrix.status_update_interval_seconds, 60);
-    assert_eq!(loaded.warnings.len(), 6);
+    assert_eq!(loaded.warnings.len(), 5);
     assert!(loaded.warnings[0].contains("matrix.homeserver"));
-    assert!(loaded.warnings[1].contains("matrix.user_id"));
-    assert!(loaded.warnings[2].contains("matrix.room_id"));
-    assert!(loaded.warnings[3].contains("matrix.access_token"));
-    assert!(loaded.warnings[4].contains("matrix.mention_user_id"));
+    assert!(loaded.warnings[1].contains("matrix.room_id"));
+    assert!(loaded.warnings[2].contains("matrix.access_token"));
+    assert!(loaded.warnings[3].contains("matrix.mention_user_id"));
     assert!(
-        loaded.warnings[5].contains("matrix.status_update_interval_seconds"),
+        loaded.warnings[4].contains("matrix.status_update_interval_seconds"),
         "{:?}",
         loaded.warnings
     );
@@ -126,7 +121,6 @@ fn matrix_runtime_config_complete_enabled_config_preserves_runtime_fields() -> R
         [matrix]
         enabled = true
         homeserver = "https://matrix.invalid"
-        user_id = "@fixture:matrix.invalid"
         room_id = "!fixture-room:matrix.invalid"
         access_"#,
         "token",
@@ -143,7 +137,6 @@ fn matrix_runtime_config_complete_enabled_config_preserves_runtime_fields() -> R
     let matrix = require_some(runtime.config, "matrix runtime config should be present")?;
     assert!(runtime.warnings.is_empty());
     assert_eq!(matrix.homeserver, "https://matrix.invalid");
-    assert_eq!(matrix.user_id, "@fixture:matrix.invalid");
     assert_eq!(matrix.room_id, "!fixture-room:matrix.invalid");
     assert_eq!(matrix.access_token, "fixture-value");
     assert_eq!(
@@ -158,7 +151,6 @@ fn matrix_runtime_config_complete_enabled_config_preserves_runtime_fields() -> R
 fn matrix_runtime_config_redacts_access_token() -> Result<()> {
     let matrix = MatrixConfig {
         homeserver: Some("https://matrix.invalid".to_string()),
-        user_id: Some("@fixture:matrix.invalid".to_string()),
         room_id: Some("!fixture-room:matrix.invalid".to_string()),
         access_token: Some("fixture-value".to_string()),
         ..MatrixConfig::default()
@@ -195,7 +187,7 @@ fn matrix_runtime_config_redacts_access_token() -> Result<()> {
 }
 
 #[test]
-fn matrix_enabled_missing_required_field_disables_with_warning() -> Result<()> {
+fn matrix_enabled_without_user_id_builds_runtime_config() -> Result<()> {
     let loaded = AppConfig::from_toml_str(concat!(
         r#"
         [matrix]
@@ -212,12 +204,38 @@ fn matrix_enabled_missing_required_field_disables_with_warning() -> Result<()> {
         .config
         .into_runtime(&CliConfigOverrides::default())
         .matrix_runtime();
+    let matrix = require_some(runtime.config, "matrix runtime config should be present")?;
+
+    assert!(runtime.warnings.is_empty());
+    assert_eq!(matrix.homeserver, "https://matrix.invalid");
+    assert_eq!(matrix.room_id, "!fixture-room:matrix.invalid");
+    assert_eq!(matrix.access_token, "fixture-value");
+    Ok(())
+}
+
+#[test]
+fn matrix_enabled_missing_required_field_disables_with_warning() -> Result<()> {
+    let loaded = AppConfig::from_toml_str(concat!(
+        r#"
+        [matrix]
+        enabled = true
+        homeserver = "https://matrix.invalid"
+        access_"#,
+        "token",
+        r#" = "fixture-value"
+        "#,
+    ))?;
+
+    let runtime = loaded
+        .config
+        .into_runtime(&CliConfigOverrides::default())
+        .matrix_runtime();
 
     assert_eq!(runtime.config, None);
     assert_eq!(runtime.warnings.len(), 1);
     assert_eq!(
         runtime.warnings[0],
-        "Matrix delivery disabled for this run: missing required matrix config field(s): user_id"
+        "Matrix delivery disabled for this run: missing required matrix config field(s): room_id"
     );
     assert!(!runtime.warnings[0].contains("fixture-value"));
     assert!(!runtime.warnings[0].contains('\n'));
@@ -228,7 +246,6 @@ fn matrix_enabled_missing_required_field_disables_with_warning() -> Result<()> {
 fn matrix_runtime_config_uses_fixed_device_id() -> Result<()> {
     let matrix = MatrixConfig {
         homeserver: Some("https://matrix.invalid".to_string()),
-        user_id: Some("@fixture:matrix.invalid".to_string()),
         room_id: Some("!fixture-room:matrix.invalid".to_string()),
         access_token: Some("fixture-value".to_string()),
         ..MatrixConfig::default()
