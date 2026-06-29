@@ -25,6 +25,19 @@ type TextFieldProps = {
   readonly onChange: (value: string) => void
 }
 
+type SelectOption = {
+  readonly value: string
+  readonly label: string
+  readonly disabled?: boolean
+}
+
+type SelectFieldProps = {
+  readonly label: string
+  readonly value: string
+  readonly options: readonly SelectOption[]
+  readonly onChange: (value: string) => void
+}
+
 type ToggleFieldProps = {
   readonly label: string
   readonly checked: boolean
@@ -92,6 +105,30 @@ export function NumberField({
         step={step}
         onChange={(event) => onChange(Number(event.currentTarget.value))}
       />
+    </FieldShell>
+  )
+}
+
+export function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: SelectFieldProps): React.JSX.Element {
+  return (
+    <FieldShell label={label}>
+      <select
+        aria-label={label}
+        className="tactical-input"
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      >
+        {options.map((option) => (
+          <option disabled={option.disabled} key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </FieldShell>
   )
 }

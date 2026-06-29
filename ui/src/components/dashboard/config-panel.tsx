@@ -1,7 +1,12 @@
 import { AlertTriangle, Loader2, Save } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ConfigApiView, DashboardAdapter } from "@/adapters/dashboard"
-import { JournalConfigSection, MatrixConfigSection, WebConfigSection } from "./config-core-sections"
+import {
+  JournalConfigSection,
+  MatrixConfigSection,
+  TunnelConfigSection,
+  WebConfigSection,
+} from "./config-core-sections"
 import { FieldMessage } from "./config-form-fields"
 import {
   type ConfigFormState,
@@ -12,6 +17,7 @@ import {
 } from "./config-form-model"
 import { ConfigLogLevelsSection } from "./config-log-levels"
 import { ConfigMonitorSection } from "./config-monitor-section"
+import { TunnelConfigAuthPrompt } from "./tunnel-config-auth-prompt"
 
 type ConfigPanelProps = {
   readonly adapter: DashboardAdapter
@@ -37,11 +43,13 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
   const [state, setState] = useState<ConfigLoadState>({ status: "loading" })
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  const [loadRevision, setLoadRevision] = useState(0)
   const formRevisionRef = useRef(0)
   const saveAttemptRef = useRef(0)
 
   useEffect(() => {
     let active = true
+    setSaveMessage(loadRevision === 0 ? null : "Tunnel login accepted; loading config")
     adapter
       .loadConfig()
       .then((view) => {
@@ -61,14 +69,14 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
     return () => {
       active = false
     }
-  }, [adapter])
+  }, [adapter, loadRevision])
 
   const validationErrors = useMemo(
     () => (state.status === "ready" ? validateConfigForm(state.form) : []),
     [state],
   )
   const dirty = state.status === "ready" && isConfigFormDirty(state.form, state.savedForm)
-  const protectedChange = state.status === "ready" && hasProtectedTokenChange(state.form)
+  const protectedChange = state.status === "ready" && hasProtectedSecretChange(state.form)
   const canSave =
     state.status === "ready" &&
     dirty &&
@@ -83,7 +91,7 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
     }
     formRevisionRef.current += 1
     setSaveState("pending")
-    setSaveMessage(hasProtectedTokenChange(form) ? null : "Autosave pending")
+    setSaveMessage(hasProtectedSecretChange(form) ? null : "Autosave pending")
     setState((current) => (current.status === "ready" ? { ...current, form } : current))
   }
 
@@ -93,7 +101,7 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
       saveAttemptRef.current = saveAttempt
 
       setSaveState("saving")
-      setSaveMessage(mode === "protected" ? "Saving protected token change" : "Saving changes")
+      setSaveMessage(mode === "protected" ? "Saving protected secret change" : "Saving changes")
       try {
         const nextView = await adapter.saveConfig(updateFromForm(form))
         const nextForm = formFromConfig(nextView.config)
@@ -157,6 +165,15 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
   }
 
   if (state.status === "error") {
+    if (isTunnelConfigAuthRequired(state.message)) {
+      return (
+        <TunnelConfigAuthPrompt
+          adapter={adapter}
+          onAuthenticated={() => setLoadRevision((revision) => revision + 1)}
+        />
+      )
+    }
+
     return (
       <section aria-label="Config editor" className="tactical-config-section">
         <div className="flex items-center gap-3">
@@ -180,8 +197,8 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
       ))}
       {protectedChange ? (
         <FieldMessage tone="warning">
-          Access token changes are protected and will not autosave. Save them explicitly when the
-          replacement or clear-token request is ready.
+          Secret changes are protected and will not autosave. Save them explicitly when the
+          replacement or clear request is ready.
         </FieldMessage>
       ) : null}
       {saveMessage === null ? null : (
@@ -198,17 +215,18 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
         tokenPresent={state.view.config.matrix?.access_token_present ?? false}
         onChange={setForm}
       />
+      <TunnelConfigSection form={state.form} onChange={setForm} />
       <WebConfigSection form={state.form} onChange={setForm} />
       <ConfigMonitorSection form={state.form} onChange={setForm} />
       <ConfigLogLevelsSection form={state.form} onChange={setForm} />
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-orange-500/10 px-2 pt-4">
         <div className="font-mono text-[10px] uppercase tracking-widest text-slate-500">
-          {protectedChange ? "Protected token change pending" : "Autosave enabled"}
+          {protectedChange ? "Protected secret change pending" : "Autosave enabled"}
         </div>
         {protectedChange ? (
           <button
             type="button"
-            className="flex items-center gap-2 rounded-sm bg-orange-600 px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-100 shadow-[0_0_10px_rgba(234,88,12,0.4)] transition-all hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex items-center gap-2 rounded-sm bg-tactical-accent px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-primary-foreground transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!canSave}
             onClick={saveProtectedChange}
           >
@@ -225,6 +243,15 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
   )
 }
 
-function hasProtectedTokenChange(form: ConfigFormState): boolean {
-  return form.token_replacement_input.trim().length > 0 || form.matrix.clear_access_token
+function hasProtectedSecretChange(form: ConfigFormState): boolean {
+  return (
+    form.token_replacement_input.trim().length > 0 ||
+    form.matrix.clear_access_token ||
+    form.tunnel_password_replacement_input.trim().length > 0 ||
+    form.tunnel.clear_config_password
+  )
+}
+
+function isTunnelConfigAuthRequired(message: string): boolean {
+  return message === "Tunnel config access requires a valid bearer token"
 }

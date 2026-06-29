@@ -1,5 +1,11 @@
-import { Activity, Database, Server } from "lucide-react"
-import { FieldMessage, NumberField, TextField, ToggleField } from "./config-form-fields"
+import { Activity, Database, RadioTower, Server } from "lucide-react"
+import {
+  FieldMessage,
+  NumberField,
+  SelectField,
+  TextField,
+  ToggleField,
+} from "./config-form-fields"
 import type { ConfigFormState } from "./config-form-model"
 
 type ConfigSectionProps = {
@@ -10,6 +16,11 @@ type ConfigSectionProps = {
 type MatrixSectionProps = ConfigSectionProps & {
   readonly tokenPresent: boolean
 }
+
+const tunnelProviderOptions = [
+  { value: "cloudflare_quick", label: "Cloudflare Quick Tunnel" },
+  { value: "ssh", label: "SSH tunnel (unsupported)", disabled: true },
+] as const
 
 export function JournalConfigSection({ form, onChange }: ConfigSectionProps): React.JSX.Element {
   return (
@@ -70,6 +81,51 @@ export function WebConfigSection({ form, onChange }: ConfigSectionProps): React.
           onChange={(port) => onChange({ ...form, web: { ...form.web, port } })}
         />
       </div>
+    </section>
+  )
+}
+
+export function TunnelConfigSection({ form, onChange }: ConfigSectionProps): React.JSX.Element {
+  return (
+    <section aria-label="Tunnel settings" className="tactical-config-section">
+      <h3 className="absolute -top-3 left-4 flex items-center gap-2 bg-surface-panel px-2 text-[10px] font-bold uppercase tracking-widest text-tactical">
+        <RadioTower aria-hidden="true" className="size-3" />
+        Tunnel gateway
+      </h3>
+      <div className="mt-2 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <SelectField
+          label="Provider"
+          options={tunnelProviderOptions}
+          value={form.tunnel.provider}
+          onChange={(provider) => onChange({ ...form, tunnel: { ...form.tunnel, provider } })}
+        />
+        <ToggleField
+          label="Auto start tunnel"
+          checked={form.tunnel.auto_start}
+          onChange={(auto_start) => onChange({ ...form, tunnel: { ...form.tunnel, auto_start } })}
+        />
+        <TextField
+          label="Replace tunnel config password"
+          type="password"
+          value={form.tunnel_password_replacement_input}
+          placeholder="Write-only replacement"
+          autoComplete="new-password"
+          onChange={(tunnel_password_replacement_input) =>
+            onChange({ ...form, tunnel_password_replacement_input })
+          }
+        />
+        <ToggleField
+          label="Clear tunnel config password on save"
+          checked={form.tunnel.clear_config_password}
+          onChange={(clear_config_password) =>
+            onChange({ ...form, tunnel: { ...form.tunnel, clear_config_password } })
+          }
+        />
+      </div>
+      <FieldMessage tone="info">
+        Leaving the replacement field blank preserves the stored tunnel password. The current
+        password is never loaded into the browser.
+      </FieldMessage>
     </section>
   )
 }

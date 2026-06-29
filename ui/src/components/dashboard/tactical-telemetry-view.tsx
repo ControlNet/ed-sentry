@@ -1,9 +1,11 @@
 import { Activity, ClipboardCheck, Crosshair, Database, Server, Wifi } from "lucide-react"
 import type { AppSnapshot } from "@/adapters/dashboard"
+import { useDashboardStore } from "@/store/dashboard-store"
 import { assertNever } from "./dashboard-helpers"
 import { TacticalMissionSummary, TacticalRecentAlerts } from "./tactical-telemetry-summary"
 import { JournalServiceLine, MetricValue, ServiceLine } from "./tactical-telemetry-widgets"
 import { DataRow, TacticalBadge, type TacticalBadgeTone, TacticalPanel } from "./tactical-ui"
+import { TunnelServiceLine } from "./tunnel-service-line"
 
 type ChecklistRow = AppSnapshot["afk_checklist"]["rows"][number]
 
@@ -12,6 +14,8 @@ export function TacticalTelemetryView({
 }: {
   readonly snapshot: AppSnapshot
 }): React.JSX.Element {
+  const startTunnel = useDashboardStore((state) => state.startTunnel)
+
   return (
     <div className="grid grid-cols-1 gap-4 pb-8 animate-in fade-in duration-500 md:grid-cols-2 lg:grid-cols-4">
       <TacticalPanel
@@ -98,6 +102,7 @@ export function TacticalTelemetryView({
             badge={snapshot.web.status_label}
             statusKind={snapshot.web.kind}
           />
+          <TunnelServiceLine tunnel={snapshot.tunnel} onStart={startTunnel} />
         </div>
       </TacticalPanel>
 
