@@ -31,6 +31,7 @@ function stableSnapshotKey(snapshot: AppSnapshot): string {
     journal_source: snapshot.journal_source,
     matrix: snapshot.matrix,
     web: snapshot.web,
+    tunnel: snapshot.tunnel,
   })
 }
 

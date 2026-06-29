@@ -26,6 +26,10 @@ export type {
   ServiceStatusKind,
   ServiceStatusView,
   SessionView,
+  TunnelLoginResult,
+  TunnelProvider,
+  TunnelStatusKind,
+  TunnelStatusView,
   ValueDisplayNumber,
 } from "@/adapters/types"
 export { createWebDashboardAdapter } from "@/adapters/web"

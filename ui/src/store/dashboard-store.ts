@@ -6,6 +6,8 @@ import {
   type DashboardAdapterEvent,
   type DashboardAdapterUnsubscribe,
   type DashboardConnectionState,
+  type TunnelLoginResult,
+  type TunnelStatusView,
 } from "@/adapters/dashboard"
 import {
   normalizeEventFeed,
@@ -24,6 +26,9 @@ type DashboardState = {
   readonly unsubscribe: DashboardAdapterUnsubscribe | null
   readonly start: () => Promise<void>
   readonly refresh: () => Promise<void>
+  readonly refreshTunnelStatus: () => Promise<void>
+  readonly startTunnel: () => Promise<void>
+  readonly loginTunnel: (password: string) => Promise<TunnelLoginResult>
 }
 
 const initialConnection: DashboardConnectionState = {
@@ -89,6 +94,35 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       throw error
     }
   },
+  async refreshTunnelStatus() {
+    const loadTunnelStatus = get().adapter.loadTunnelStatus
+    if (loadTunnelStatus === undefined) {
+      return
+    }
+    setSnapshotTunnel(await loadTunnelStatus(), set, get)
+  },
+  async startTunnel() {
+    const startTunnel = get().adapter.startTunnel
+    if (startTunnel === undefined) {
+      return
+    }
+    setSnapshotTunnel(await startTunnel(), set, get)
+  },
+  async loginTunnel(password: string) {
+    const loginTunnel = get().adapter.loginTunnel
+    if (loginTunnel === undefined) {
+      return {
+        ok: false,
+        code: "tunnel_login_unsupported",
+        message: "Tunnel login is not available in this adapter",
+      }
+    }
+    const result = await loginTunnel(password)
+    if (result.ok) {
+      await get().refreshTunnelStatus()
+    }
+    return result
+  },
 }))
 
 function applyAdapterEvent(
@@ -133,6 +167,23 @@ function setNormalizedSnapshot(
     return
   }
   set({ snapshot: normalizedSnapshot, status: "ready" })
+}
+
+function setSnapshotTunnel(
+  tunnel: TunnelStatusView,
+  set: (state: Partial<DashboardState>) => void,
+  get: () => DashboardState,
+): void {
+  const currentSnapshot = get().snapshot
+  if (currentSnapshot === null) {
+    return
+  }
+  set({
+    snapshot: {
+      ...currentSnapshot,
+      tunnel,
+    },
+  })
 }
 
 function mergeEventFeed(

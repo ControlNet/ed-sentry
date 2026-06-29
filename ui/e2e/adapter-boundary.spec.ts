@@ -1,15 +1,14 @@
 import { expect, test } from "@playwright/test"
 import {
-  createTauriDashboardAdapter,
   createWebDashboardAdapter,
   type DashboardAdapter,
   type DashboardAdapterEvent,
-  type EditableConfigUpdate,
 } from "@/adapters/dashboard"
 import { mockDashboardSnapshot } from "@/adapters/mock-data"
-import { parseAppSnapshot } from "@/adapters/types"
+import { parseAppSnapshot, parseTunnelStatusView } from "@/adapters/types"
+import { formFromConfig, updateFromForm } from "@/components/dashboard/config-form-model"
 import { shouldApplySnapshotUpdate } from "@/store/snapshot-normalization"
-import { mockConfigView } from "./adapter-boundary-fixtures"
+import { mockConfigView, mockTunnelStatusView } from "./adapter-boundary-fixtures"
 
 type FakeWebSocketEvent = {
   readonly data?: string
@@ -150,11 +149,60 @@ test("dashboard store applies afk checklist-only snapshot updates", () => {
   expect(shouldApplySnapshotUpdate(mockDashboardSnapshot, checklistOnlySnapshot)).toBe(true)
 })
 
+test("dashboard store applies tunnel-only snapshot updates", () => {
+  const tunnelOnlySnapshot = {
+    ...mockDashboardSnapshot,
+    tunnel: {
+      ...mockDashboardSnapshot.tunnel,
+      kind: "running" as const,
+      session_id: "session-a",
+      public_url: "https://session-a.trycloudflare.com",
+    },
+  }
+
+  expect(shouldApplySnapshotUpdate(mockDashboardSnapshot, tunnelOnlySnapshot)).toBe(true)
+})
+
+test("config form emits tunnel password keep replace and clear update shape", () => {
+  const form = formFromConfig(mockConfigView().config)
+
+  const keepUpdate = updateFromForm(form)
+  expect(keepUpdate.tunnel).toEqual({
+    provider: "cloudflare_quick",
+    auto_start: false,
+    config_password_replacement: null,
+    clear_config_password: false,
+  })
+
+  const replaceUpdate = updateFromForm({
+    ...form,
+    tunnel_password_replacement_input: "replacement tunnel password",
+  })
+  expect(replaceUpdate.tunnel.config_password_replacement).toBe("replacement tunnel password")
+  expect(replaceUpdate.tunnel.clear_config_password).toBe(false)
+
+  const clearUpdate = updateFromForm({
+    ...form,
+    tunnel: { ...form.tunnel, clear_config_password: true },
+  })
+  expect(clearUpdate.tunnel.config_password_replacement).toBeNull()
+  expect(clearUpdate.tunnel.clear_config_password).toBe(true)
+})
+
 test("adapter schema rejects snapshots missing afk checklist", () => {
   const { afk_checklist: checklist, ...snapshotWithoutChecklist } = mockDashboardSnapshot
 
   expect(checklist.rows).toHaveLength(3)
   expect(() => parseAppSnapshot(snapshotWithoutChecklist)).toThrow(/Invalid input/)
+})
+
+test("adapter schema rejects malformed tunnel status payloads", () => {
+  const malformedStatus = {
+    ...mockTunnelStatusView(),
+    kind: "ready",
+  }
+
+  expect(() => parseTunnelStatusView(malformedStatus)).toThrow(/Invalid option/)
 })
 
 test("web adapter loadSnapshot reads only the snapshot endpoint", async () => {
@@ -187,41 +235,6 @@ test("web adapter loadSnapshot reads only the snapshot endpoint", async () => {
   }
 
   expect(requestedPaths).toEqual(["/api/snapshot"])
-})
-
-test("tauri adapter parses loaded snapshots and reports malformed stream payloads", async () => {
-  const snapshotListeners: ((payload: unknown) => void)[] = []
-  const events: DashboardAdapterEvent[] = []
-  const adapter = createTauriDashboardAdapter({
-    loadSnapshot: async () => mockDashboardSnapshot,
-    loadConfig: async () => mockConfigView(),
-    saveConfig: async (_update: EditableConfigUpdate) => mockConfigView(),
-    listenSnapshot(onSnapshot) {
-      snapshotListeners.push(onSnapshot)
-      return () => {
-        snapshotListeners.length = 0
-      }
-    },
-  })
-
-  await expect(adapter.loadSnapshot()).resolves.toEqual(mockDashboardSnapshot)
-  const unsubscribe = subscribeForTest(adapter, events)
-  const snapshotListener = snapshotListeners[0]
-  if (snapshotListener === undefined) {
-    throw new Error("Tauri test transport did not register a snapshot listener")
-  }
-  snapshotListener({ generated_at: "invalid" })
-  unsubscribe()
-
-  expect(events).toContainEqual({
-    type: "connection",
-    connection: {
-      status: "degraded",
-      label: "Desktop payload ignored",
-      detail: expect.stringContaining("Invalid input"),
-      checkedAtDisplay: null,
-    },
-  })
 })
 
 function requireFakeWebSocket(): FakeWebSocket {

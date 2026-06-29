@@ -96,3 +96,46 @@ export const webLanUrlMockDashboardSnapshot = {
     url: "http://192.168.50.10:8765",
   },
 } satisfies AppSnapshot
+
+export const tunnelRunningMockDashboardSnapshot = {
+  ...mockDashboardSnapshot,
+  tunnel: {
+    ...mockDashboardSnapshot.tunnel,
+    kind: "running",
+    status_label: "Running",
+    session_id: "task-9",
+    public_url: "https://task-9.trycloudflare.com/",
+  },
+} satisfies AppSnapshot
+
+export const tunnelDisabledMockDashboardSnapshot = {
+  ...mockDashboardSnapshot,
+  tunnel: {
+    ...mockDashboardSnapshot.tunnel,
+    kind: "disabled",
+    status_label: "Disabled",
+    message: "Tunnel unavailable",
+  },
+} satisfies AppSnapshot
+
+export const tunnelRetryableErrorMockDashboardSnapshot = {
+  ...mockDashboardSnapshot,
+  tunnel: {
+    ...mockDashboardSnapshot.tunnel,
+    kind: "error",
+    status_label: "Error",
+    message: "Fixture tunnel process stopped before a URL was assigned",
+    retryable_error: true,
+  },
+} satisfies AppSnapshot
+
+export const tunnelNonRetryableErrorMockDashboardSnapshot = {
+  ...mockDashboardSnapshot,
+  tunnel: {
+    ...mockDashboardSnapshot.tunnel,
+    kind: "error",
+    status_label: "Error",
+    message: "Fixture tunnel provider is unavailable",
+    retryable_error: false,
+  },
+} satisfies AppSnapshot

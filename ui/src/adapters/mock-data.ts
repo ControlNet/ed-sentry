@@ -217,4 +217,16 @@ export const mockDashboardSnapshot: AppSnapshot = {
     checked_at: "2026-06-20T14:18:00Z",
     checked_at_display: "2026-06-20T14:18:00Z",
   },
+  tunnel: {
+    kind: "start",
+    status_label: "Start",
+    provider: "cloudflare_quick",
+    provider_label: "Cloudflare Quick Tunnel",
+    session_id: null,
+    message: null,
+    public_url: null,
+    checked_at: "2026-06-20T14:18:00Z",
+    checked_at_display: "2026-06-20T14:18:00Z",
+    retryable_error: false,
+  },
 }

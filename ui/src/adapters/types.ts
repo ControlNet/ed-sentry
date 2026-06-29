@@ -1,6 +1,13 @@
 import { z } from "zod"
 import type { ConfigApiView, EditableConfigUpdate } from "@/adapters/config"
 import { configApiViewSchema, parseConfigApiView } from "@/adapters/config"
+import { tunnelStatusViewSchema } from "@/adapters/tunnel"
+import type {
+  TunnelLoginResult,
+  TunnelProvider,
+  TunnelStatusKind,
+  TunnelStatusView,
+} from "./tunnel"
 
 export const adapterModes = ["mock", "web", "tauri"] as const
 export const serviceStatusKinds = ["disabled", "starting", "running", "warning", "error"] as const
@@ -172,6 +179,7 @@ export const appSnapshotSchema = z.object({
   journal_source: journalSourceViewSchema,
   matrix: serviceStatusViewSchema,
   web: serviceStatusViewSchema,
+  tunnel: tunnelStatusViewSchema,
 })
 
 export type ValueDisplayNumber = Readonly<z.infer<typeof valueDisplayNumberSchema>>
@@ -217,6 +225,9 @@ export interface DashboardAdapter {
   loadSnapshot(): Promise<AppSnapshot>
   loadConfig(): Promise<ConfigApiView>
   saveConfig(update: EditableConfigUpdate): Promise<ConfigApiView>
+  loadTunnelStatus?(): Promise<TunnelStatusView>
+  startTunnel?(): Promise<TunnelStatusView>
+  loginTunnel?(password: string): Promise<TunnelLoginResult>
   subscribe?(onEvent: (event: DashboardAdapterEvent) => void): DashboardAdapterUnsubscribe
 }
 
@@ -234,7 +245,20 @@ export function parseAppSnapshot(payload: unknown): AppSnapshot {
   return appSnapshotSchema.parse(payload)
 }
 
-export type { ConfigApiView, EditableConfigUpdate }
+export {
+  parseTunnelStatusView,
+  tunnelProviders,
+  tunnelStatusKinds,
+  tunnelStatusViewSchema,
+} from "./tunnel"
+export type {
+  ConfigApiView,
+  EditableConfigUpdate,
+  TunnelLoginResult,
+  TunnelProvider,
+  TunnelStatusKind,
+  TunnelStatusView,
+}
 export { configApiViewSchema, parseConfigApiView }
 
 export function formatAdapterError(

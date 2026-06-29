@@ -13,12 +13,16 @@ import {
   formatAdapterError,
   parseAppSnapshot,
   parseConfigApiView,
+  parseTunnelStatusView,
+  type TunnelStatusView,
 } from "@/adapters/types"
 
 export type TauriDashboardTransport = {
   readonly loadSnapshot: () => Promise<unknown>
   readonly loadConfig: () => Promise<unknown>
   readonly saveConfig: (update: EditableConfigUpdate) => Promise<unknown>
+  readonly loadTunnelStatus?: () => Promise<unknown>
+  readonly startTunnel?: () => Promise<unknown>
   readonly listenSnapshot?: (onSnapshot: (payload: unknown) => void) => () => void
   readonly listenDashboard?: (onEvent: (payload: unknown) => void) => () => void
 }
@@ -39,6 +43,8 @@ export function createDefaultTauriDashboardAdapter(): DashboardAdapter {
     loadSnapshot: () => invoke("load_snapshot"),
     loadConfig: () => invoke("load_config"),
     saveConfig: (update) => invoke("save_config", { update }),
+    loadTunnelStatus: () => invoke("load_tunnel_status"),
+    startTunnel: () => invoke("start_tunnel"),
     listenDashboard(onEvent) {
       let active = true
       let unlisten: (() => void) | null = null
@@ -62,7 +68,9 @@ export function createDefaultTauriDashboardAdapter(): DashboardAdapter {
 }
 
 export function createTauriDashboardAdapter(transport: TauriDashboardTransport): DashboardAdapter {
-  return {
+  const loadTunnelStatus = transport.loadTunnelStatus
+  const startTunnel = transport.startTunnel
+  const adapter: DashboardAdapter = {
     mode: "tauri",
     label: "Desktop service",
     async loadSnapshot(): Promise<AppSnapshot> {
@@ -141,6 +149,44 @@ export function createTauriDashboardAdapter(transport: TauriDashboardTransport):
         }
       })
     },
+  }
+
+  return {
+    ...adapter,
+    ...(loadTunnelStatus === undefined
+      ? {}
+      : {
+          async loadTunnelStatus(): Promise<TunnelStatusView> {
+            try {
+              return parseTunnelStatusView(await loadTunnelStatus())
+            } catch (error) {
+              if (error instanceof Error) {
+                throw formatAdapterError("tauri", error)
+              }
+              throw formatTauriCommandError(
+                error,
+                "Desktop tunnel status failed with a non-Error value",
+              )
+            }
+          },
+        }),
+    ...(startTunnel === undefined
+      ? {}
+      : {
+          async startTunnel(): Promise<TunnelStatusView> {
+            try {
+              return parseTunnelStatusView(await startTunnel())
+            } catch (error) {
+              if (error instanceof Error) {
+                throw formatAdapterError("tauri", error)
+              }
+              throw formatTauriCommandError(
+                error,
+                "Desktop tunnel start failed with a non-Error value",
+              )
+            }
+          },
+        }),
   }
 }
 
