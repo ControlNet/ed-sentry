@@ -18,12 +18,14 @@ Supported now:
 - Render terminal event logs and a live status line when the output is a TTY.
 - Send watch-mode notifications to an unencrypted Matrix room when `[matrix] enabled = true` is configured.
 - Start the local WebUI dashboard in watch-capable runtimes when `[web] enabled = true` is configured.
+- Start a Cloudflare Quick Tunnel from the WebUI Service Nodes area, or automatically after WebUI startup when `[tunnel] auto_start = true`.
 - Build the shared Web/Tauri frontend under `ui/`, including the local `ed-sentry` desktop launcher entry.
 
 Out of scope for Phase 1:
 
 - Matrix command handling.
 - Discord delivery.
+- SSH, localtunnel, bore, ngrok, Tailscale, or other tunnel providers.
 - Replay inside the WebUI or desktop dashboard.
 - EDMC plugin support.
 - auto relog, key simulation, game automation, and relog scripting.
@@ -137,7 +139,7 @@ cp config.example.toml config.toml
 Only these config names are supported by this project documentation:
 
 - `config.example.toml` is committed and safe to share.
-- `config.toml` is local, gitignored, and must not be committed because it can contain your Matrix access token.
+- `config.toml` is local, gitignored, and must not be committed because it can contain your Matrix access token or tunnel config password.
 
 Config precedence is:
 
@@ -167,6 +169,19 @@ WebUI settings live in `[web]`:
 - `open_browser = false` avoids launching a browser automatically.
 - Non-localhost `host` values print a warning and continue so deliberate advanced binds are visible but do not block startup. Treat any non-loopback bind as an advanced local-network exposure and do not use it on untrusted networks.
 
+Tunnel settings live in `[tunnel]`:
+
+- `provider = "cloudflare_quick"` selects the only startable Phase 1 provider. Other provider names are reserved for future work and report unsupported when selected.
+- `auto_start = false` keeps the tunnel stopped until you press `START` in the WebUI or desktop Service Nodes `TUNNEL` row.
+- `auto_start = true` starts the tunnel only after WebUI binds successfully in watch-capable CLI or desktop runtimes. Replay mode and disabled WebUI never start the tunnel.
+- `config_password = ""` is intentionally open for remote tunnel access. With the empty default, tunnel visitors can open `SYSTEMS` and use config read/write APIs without tunnel login.
+- A non-empty `config_password` requires tunnel login before remote tunnel visitors can open `SYSTEMS` or call tunnel-host `GET /api/config` and `PUT /api/config`. Successful login stores a browser-session Bearer token tied to the active public host and session.
+- Local loopback WebUI access and desktop/Tauri access stay unchanged. They do not require tunnel login, even when `config_password` is non-empty.
+
+Manual tunnel start is available from `TELEMETRY, SERVICE NODES` as the `TUNNEL` row. `START` spawns the bundled `cloudflared` process for the current local WebUI port, then `RUNNING` shows the generated public URL and QR code. Repeated starts while a tunnel is starting or running do not create extra tunnel processes.
+
+Cloudflare Quick Tunnel creates a random `trycloudflare.com` URL without account setup. It depends on Cloudflare's public Quick Tunnel service and the bundled `cloudflared` process, so treat it as convenient remote access rather than an uptime-backed production endpoint.
+
 There is no separate CLI switch for WebUI startup. Configuration is the startup contract.
 
 Replay remains terminal-only and ignores WebUI by design. Even when `[web] enabled = true`, replay does not initialize WebUI, start a server, open a browser, or publish WebUI status.
@@ -175,8 +190,9 @@ The first milestone uses a local-first WebUI security model:
 
 - Static dashboard assets and read-only status endpoints may be served from the configured bind address.
 - Config mutation is allowed for trusted WebUI clients on the configured bind address, including deliberate non-loopback binds.
-- Config update requests are also checked against host/origin policy. Do not expose the WebUI publicly unless a later authenticated remote mode is designed.
+- Config update requests are also checked against host/origin policy. Tunnel-host config access uses the `[tunnel] config_password` behavior described above.
 - The config editor uses the same sanitized config view as the backend APIs. Matrix token values are never echoed back to the frontend; saving can keep, replace, or explicitly clear the local token without displaying the existing value.
+- Tunnel config passwords are treated the same way in config views: existing non-empty values are not echoed back, and saving can keep, replace, or clear the local value.
 
 WebUI assets are not embedded in the Rust binary in this milestone. `ed-sentry` looks for built frontend files in this order:
 
@@ -225,13 +241,13 @@ Useful local privacy scans:
 
 ```bash
 privacy_pattern='access_token\s*=\s*"[^"<][^"]{8,}"|Matrix access token'
-privacy_pattern="${privacy_pattern}:|Journal\.[0-9].*\.log|BEGIN (RSA|OPENSSH|PRIVATE) KEY"
-rg -n --hidden --glob '!target/**' --glob '!ui/node_modules/**' --glob '!ui/dist/**' --glob '!dist/**' --glob '!Cargo.lock' --glob '!src/**/tests.rs' --glob '!src/**/tests/**' "$privacy_pattern" README.md config.example.toml src ui .omo/evidence/gui-webui-tauri
-python /home/ubuntu/.codex/skills/secret-guard/scripts/scan_secrets.py tracked
-python /home/ubuntu/.codex/skills/secret-guard/scripts/scan_secrets.py gitignore
+privacy_pattern="${privacy_pattern}|config_password\s*=\s*\"[^\"<][^\"]{8,}\"|Journal\.[0-9].*\.log|BEGIN (RSA|OPENSSH|PRIVATE) KEY"
+rg -n --hidden --glob '!target/**' --glob '!ui/node_modules/**' --glob '!ui/dist/**' --glob '!dist/**' --glob '!Cargo.lock' --glob '!src/**/tests.rs' --glob '!src/**/tests/**' "$privacy_pattern" README.md config.example.toml src ui .omo/knowledges
+python ~/.config/opencode/skills/secret-guard/scripts/scan_secrets.py tracked
+python ~/.config/opencode/skills/secret-guard/scripts/scan_secrets.py gitignore
 ```
 
-The first `rg` command should exit `1` with no matches. It intentionally scans user-facing docs, production source, UI source, and evidence for raw Journal filenames and private-key/token patterns rather than the public game title, which appears in normal docs and fixture names. Synthetic parser and WebUI tests contain deliberate fake Journal filenames and fake token markers, so review them separately when changing fixtures.
+The first `rg` command should exit `1` with no matches. It intentionally scans user-facing docs, production source, UI source, and internal knowledge for raw Journal filenames plus private-key, Matrix token, and tunnel password patterns rather than the public game title, which appears in normal docs and fixture names. Synthetic parser and WebUI tests contain deliberate fake Journal filenames and fake token markers, so review them separately when changing fixtures.
 
 ## Release Artifacts
 
@@ -245,8 +261,9 @@ Each archive expands to an `ed-sentry` folder containing:
 - `ed-sentry` on Linux, or `ed-sentry.exe` on Windows.
 - `config.toml`, copied from `config.example.toml`.
 - `webui/`, copied from the current `ui/dist` build so the packaged binary can serve `/` without a repo checkout.
+- Windows GNU local packages also include `tools/cloudflared/cloudflared.exe` and `tools/cloudflared/LICENSE-cloudflared.txt` for Cloudflare Quick Tunnel support.
 
-The packaged `config.toml` is copied from the committed safe template and must be edited locally before enabling Matrix delivery or WebUI. It must not contain a real access token in git.
+The packaged `config.toml` is copied from the committed safe template and must be edited locally before enabling Matrix delivery, WebUI, or a non-empty tunnel config password. It must not contain a real access token or password in git.
 
 The release workflow installs Node with pnpm `10.30.1`, runs `pnpm --dir ui install --frozen-lockfile`, builds `ui/dist`, copies it to `ed-sentry/webui/`, and checks that `webui/index.html` exists before uploading archives. This matches the runtime asset lookup order: `ED_SENTRY_WEBUI_DIST`, sibling `webui/`, then repo-local `ui/dist`.
 
@@ -256,7 +273,9 @@ For a local Windows GNU package, run:
 scripts/package-windows-gnu.sh
 ```
 
-This rebuilds `target/x86_64-pc-windows-gnu/release/ed-sentry-core.exe`, builds `ui/src-tauri/target/x86_64-pc-windows-gnu/release/ed-sentry.exe`, builds `ui/dist`, refreshes `dist/ed-sentry/`, copies `ui/dist` to `dist/ed-sentry/webui/`, and writes `dist/ed-sentry-x86_64-pc-windows-gnu.zip` using `config.example.toml` as the packaged `config.toml`.
+This rebuilds `target/x86_64-pc-windows-gnu/release/ed-sentry-core.exe`, builds `ui/src-tauri/target/x86_64-pc-windows-gnu/release/ed-sentry.exe`, builds `ui/dist`, verifies the pinned `cloudflared` cache or download, refreshes `dist/ed-sentry/`, copies `ui/dist` to `dist/ed-sentry/webui/`, stages `tools/cloudflared/cloudflared.exe` plus `tools/cloudflared/LICENSE-cloudflared.txt`, and writes `dist/ed-sentry-x86_64-pc-windows-gnu.zip` using `config.example.toml` as the packaged `config.toml`.
+
+The Windows package script prints SHA-256 lines for the zip, `ed-sentry.exe`, `ed-sentry-core.exe`, `webui/index.html`, `WebView2Loader.dll`, and `tools/cloudflared/cloudflared.exe`.
 
 Desktop GUI artifacts are not published by CI in this first milestone. Build `ed-sentry` locally with:
 

@@ -13,3 +13,9 @@ Tauri packaging/release upload for each supported OS.
 The tag release workflow publishes CLI/WebUI archives only. Those archives build
 `ui/dist` and place it in `webui/` beside the packaged `ed-sentry` executable so
 the phase-one non-embedded asset lookup works without a repo checkout.
+
+The local Windows GNU package includes Cloudflare Quick Tunnel support at
+`ed-sentry/tools/cloudflared/cloudflared.exe` with the Apache-2.0 license staged
+beside it as `ed-sentry/tools/cloudflared/LICENSE-cloudflared.txt`. Desktop
+Tauri tunnel start and config save paths stay local native commands, so they do
+not require tunnel login or browser Bearer tokens.
