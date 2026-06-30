@@ -4,7 +4,8 @@ use super::{is_loopback_host, is_wildcard_bind_host};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RequestHost {
-    LocalOrBind,
+    LocalLoopback,
+    Bind,
     Tunnel,
 }
 
@@ -13,20 +14,19 @@ pub(super) fn classify_host(
     bind_host: &str,
     active_tunnel: Option<&ActiveTunnel>,
 ) -> Option<RequestHost> {
-    if bind_host_allowed(host, bind_host) {
-        return Some(RequestHost::LocalOrBind);
+    if is_loopback_host(host) {
+        return Some(RequestHost::LocalLoopback);
+    }
+    if host == bind_host {
+        return Some(RequestHost::Bind);
     }
     if active_tunnel.is_some_and(|active| host == active.host()) {
         return Some(RequestHost::Tunnel);
     }
     if wildcard_host_allowed(host, bind_host) {
-        return Some(RequestHost::LocalOrBind);
+        return Some(RequestHost::Bind);
     }
     None
-}
-
-fn bind_host_allowed(host: &str, bind_host: &str) -> bool {
-    host == bind_host || (is_loopback_host(bind_host) && is_loopback_host(host))
 }
 
 fn wildcard_host_allowed(host: &str, bind_host: &str) -> bool {

@@ -15,8 +15,8 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::services::ServeDir;
 
 use crate::app::{
-    AppEventStore, AppSnapshot, ConfigEndpointPolicy, EventFeedItem, MatrixStartupStatus,
-    MatrixStatusView, WebStartupStatus, WebStatusView,
+    AppEventStore, AppSnapshot, ConfigEndpointPolicy, EventFeedItem, JournalSourceView,
+    MatrixStartupStatus, MatrixStatusView, WebStartupStatus, WebStatusView,
 };
 use crate::config::{ConfigSource, RuntimeConfig};
 use crate::web::tunnel_state::WebTunnelState;
@@ -132,8 +132,9 @@ async fn snapshot(
     State(state): State<WebApiState>,
     headers: HeaderMap,
 ) -> Result<Json<SnapshotApiView>, WebErrorResponse> {
-    validate_host(&state, &headers).await?;
+    let surface = validate_host(&state, &headers).await?;
     let snapshot = state.events.subscribe().bootstrap.snapshot;
+    let snapshot = snapshot_for_surface(snapshot, &state, surface).await;
     Ok(Json(SnapshotApiView {
         events: snapshot.event_feed.clone(),
         snapshot,
@@ -201,6 +202,30 @@ pub(super) async fn validate_host(
         return Ok(surface);
     }
     Err(forbidden("host_rejected", "Host header is not trusted"))
+}
+
+pub(super) async fn snapshot_for_surface(
+    snapshot: AppSnapshot,
+    state: &WebApiState,
+    surface: RequestHost,
+) -> AppSnapshot {
+    if surface == RequestHost::LocalLoopback {
+        return snapshot;
+    }
+    let config = state.config.read().await;
+    redact_journal_folder(snapshot, &config)
+}
+
+fn redact_journal_folder(mut snapshot: AppSnapshot, config: &RuntimeConfig) -> AppSnapshot {
+    snapshot.journal_source = JournalSourceView {
+        folder: if config.journal.folder.is_empty() {
+            "Default journal folder".to_string()
+        } else {
+            "Configured journal folder".to_string()
+        },
+        ..snapshot.journal_source
+    };
+    snapshot
 }
 
 fn host_without_port(host: &str) -> &str {

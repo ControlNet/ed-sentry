@@ -53,7 +53,7 @@ async fn authorize_config_access(
     headers: &HeaderMap,
 ) -> Result<(), WebErrorResponse> {
     let surface = validate_host(state, headers).await?;
-    if surface == RequestHost::LocalOrBind {
+    if surface != RequestHost::Tunnel {
         return Ok(());
     }
     let config = state.config.read().await;
