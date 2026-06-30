@@ -40,11 +40,11 @@ export function missionProgressPercent(progress: MissionProgressView): number {
 }
 
 export function sourceDetail(folder: string, selectedFile: string | null | undefined): string {
-  const safeFolder = safeJournalFolder(folder)
+  const safeFolder = displaySafeText(folder)
   if (selectedFile === null || selectedFile === undefined) {
     return safeFolder
   }
-  return `${safeFolder} / Selected Journal file`
+  return joinJournalPath(safeFolder, displaySafeText(selectedFile))
 }
 
 export function statusTextClass(kind: ServiceStatusKind): string {
@@ -84,11 +84,7 @@ export function assertNever(value: never): never {
 }
 
 export function lineSafeText(value: string): string {
-  return Array.from(value, displaySafeCharacter)
-    .join("")
-    .replaceAll(/Journal\.[^\s/\\]+\.log/g, "Selected Journal file")
-    .replaceAll(/\s{2,}/g, " ")
-    .trim()
+  return displaySafeText(value).replaceAll(/Journal\.[^\s/\\]+\.log/g, "Selected Journal file")
 }
 
 export function fuelSummary(events: readonly EventFeedItem[]): string {
@@ -168,10 +164,27 @@ function isStatusGlyph(codePoint: number, character: string): boolean {
   )
 }
 
-function safeJournalFolder(folder: string): string {
-  const normalized = lineSafeText(folder)
-  if (normalized.startsWith("/") || /^[A-Za-z]:[\\/]/.test(normalized)) {
-    return "Configured journal folder"
+export function displaySafeText(value: string): string {
+  return Array.from(value, displaySafeCharacter)
+    .join("")
+    .replaceAll(/\s{2,}/g, " ")
+    .trim()
+}
+
+function joinJournalPath(folder: string, selectedFile: string): string {
+  if (folder === "") {
+    return selectedFile
   }
-  return normalized
+  if (folder === ".") {
+    return `.${pathSeparator(selectedFile)}${selectedFile}`
+  }
+  const separator = pathSeparator(folder)
+  if (folder.endsWith("/") || folder.endsWith("\\")) {
+    return `${folder}${selectedFile}`
+  }
+  return `${folder}${separator}${selectedFile}`
+}
+
+function pathSeparator(path: string): "/" | "\\" {
+  return /^[A-Za-z]:\\/.test(path) || path.includes("\\") ? "\\" : "/"
 }

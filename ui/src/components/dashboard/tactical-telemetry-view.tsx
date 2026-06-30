@@ -85,7 +85,9 @@ export function TacticalTelemetryView({
           <ServiceLine
             icon={Activity}
             label="Matrix Relay"
-            detail={snapshot.matrix.message ?? snapshot.matrix.status_label}
+            detail={
+              snapshot.matrix.room_id ?? snapshot.matrix.message ?? snapshot.matrix.status_label
+            }
             badge={snapshot.matrix.status_label}
             statusKind={snapshot.matrix.kind}
           />

@@ -64,6 +64,7 @@ export const serviceStatusesMockDashboardSnapshot = {
     kind: "running",
     status_label: "Running",
     message: "Matrix relay connected",
+    room_id: "#ed-sentry:example.org",
   },
   web: {
     ...mockDashboardSnapshot.web,

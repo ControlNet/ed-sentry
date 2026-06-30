@@ -1,6 +1,11 @@
 import type { Activity } from "lucide-react"
 import type { AppSnapshot, ServiceStatusKind } from "@/adapters/dashboard"
-import { lineSafeText, serviceStatusBadgeTone, sourceDetail } from "./dashboard-helpers"
+import {
+  displaySafeText,
+  lineSafeText,
+  serviceStatusBadgeTone,
+  sourceDetail,
+} from "./dashboard-helpers"
 import { ProgressBar, TacticalBadge } from "./tactical-ui"
 
 export function Meter({
@@ -51,6 +56,7 @@ export function ServiceLine({
   label,
   detail,
   detailHref,
+  redactJournalFileName = true,
   badge,
   statusKind,
 }: {
@@ -58,10 +64,11 @@ export function ServiceLine({
   readonly label: string
   readonly detail: string
   readonly detailHref?: string | null | undefined
+  readonly redactJournalFileName?: boolean
   readonly badge: string
   readonly statusKind: ServiceStatusKind
 }): React.JSX.Element {
-  const detailText = lineSafeText(detail)
+  const detailText = redactJournalFileName ? lineSafeText(detail) : displaySafeText(detail)
   return (
     <div
       className="flex items-start justify-between gap-3"
@@ -103,6 +110,7 @@ export function JournalServiceLine({
       icon={icon}
       label="Local Journal"
       detail={sourceDetail(snapshot.journal_source.folder, snapshot.journal_source.selected_file)}
+      redactJournalFileName={false}
       badge={snapshot.journal_source.status_label}
       statusKind={journalStatusKind(snapshot.journal_source.status_label)}
     />

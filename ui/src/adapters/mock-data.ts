@@ -195,7 +195,7 @@ export const mockDashboardSnapshot: AppSnapshot = {
     folder: "Sanitized Journal source",
     selected_file: "Journal.sanitized.01.log",
     recent_files: 3,
-    status_label: "Watching",
+    status_label: "Running",
   },
   matrix: {
     kind: "disabled",

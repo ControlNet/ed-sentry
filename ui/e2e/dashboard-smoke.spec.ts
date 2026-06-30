@@ -143,14 +143,15 @@ test("@event-feed keeps long history bounded and newest first", async ({ page })
   await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/event-feed-long-bounded.png")
 })
 
-test("@privacy redacts absolute Journal source details in service nodes", async ({ page }) => {
+test("@service-nodes shows absolute Journal source details in service nodes", async ({ page }) => {
   await page.goto("/?mock_state=private_path")
 
   const serviceNodes = page.getByRole("region", { name: "Service Nodes" })
-  await expect(serviceNodes).toContainText("Configured journal folder")
-  await expect(serviceNodes).toContainText("Selected Journal file")
-  await expect(serviceNodes).not.toContainText("private-journal-root")
-  await expect(serviceNodes).not.toContainText("Journal.private")
+  await expect(serviceNodes).toContainText(
+    "/home/private-journal-root/Elite Dangerous/Journal.private.2036-01-02.log",
+  )
+  await expect(serviceNodes).not.toContainText("Default journal folder")
+  await expect(serviceNodes).not.toContainText("Selected Journal file")
 })
 
 test("@service-nodes expose unified semantic status encoding", async ({ page }) => {
@@ -164,6 +165,9 @@ test("@service-nodes expose unified semantic status encoding", async ({ page }) 
   await expect(serviceNodes.locator("[data-service-node='Matrix Relay']")).toHaveAttribute(
     "data-status-kind",
     "running",
+  )
+  await expect(serviceNodes.locator("[data-service-node='Matrix Relay']")).toContainText(
+    "#ed-sentry:example.org",
   )
   await expect(serviceNodes.locator("[data-service-node='Web Interface']")).toHaveAttribute(
     "data-status-kind",
