@@ -1,0 +1,3 @@
+SERVICE NODES should expose runtime details, not privacy placeholders: Local Journal shows the full selected Journal file path and `Running` status for local/loopback viewers, while Matrix Relay detail prefers the configured `room_id` alias/ID before message/status fallback.
+
+Path display remains line-safe for control characters, but the Local Journal service node intentionally preserves the absolute path because this panel is an operator runtime surface. Loopback hosts such as `localhost` and `127.0.0.1` must receive this local view even when WebUI is bound to `0.0.0.0`; remote bind hosts and tunnel hosts keep the redacted folder placeholder in snapshot/WebSocket payloads.
