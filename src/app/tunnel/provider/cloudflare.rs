@@ -122,6 +122,13 @@ impl CloudflareQuickTunnelProvider {
 
     pub fn refresh(&mut self, now: DateTime<Utc>) -> TunnelStatus {
         let Some(child) = self.child.as_mut() else {
+            if self.status.kind == TunnelStatusKind::Starting {
+                self.status = TunnelStatus::retryable_error(
+                    TunnelProvider::CloudflareQuick,
+                    "cloudflared start was interrupted before URL was reported",
+                    now,
+                );
+            }
             return self.status.clone();
         };
         match child.try_wait() {

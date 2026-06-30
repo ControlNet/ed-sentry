@@ -133,6 +133,29 @@ async fn tunnel_provider_reports_retryable_error_when_no_url_arrives_before_time
 }
 
 #[tokio::test]
+async fn tunnel_provider_does_not_keep_starting_when_start_future_is_cancelled() {
+    let _guard = lock_cloudflared_process_test().await;
+
+    // Given: a fake cloudflared executable that starts but never reports a tunnel URL.
+    let temp = TempDir::new().unwrap();
+    let fake = fake_cloudflared(temp.path(), "sleep 30");
+    let mut provider = provider_with_fake(fake);
+
+    // When: the start future is cancelled like a browser refresh aborting /api/tunnel/start.
+    let cancelled = tokio::time::timeout(
+        Duration::from_millis(100),
+        provider.start_for_port(Some(8765), fixture_time()),
+    )
+    .await;
+    assert!(cancelled.is_err());
+    let refreshed = provider.refresh(fixture_time());
+
+    // Then: the provider can be retried instead of remaining STARTING forever with no child.
+    assert_ne!(refreshed.kind, TunnelStatusKind::Starting);
+    assert!(provider.active_tunnel().is_none());
+}
+
+#[tokio::test]
 async fn tunnel_provider_reports_retryable_error_when_child_exits_before_url() {
     let _guard = lock_cloudflared_process_test().await;
 
