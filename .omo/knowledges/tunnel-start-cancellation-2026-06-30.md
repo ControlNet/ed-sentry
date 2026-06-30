@@ -1,0 +1,3 @@
+Tunnel START can stick at STARTING if `/api/tunnel/start` is cancelled while `CloudflareQuickTunnelProvider::start_for_port()` is awaiting the cloudflared URL. The provider had already persisted `TunnelStatusKind::Starting`, but the local child process had not yet been assigned into `self.child`; dropping the future left status as STARTING with no child for `refresh()` to observe.
+
+Regression coverage: `tests/tunnel_provider.rs::tunnel_provider_does_not_keep_starting_when_start_future_is_cancelled` wraps `start_for_port()` in a short `tokio::time::timeout()` to simulate browser refresh/request abort. The fix makes `CloudflareQuickTunnelProvider::refresh()` convert no-child STARTING into a retryable error so the next START can retry instead of staying stuck.
