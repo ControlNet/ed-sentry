@@ -14,7 +14,7 @@ use crate::support::{
 const FIRST_TUNNEL_HOST: &str = "fixture.trycloudflare.com";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn webui_websocket_hello_redacts_configured_journal_folder_path() {
+async fn webui_websocket_hello_exposes_configured_journal_folder_path() {
     let _env = env_lock().await;
     let temp_dir = tempfile::tempdir().unwrap();
     let dist = tempfile::tempdir().unwrap();
@@ -36,14 +36,18 @@ async fn webui_websocket_hello_redacts_configured_journal_folder_path() {
 
     let raw_journal_dir = journal_dir.to_string_lossy();
     let raw_temp_root = temp_dir.path().to_string_lossy();
-    assert!(!hello.contains(raw_journal_dir.as_ref()), "{hello}");
-    assert!(!hello.contains(raw_temp_root.as_ref()), "{hello}");
+    assert!(hello.contains(raw_journal_dir.as_ref()), "{hello}");
+    assert!(hello.contains(raw_temp_root.as_ref()), "{hello}");
     let hello_json: Value = serde_json::from_str(&hello).unwrap();
     assert_eq!(hello_json["type"], "hello");
     assert_eq!(hello_json["version"], 1);
     assert_eq!(
         hello_json["snapshot"]["journal_source"]["folder"],
-        Value::String("Configured journal folder".to_string())
+        Value::String(raw_journal_dir.to_string())
+    );
+    assert_eq!(
+        hello_json["snapshot"]["journal_source"]["status_label"],
+        Value::String("Running".to_string())
     );
     assert_eq!(
         hello_json["snapshot"]["journal_source"]["selected_file"],
@@ -155,9 +159,15 @@ async fn tunnel_websocket_accepts_active_tunnel_host_without_bearer_token() {
     let (mut socket, _) = tokio_tungstenite::connect_async(request).await.unwrap();
     let hello = socket.next().await.unwrap().unwrap().into_text().unwrap();
 
+    let raw_temp_root = temp_dir.path().to_string_lossy();
+    assert!(!hello.contains(raw_temp_root.as_ref()), "{hello}");
     let hello_json: Value = serde_json::from_str(&hello).unwrap();
     assert_eq!(hello_json["type"], "hello");
     assert_eq!(hello_json["version"], 1);
+    assert_eq!(
+        hello_json["snapshot"]["journal_source"]["folder"],
+        Value::String("Configured journal folder".to_string())
+    );
     assert!(hello_json.get("event_feed").is_some(), "{hello_json}");
     std::env::remove_var("ED_SENTRY_CLOUDFLARED_PATH");
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");

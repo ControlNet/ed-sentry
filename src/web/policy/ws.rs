@@ -11,7 +11,9 @@ use serde::Serialize;
 use crate::app::{AppLiveUpdate, AppSnapshot, EventFeedItem};
 use crate::text::line_safe;
 
-use super::{validate_host, WebApiState, WebErrorBody, WebErrorResponse};
+use super::{
+    snapshot_for_surface, validate_host, RequestHost, WebApiState, WebErrorBody, WebErrorResponse,
+};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -40,15 +42,16 @@ pub(super) async fn websocket(
     headers: HeaderMap,
     upgrade: WebSocketUpgrade,
 ) -> Result<Response, WebErrorResponse> {
-    validate_host(&state, &headers).await?;
-    Ok(upgrade.on_upgrade(move |socket| websocket_session(socket, state)))
+    let surface = validate_host(&state, &headers).await?;
+    Ok(upgrade.on_upgrade(move |socket| websocket_session(socket, state, surface)))
 }
 
-async fn websocket_session(mut socket: WebSocket, state: WebApiState) {
+async fn websocket_session(mut socket: WebSocket, state: WebApiState, surface: RequestHost) {
     let subscriber = state.events.subscribe();
+    let snapshot = snapshot_for_surface(subscriber.bootstrap.snapshot, &state, surface).await;
     let hello = WebSocketEnvelope::Hello {
         version: 1,
-        snapshot: subscriber.bootstrap.snapshot,
+        snapshot,
         event_feed: subscriber.bootstrap.recent_events,
     };
     if send_envelope(&mut socket, &hello).await.is_err() {
@@ -74,10 +77,13 @@ async fn websocket_session(mut socket: WebSocket, state: WebApiState) {
 
     while let Some(update) = receiver.recv().await {
         let envelope = match update {
-            AppLiveUpdate::Snapshot { snapshot } => WebSocketEnvelope::Snapshot {
-                version: 1,
-                snapshot: *snapshot,
-            },
+            AppLiveUpdate::Snapshot { snapshot } => {
+                let snapshot = snapshot_for_surface(*snapshot, &state, surface).await;
+                WebSocketEnvelope::Snapshot {
+                    version: 1,
+                    snapshot,
+                }
+            }
             AppLiveUpdate::Event { item } => WebSocketEnvelope::Event { version: 1, item },
         };
         if send_envelope(&mut socket, &envelope).await.is_err() {
