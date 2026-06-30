@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use crate::app::{feed::selected_file_display, AppSnapshot, JournalSourceView};
 use crate::text::line_safe;
 
-use super::super::paths::snapshot_journal_folder_display;
+use super::super::paths::journal_folder_display;
 use super::MonitorRuntime;
 
 pub(super) fn runtime_snapshot(runtime: &MonitorRuntime, now: DateTime<Utc>) -> AppSnapshot {
@@ -21,10 +21,10 @@ pub(super) fn runtime_snapshot(runtime: &MonitorRuntime, now: DateTime<Utc>) -> 
     snapshot.session.mode = snapshot.session.mode.map(|value| line_safe(&value));
     snapshot.afk_checklist = runtime.afk_checklist.to_view();
     snapshot.journal_source = JournalSourceView {
-        folder: snapshot_journal_folder_display(&runtime.config),
+        folder: journal_folder_display(&runtime.startup.journal_file),
         selected_file: Some(selected_file_display(&runtime.startup.journal_file)),
         recent_files: runtime.config.journal.recent_files,
-        status_label: "Tailing".to_string(),
+        status_label: "Running".to_string(),
     };
     runtime.events.snapshot_with_history(snapshot)
 }

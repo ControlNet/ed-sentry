@@ -25,12 +25,12 @@ pub fn watch_journal_folder_display(config: &RuntimeConfig) -> String {
         .unwrap_or_else(|_| "<Windows Saved Games known folder unavailable>".to_string())
 }
 
-pub fn snapshot_journal_folder_display(config: &RuntimeConfig) -> String {
-    if config.journal.folder.is_empty() {
-        "Default journal folder".to_string()
-    } else {
-        "Configured journal folder".to_string()
-    }
+pub fn journal_folder_display(path: &Path) -> String {
+    path.parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+        .display()
+        .to_string()
 }
 
 pub fn matrix_validation_reason(warning: &str) -> String {
@@ -68,4 +68,15 @@ pub fn startup_commander(records: &[PreloadRecord<JournalEvent>]) -> Option<Stri
             JournalEvent::LoadGame(event) => event.commander.clone(),
             _ => None,
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::journal_folder_display;
+    use std::path::Path;
+
+    #[test]
+    fn journal_folder_display_uses_current_directory_for_bare_relative_file() {
+        assert_eq!(journal_folder_display(Path::new("Journal.log")), ".");
+    }
 }

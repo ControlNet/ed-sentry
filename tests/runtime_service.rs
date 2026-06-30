@@ -99,9 +99,21 @@ fn runtime_service_emits_sanitized_snapshot_and_notifications_from_fixture() {
             configured_source.selected_file
         ));
     }
+    if snapshot.journal_source.folder != temp_dir.path().display().to_string() {
+        violations.push(format!(
+            "snapshot journal folder did not expose actual read folder: {:?}",
+            snapshot.journal_source.folder
+        ));
+    }
+    if snapshot.journal_source.status_label != "Running" {
+        violations.push(format!(
+            "snapshot journal source status was not running: {:?}",
+            snapshot.journal_source.status_label
+        ));
+    }
     if json.contains(full_path.as_ref()) {
         violations.push(format!(
-            "snapshot JSON contains full Journal path: {full_path}"
+            "snapshot JSON contains full Journal file path: {full_path}"
         ));
     }
     if mission.display_name != "Clean massacre [2K" {
