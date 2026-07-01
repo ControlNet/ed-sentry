@@ -16,13 +16,13 @@ fn cli_config_cli_overrides_toml_file() {
         format!(
             r#"
         [journal]
-        folder = "{}"
+        folder = {:?}
 
         [monitor]
         live_status = true
         poll_interval_ms = 1500
         "#,
-            config_dir.path().display()
+            config_dir.path().display().to_string()
         ),
     )
     .unwrap();
@@ -69,12 +69,12 @@ fn cli_config_implicit_config_toml_loads_when_config_flag_absent() {
         format!(
             r#"
             [journal]
-            folder = "{}"
+            folder = {:?}
 
             [monitor]
             poll_interval_ms = 200
             "#,
-            journal_dir.path().display()
+            journal_dir.path().display().to_string()
         ),
     )
     .unwrap();
