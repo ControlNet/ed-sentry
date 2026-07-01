@@ -6,6 +6,7 @@ import {
   serviceStatusBadgeTone,
   sourceDetail,
 } from "./dashboard-helpers"
+import { handleExternalLinkClick } from "./external-link"
 import { ProgressBar, TacticalBadge } from "./tactical-ui"
 
 export function Meter({
@@ -87,6 +88,9 @@ export function ServiceLine({
             <a
               className="text-data-scan underline-offset-2 transition-colors hover:text-orange-300 hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-orange-400"
               href={detailHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleExternalLinkClick}
             >
               {detailText}
             </a>

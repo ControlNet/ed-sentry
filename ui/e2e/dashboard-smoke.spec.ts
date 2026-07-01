@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test"
 test("dashboard scaffold renders monitor state when mock adapter is active", async ({ page }) => {
   await page.goto("/")
 
-  await expect(page.getByRole("button", { name: /Telemetry/u })).toBeVisible()
+  await expect(page.getByRole("button", { name: /Dashboard/u })).toBeVisible()
   await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Telemetry Link" })).toContainText(
     "Local Commander",
@@ -183,6 +183,8 @@ test("@service-nodes renders Web Interface URL as a clickable link", async ({ pa
 
   await expect(webLink).toBeVisible()
   await expect(webLink).toHaveAttribute("href", "http://localhost:8765")
+  await expect(webLink).toHaveAttribute("target", "_blank")
+  await expect(webLink).toHaveAttribute("rel", "noopener noreferrer")
 
   await page.goto("/?mock_state=web_lan_url")
   const lanLink = page
@@ -191,6 +193,72 @@ test("@service-nodes renders Web Interface URL as a clickable link", async ({ pa
 
   await expect(lanLink).toBeVisible()
   await expect(lanLink).toHaveAttribute("href", "http://192.168.50.10:8765")
+  await expect(lanLink).toHaveAttribute("target", "_blank")
+  await expect(lanLink).toHaveAttribute("rel", "noopener noreferrer")
+})
+
+test("@about workspace renders project information and compliance links", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: /About/u }).click()
+
+  await expect(page.getByRole("heading", { name: "About Interface" })).toBeVisible()
+  await expect(page.locator("main").getByRole("heading", { name: "ed-sentry" })).toBeVisible()
+  await expect(page.locator("body")).toContainText("Elite Dangerous AFK Sentry")
+  await expect(page.getByRole("region", { name: "System Information" })).toContainText(
+    /0\.1\.0-\d{8}/u,
+  )
+  await expect(page.getByRole("region", { name: "System Information" })).toContainText(
+    "GNU Affero General Public License v3.0",
+  )
+  await expect(page.getByRole("link", { name: "CMDR ControlNet" })).toHaveAttribute(
+    "href",
+    "https://inara.cz/elite/cmdr/78197/",
+  )
+  await expect(page.getByRole("link", { name: "CMDR ControlNet" })).toHaveAttribute(
+    "target",
+    "_blank",
+  )
+  await expect(page.getByRole("link", { name: /Source Repository/u })).toHaveAttribute(
+    "href",
+    "https://github.com/ControlNet/ed-sentry",
+  )
+  await expect(page.getByRole("link", { name: /Source Repository/u })).toHaveAttribute(
+    "target",
+    "_blank",
+  )
+  await expect(page.getByRole("region", { name: "Legal & Compliance" })).toContainText(
+    "Unofficial Software",
+  )
+
+  await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/about-workspace.png")
+})
+
+test("@about workspace remains usable on mobile", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.goto("/")
+  await page.getByRole("button", { name: /About/u }).click()
+
+  await expect(page.getByRole("heading", { name: "About Interface" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "System Information" })).toBeVisible()
+  await expect(page.locator("body")).toContainText("Elite Dangerous AFK Sentry")
+})
+
+test("@header status indicator shrinks to content width", async ({ page }) => {
+  await page.goto("/")
+
+  const statusWidth = await page
+    .locator("[data-titlebar-drag-region='status']")
+    .evaluate((element) => element.getBoundingClientRect().width)
+  expect(statusWidth).toBeLessThanOrEqual(96)
+})
+
+test("@about workspace preserves telemetry navigation", async ({ page }) => {
+  await page.goto("/")
+  await page.getByRole("button", { name: /About/u }).click()
+  await page.getByRole("button", { name: /Dashboard/u }).click()
+
+  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Service Nodes" })).toBeVisible()
 })
 
 test("@connection-status reflects degraded live transport state", async ({ page }) => {
@@ -261,7 +329,7 @@ test("@config-edit saves a non-secret setting and reloads the config view", asyn
   await expect(page.getByText("Autosave pending")).toBeVisible()
   await expect(page.getByText("All changes saved")).toBeVisible()
 
-  await page.getByRole("button", { name: "Telemetry" }).click()
+  await page.getByRole("button", { name: "Dashboard" }).click()
   await page.getByRole("button", { name: /Systems/u }).click()
   await expect(page.getByRole("spinbutton", { name: "Port", exact: true })).toHaveValue("4273")
 
@@ -278,7 +346,7 @@ test("@config-edit allows clearing Journal folder to use the default", async ({ 
   await expect(page.getByText("Autosave pending")).toBeVisible()
   await expect(page.getByText("All changes saved")).toBeVisible()
 
-  await page.getByRole("button", { name: "Telemetry" }).click()
+  await page.getByRole("button", { name: "Dashboard" }).click()
   await page.getByRole("button", { name: /Systems/u }).click()
   await expect(page.getByRole("textbox", { name: "Journal folder" })).toHaveValue("")
 })

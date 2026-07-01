@@ -14,6 +14,8 @@ test("@tunnel-service renders running link and QR on hover and keyboard focus", 
   await expect(tunnel).toContainText("RUNNING")
   await expect(tunnelLink).toBeVisible()
   await expect(tunnelLink).toHaveAttribute("href", "https://task-9.trycloudflare.com/")
+  await expect(tunnelLink).toHaveAttribute("target", "_blank")
+  await expect(tunnelLink).toHaveAttribute("rel", "noopener noreferrer")
   await expect(tunnelQr).toBeHidden()
 
   await tunnelLink.hover()

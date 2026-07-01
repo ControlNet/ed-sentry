@@ -3,6 +3,7 @@ import { useRef, useState } from "react"
 import type { TunnelStatusKind, TunnelStatusView } from "@/adapters/dashboard"
 import { cn } from "@/lib/utils"
 import { lineSafeText } from "./dashboard-helpers"
+import { handleExternalLinkClick } from "./external-link"
 import { TacticalBadge, type TacticalBadgeTone } from "./tactical-ui"
 import { TunnelLinkQr } from "./tunnel-link-qr"
 
@@ -49,6 +50,9 @@ export function TunnelServiceLine({ tunnel, onStart }: TunnelServiceLineProps): 
               ref={tunnelLinkRef}
               className="block truncate font-mono text-[8px] text-data-scan underline-offset-2 transition-colors hover:text-tactical hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleExternalLinkClick}
               onBlur={() => setQrVisible(false)}
               onFocus={() => setQrVisible(true)}
               onPointerEnter={() => setQrVisible(true)}

@@ -5,6 +5,7 @@ mod state;
 use std::sync::Arc;
 
 use tauri::{Manager, State};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::app::{AppSnapshot, ConfigApiView, EditableConfigUpdate, TunnelStatusView};
 
@@ -71,6 +72,19 @@ async fn save_config(
     load_config(state).await
 }
 
+#[tauri::command]
+fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    let parsed_url =
+        url::Url::parse(&url).map_err(|error| format!("Invalid external URL: {error}"))?;
+    match parsed_url.scheme() {
+        "http" | "https" => {}
+        _ => return Err("External URL must use http or https".to_string()),
+    }
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|error| format!("Failed to open external URL: {error}"))
+}
+
 async fn desktop_runtime(
     state: State<'_, Arc<DesktopState>>,
 ) -> Result<Arc<crate::app::runtime::DesktopRuntime>, String> {
@@ -90,6 +104,7 @@ async fn desktop_runtime(
 
 pub fn run() -> tauri::Result<()> {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let app_config_dir = app.path().app_config_dir().map_err(|_error| {
                 Box::<dyn std::error::Error>::from("Config directory could not be resolved")
@@ -113,7 +128,8 @@ pub fn run() -> tauri::Result<()> {
             load_config,
             load_tunnel_status,
             start_tunnel,
-            save_config
+            save_config,
+            open_external_url
         ])
         .run(tauri::generate_context!("ui/src-tauri/tauri.conf.json"))
 }

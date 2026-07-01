@@ -1,8 +1,9 @@
 import type { LucideIcon } from "lucide-react"
-import { Activity, EyeOff, List, Minus, Settings, Square, Terminal, X } from "lucide-react"
+import { Activity, EyeOff, Info, List, Minus, Settings, Square, Terminal, X } from "lucide-react"
 import { useState } from "react"
 import type { AppSnapshot, DashboardAdapter, DashboardConnectionState } from "@/adapters/dashboard"
 import { cn } from "@/lib/utils"
+import { TacticalAboutView } from "./tactical-about-view"
 import { TacticalEventsView } from "./tactical-events-view"
 import { TacticalMissionsView } from "./tactical-missions-view"
 import { TacticalSystemsView } from "./tactical-systems-view"
@@ -16,12 +17,12 @@ type DashboardShellProps = {
   readonly onRefresh: () => void
 }
 
-type WorkspaceTab = "dashboard" | "missions" | "events" | "config"
+type WorkspaceTab = "dashboard" | "missions" | "events" | "config" | "about"
 
 const workspaceTabs = [
   {
     id: "dashboard",
-    label: "Telemetry",
+    label: "Dashboard",
     icon: Activity,
     title: "Telemetry Interface",
   },
@@ -42,6 +43,12 @@ const workspaceTabs = [
     label: "Systems",
     icon: Settings,
     title: "Config Interface",
+  },
+  {
+    id: "about",
+    label: "About",
+    icon: Info,
+    title: "About Interface",
   },
 ] as const satisfies readonly {
   readonly id: WorkspaceTab
@@ -132,7 +139,7 @@ export function DashboardShell({
           </nav>
 
           <div
-            className="flex w-auto shrink-0 items-center justify-end gap-3 md:w-48"
+            className="flex w-auto shrink-0 items-center justify-end gap-3"
             data-tauri-drag-region={tauriDragRegion}
             data-titlebar-drag-region="status"
           >
@@ -351,6 +358,8 @@ function renderWorkspace(
       return <TacticalEventsView snapshot={snapshot} />
     case "config":
       return <TacticalSystemsView adapter={adapter} />
+    case "about":
+      return <TacticalAboutView />
     default:
       return assertNever(activeTab)
   }
