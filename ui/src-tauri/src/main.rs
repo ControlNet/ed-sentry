@@ -38,11 +38,10 @@ fn configure_gui_command(command: &mut Command) {
 fn configure_gui_command(_command: &mut Command) {}
 
 fn backend_exe_path(current_exe: &Path) -> PathBuf {
-    current_exe
-        .parent()
-        .map_or_else(|| PathBuf::from(backend_exe_name()), |dir| {
-            dir.join(backend_exe_name())
-        })
+    current_exe.parent().map_or_else(
+        || PathBuf::from(backend_exe_name()),
+        |dir| dir.join(backend_exe_name()),
+    )
 }
 
 #[cfg(windows)]

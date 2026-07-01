@@ -55,6 +55,19 @@ sha256_hex() {
     printf '%s' "${output%% *}"
 }
 
+verify_windows_icon_resource() {
+    local exe_path="$1"
+    local resource_entry=""
+    local resource_size=""
+
+    resource_entry=$(x86_64-w64-mingw32-objdump -x "$exe_path" | grep 'Resource Directory \[.rsrc\]' || true)
+    resource_size=$(printf '%s' "$resource_entry" | awk '{ print $4 }')
+    if [[ -z "$resource_entry" || -z "$resource_size" || "$resource_size" == "00000000" ]]; then
+        printf 'Expected Windows icon resources in GUI binary: %s\n' "$exe_path" >&2
+        return 1
+    fi
+}
+
 ensure_cloudflared_cached() {
     local url=""
     local expected_hash=""
@@ -172,6 +185,7 @@ require_command cargo
 require_command pnpm
 require_command zip
 require_command sha256sum
+require_command x86_64-w64-mingw32-objdump
 
 cd "$REPO_ROOT"
 
@@ -201,6 +215,7 @@ if [[ ! -f "$GUI_EXE_PATH" ]]; then
     printf 'Expected GUI binary was not produced: %s\n' "$GUI_EXE_PATH" >&2
     exit 1
 fi
+verify_windows_icon_resource "$GUI_EXE_PATH"
 
 if [[ -z "$WEBVIEW2_LOADER_PATH" ]]; then
     printf 'Expected WebView2 loader DLL was not produced: %s\n' "$WEBVIEW2_LOADER_PATH" >&2
