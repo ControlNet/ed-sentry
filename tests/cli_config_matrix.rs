@@ -119,7 +119,11 @@ fn watch_level_one_and_two_notifications_reach_fake_matrix() {
     assert!(!stdout.contains("📦"), "{stdout}");
     assert!(!stdout.contains("⏱️"), "{stdout}");
 
-    let records = matrix::read_matrix_records(&matrix_log);
+    let records = matrix::wait_for_matrix_record(
+        &matrix_log,
+        matrix::is_live_cobra_send_record,
+        WATCH_READINESS_DEADLINE,
+    );
     assert!(
         records.iter().any(|record| record["kind"] == "connect"),
         "{records:?}"

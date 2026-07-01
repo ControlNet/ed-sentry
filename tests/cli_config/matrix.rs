@@ -20,7 +20,7 @@ pub fn write_matrix_config(
         format!(
             r#"
             [journal]
-            folder = "{}"
+            folder = {:?}
 
             [monitor]
             live_status = {}
@@ -34,12 +34,30 @@ pub fn write_matrix_config(
             mention_user_id = "@commander:matrix.invalid"
             status_update_interval_seconds = 60
             "#,
-            journal_folder.display(),
+            journal_folder.display().to_string(),
             live_status,
             "token",
         ),
     )
     .unwrap();
+}
+
+#[test]
+fn write_matrix_config_escapes_windows_journal_folder_paths() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let config_path = temp_dir.path().join("config.toml");
+    let journal_folder = std::path::Path::new(
+        r"C:\Users\Commander\Saved Games\Frontier Developments\Elite Dangerous",
+    );
+
+    write_matrix_config(&config_path, journal_folder, true);
+
+    let config = std::fs::read_to_string(&config_path).unwrap();
+    let parsed: toml::Value = toml::from_str(&config).unwrap();
+    assert_eq!(
+        parsed["journal"]["folder"].as_str(),
+        Some(journal_folder.to_str().unwrap())
+    );
 }
 
 pub fn read_matrix_records(path: &std::path::Path) -> Vec<Value> {
@@ -48,6 +66,13 @@ pub fn read_matrix_records(path: &std::path::Path) -> Vec<Value> {
         .lines()
         .map(|line| serde_json::from_str(line).unwrap())
         .collect()
+}
+
+pub fn is_live_cobra_send_record(record: &Value) -> bool {
+    record["kind"] == "send"
+        && record["remote_text"]
+            .as_str()
+            .is_some_and(|text| text.contains("Kill: Live Cobra"))
 }
 
 pub fn wait_for_matrix_record(
