@@ -12,6 +12,15 @@ use tokio::sync::{Mutex, MutexGuard};
 
 static CLOUDFLARED_PROCESS_TEST: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
+enum FakeCloudflared {
+    StdoutUrlWithArgs(PathBuf),
+    StderrUrl,
+    DrainingOutput(PathBuf),
+    NoUrl,
+    ExitBeforeUrl,
+    StdoutUrlLongRunning,
+}
+
 fn fixture_time() -> chrono::DateTime<Utc> {
     Utc.with_ymd_and_hms(2026, 6, 28, 12, 0, 0)
         .single()
@@ -43,10 +52,7 @@ async fn tunnel_provider_reads_url_from_stdout_and_uses_required_command_args() 
     let args_log = temp.path().join("args.log");
     let fake = fake_cloudflared(
         temp.path(),
-        &format!(
-            "printf '%s\\n' \"$@\" >> '{}'; printf '%s\\n' 'https://fixture.trycloudflare.com'; sleep 30",
-            args_log.display()
-        ),
+        FakeCloudflared::StdoutUrlWithArgs(args_log.clone()),
     );
     let mut provider = provider_with_fake(fake);
 
@@ -59,9 +65,16 @@ async fn tunnel_provider_reads_url_from_stdout_and_uses_required_command_args() 
         status.public_url.as_deref(),
         Some("https://fixture.trycloudflare.com")
     );
+    let args = fs::read_to_string(args_log).unwrap();
     assert_eq!(
-        fs::read_to_string(args_log).unwrap(),
-        "tunnel\n--url\nhttp://127.0.0.1:8765\n--metrics\n127.0.0.1:0\n"
+        args.lines().collect::<Vec<_>>(),
+        [
+            "tunnel",
+            "--url",
+            "http://127.0.0.1:8765",
+            "--metrics",
+            "127.0.0.1:0"
+        ]
     );
 }
 
@@ -71,10 +84,7 @@ async fn tunnel_provider_reads_url_from_stderr() {
 
     // Given: a fake cloudflared executable that logs the tunnel URL on stderr.
     let temp = TempDir::new().unwrap();
-    let fake = fake_cloudflared(
-        temp.path(),
-        "printf '%s\\n' 'https://fixture.trycloudflare.com' >&2; while :; do sleep 1; done",
-    );
+    let fake = fake_cloudflared(temp.path(), FakeCloudflared::StderrUrl);
     let mut provider = provider_with_fake(fake);
 
     // When: the provider starts.
@@ -97,10 +107,7 @@ async fn tunnel_provider_drains_output_after_url_is_reported() {
     let drained_marker = temp.path().join("drained.marker");
     let fake = fake_cloudflared(
         temp.path(),
-        &format!(
-            "printf '%s\n' 'https://fixture.trycloudflare.com'; i=0; while [ $i -lt 200000 ]; do printf '%s\n' 'post-url connectivity precheck log line with enough bytes to fill a pipe'; i=$((i + 1)); done; printf 'drained\n' > {}; while :; do sleep 1; done",
-            shell_quote(&drained_marker)
-        ),
+        FakeCloudflared::DrainingOutput(drained_marker.clone()),
     );
     let mut provider = provider_with_fake(fake);
 
@@ -119,7 +126,7 @@ async fn tunnel_provider_reports_retryable_error_when_no_url_arrives_before_time
 
     // Given: a fake cloudflared executable that stays alive but never emits a tunnel URL.
     let temp = TempDir::new().unwrap();
-    let fake = fake_cloudflared(temp.path(), "sleep 30");
+    let fake = fake_cloudflared(temp.path(), FakeCloudflared::NoUrl);
     let mut provider = provider_with_fake(fake);
 
     // When: the URL wait expires.
@@ -138,7 +145,7 @@ async fn tunnel_provider_does_not_keep_starting_when_start_future_is_cancelled()
 
     // Given: a fake cloudflared executable that starts but never reports a tunnel URL.
     let temp = TempDir::new().unwrap();
-    let fake = fake_cloudflared(temp.path(), "sleep 30");
+    let fake = fake_cloudflared(temp.path(), FakeCloudflared::NoUrl);
     let mut provider = provider_with_fake(fake);
 
     // When: the start future is cancelled like a browser refresh aborting /api/tunnel/start.
@@ -161,7 +168,7 @@ async fn tunnel_provider_reports_retryable_error_when_child_exits_before_url() {
 
     // Given: a fake cloudflared executable that exits before reporting a URL.
     let temp = TempDir::new().unwrap();
-    let fake = fake_cloudflared(temp.path(), "exit 42");
+    let fake = fake_cloudflared(temp.path(), FakeCloudflared::ExitBeforeUrl);
     let mut provider = provider_with_fake(fake);
 
     // When: the provider observes the early process exit.
@@ -179,10 +186,7 @@ async fn tunnel_provider_drop_cleans_up_running_child() {
 
     // Given: a running fake cloudflared process owned by the provider.
     let temp = TempDir::new().unwrap();
-    let fake = fake_cloudflared(
-        temp.path(),
-        "printf '%s\\n' 'https://fixture.trycloudflare.com'; sleep 30",
-    );
+    let fake = fake_cloudflared(temp.path(), FakeCloudflared::StdoutUrlLongRunning);
     let child_id = {
         let mut provider = provider_with_fake(fake);
         let status = provider.start_for_port(Some(8765), fixture_time()).await;
@@ -201,15 +205,79 @@ fn provider_with_fake(fake: PathBuf) -> CloudflareQuickTunnelProvider {
     CloudflareQuickTunnelProvider::with_executable_and_timeout(fake, Duration::from_secs(5))
 }
 
-fn fake_cloudflared(dir: &Path, script_body: &str) -> PathBuf {
-    let path = dir.join("cloudflared-fixture");
-    fs::write(&path, format!("#!/bin/sh\n{script_body}\n")).unwrap();
+fn fake_cloudflared(dir: &Path, behavior: FakeCloudflared) -> PathBuf {
+    let path = dir.join(fake_cloudflared_name());
+    fs::write(&path, fake_cloudflared_script(&behavior)).unwrap();
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
     }
     path
+}
+
+fn fake_cloudflared_name() -> &'static str {
+    if cfg!(windows) {
+        "cloudflared-fixture.cmd"
+    } else {
+        "cloudflared-fixture"
+    }
+}
+
+fn fake_cloudflared_script(behavior: &FakeCloudflared) -> String {
+    if cfg!(windows) {
+        return fake_cloudflared_batch(behavior);
+    }
+    fake_cloudflared_shell(behavior)
+}
+
+fn fake_cloudflared_shell(behavior: &FakeCloudflared) -> String {
+    let body = match behavior {
+        FakeCloudflared::StdoutUrlWithArgs(path) => format!(
+            "printf '%s\\n' \"$@\" >> {}; printf '%s\\n' 'https://fixture.trycloudflare.com'; sleep 30",
+            shell_quote(path)
+        ),
+        FakeCloudflared::StderrUrl => {
+            "printf '%s\\n' 'https://fixture.trycloudflare.com' >&2; while :; do sleep 1; done"
+                .to_string()
+        }
+        FakeCloudflared::DrainingOutput(path) => format!(
+            "printf '%s\\n' 'https://fixture.trycloudflare.com'; i=0; while [ $i -lt 200000 ]; do printf '%s\\n' 'post-url connectivity precheck log line with enough bytes to fill a pipe'; i=$((i + 1)); done; printf 'drained\\n' > {}; while :; do sleep 1; done",
+            shell_quote(path)
+        ),
+        FakeCloudflared::NoUrl => "sleep 30".to_string(),
+        FakeCloudflared::ExitBeforeUrl => "exit 42".to_string(),
+        FakeCloudflared::StdoutUrlLongRunning => {
+            "printf '%s\\n' 'https://fixture.trycloudflare.com'; sleep 30".to_string()
+        }
+    };
+    format!("#!/bin/sh\n{body}\n")
+}
+
+fn fake_cloudflared_batch(behavior: &FakeCloudflared) -> String {
+    let body = match behavior {
+        FakeCloudflared::StdoutUrlWithArgs(path) => format!(
+            ":args\r\nif \"%~1\"==\"\" goto afterargs\r\necho %~1>> {}\r\nshift\r\ngoto args\r\n:afterargs\r\necho https://fixture.trycloudflare.com\r\nping -n 31 127.0.0.1 >NUL",
+            batch_quote(path)
+        ),
+        FakeCloudflared::StderrUrl => {
+            "echo https://fixture.trycloudflare.com 1>&2\r\n:loop\r\nping -n 2 127.0.0.1 >NUL\r\ngoto loop".to_string()
+        }
+        FakeCloudflared::DrainingOutput(path) => format!(
+            "echo https://fixture.trycloudflare.com\r\nfor /L %%i in (1,1,200000) do echo post-url connectivity precheck log line with enough bytes to fill a pipe\r\necho drained> {}\r\n:loop\r\nping -n 2 127.0.0.1 >NUL\r\ngoto loop",
+            batch_quote(path)
+        ),
+        FakeCloudflared::NoUrl => "ping -n 31 127.0.0.1 >NUL".to_string(),
+        FakeCloudflared::ExitBeforeUrl => "exit /B 42".to_string(),
+        FakeCloudflared::StdoutUrlLongRunning => {
+            "echo https://fixture.trycloudflare.com\r\nping -n 31 127.0.0.1 >NUL".to_string()
+        }
+    };
+    format!("@echo off\r\n{body}\r\n")
+}
+
+fn batch_quote(path: &Path) -> String {
+    format!("\"{}\"", path.display())
 }
 
 fn shell_quote(path: &Path) -> String {

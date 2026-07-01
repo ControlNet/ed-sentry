@@ -11,5 +11,6 @@ GitHub CI exposed two platform/timing issues after the release workflow changes:
 
 - When a watch test asserts event output beyond startup, wait for the exact asserted fragments with `capture_watch_output_until` instead of the generic startup helper.
 - Keep tunnel lifecycle fixtures platform-aware: generate Unix shell scripts on Unix and `.cmd` scripts on Windows.
+- Keep provider-level fake `cloudflared` fixtures platform-aware too; Windows cannot execute `#!/bin/sh` fixtures via `Command::new`, and `.cmd` output/log assertions should compare logical lines rather than raw LF bytes.
 - Avoid racing child exit polling against stdout/stderr reader tasks when the desired contract is “URL reported before output closes”. Let the output channel decide success/failure, then query the child exit status only after the channel closes without a URL.
 - Matrix fake-delivery assertions can lag behind terminal stdout on Windows CI. Use a dedicated remote-delivery record deadline instead of reusing the shorter terminal readiness deadline, and include observed fake records in timeout diagnostics.
