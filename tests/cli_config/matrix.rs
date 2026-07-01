@@ -92,5 +92,10 @@ pub fn wait_for_matrix_record(
         }
         std::thread::sleep(MATRIX_RECORD_POLL_INTERVAL);
     }
-    panic!("timed out waiting for expected fake Matrix record");
+    let records = if path.exists() {
+        read_matrix_records(path)
+    } else {
+        Vec::new()
+    };
+    panic!("timed out waiting for expected fake Matrix record; observed records: {records:?}");
 }

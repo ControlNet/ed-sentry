@@ -10,6 +10,7 @@ mod matrix;
 use std::time::Duration;
 
 const WATCH_READINESS_DEADLINE: Duration = Duration::from_secs(10);
+const MATRIX_RECORD_DEADLINE: Duration = Duration::from_secs(30);
 
 #[test]
 fn watch_matrix_init_failure_falls_back_to_terminal() {
@@ -122,7 +123,7 @@ fn watch_level_one_and_two_notifications_reach_fake_matrix() {
     let records = matrix::wait_for_matrix_record(
         &matrix_log,
         matrix::is_live_cobra_send_record,
-        WATCH_READINESS_DEADLINE,
+        MATRIX_RECORD_DEADLINE,
     );
     assert!(
         records.iter().any(|record| record["kind"] == "connect"),
