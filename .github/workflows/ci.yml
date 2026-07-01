@@ -27,6 +27,16 @@ jobs:
       - name: Install stable Rust
         run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -41,6 +51,12 @@ jobs:
 
       - name: Check formatting
         run: cargo fmt --check
+
+      - name: Install frontend dependencies
+        run: pnpm --dir ui install --frozen-lockfile
+
+      - name: Build WebUI assets
+        run: pnpm --dir ui build
 
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings

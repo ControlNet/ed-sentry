@@ -71,6 +71,9 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
 
+      - name: Build WebUI assets
+        run: pnpm --dir ui build
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
