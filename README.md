@@ -1,8 +1,52 @@
-# ed-sentry
+# ED Sentry
 
-**ed-sentry** is an Elite Dangerous AFK sentry. It reads your local Journal files, watches combat/session signals, and shows the current state in a tactical desktop/Web dashboard.
+![ED Sentry logo](docs/images/logo.png)
+
+**ED Sentry** is an Elite Dangerous AFK monitoring dashboard for commanders. It watches your local Journal files and shows combat, service-node, tunnel, mission, and session status in a tactical desktop/Web interface.
+
+![ED Sentry dashboard](docs/images/dashboard.png)
 
 It is unofficial third-party software. It only reads local Journal, `Status.json`, and `Cargo.json` files; it does not inject into the game, press keys, relog, or automate the client.
+
+## Download
+
+### Windows
+
+[Download ED Sentry for Windows](https://smartrelease.bytedream.dev/github/ControlNet/ed-sentry/ed-sentry-v{major}.{minor}.{patch}-windows-x64.zip)
+
+1. Download the Windows zip.
+2. Unzip it.
+3. Double-click `ed-sentry.exe`.
+
+Keep the extracted folder together. The Windows package includes `webui/` and `tools/`, which ED Sentry needs at runtime.
+
+### Linux
+
+[Download ED Sentry for Linux](https://smartrelease.bytedream.dev/github/ControlNet/ed-sentry/ed-sentry-v{major}.{minor}.{patch}-linux-x64.zip)
+
+Unzip it, then run:
+
+```bash
+./ed-sentry-core --config config.toml
+```
+
+If a download button does not work, open the GitHub Releases page:
+
+```text
+https://github.com/ControlNet/ed-sentry/releases
+```
+
+## Quick start
+
+1. Download and unzip the package for your system.
+2. Start ED Sentry.
+3. Use the dashboard to watch AFK, combat, service-node, tunnel, mission, and session status.
+
+On Windows, leaving the Journal folder empty uses the normal Elite Dangerous Saved Games location:
+
+```text
+<Saved Games>\Frontier Developments\Elite Dangerous
+```
 
 ## What it does
 
@@ -13,16 +57,6 @@ It is unofficial third-party software. It only reads local Journal, `Status.json
 - Can send watch-mode alerts to an unencrypted Matrix room.
 - Can start a Cloudflare Quick Tunnel from the dashboard for temporary remote access.
 - Can replay a selected Journal file from the terminal.
-
-## Download
-
-Download the latest package from GitHub Releases:
-
-```text
-https://github.com/ControlNet/ed-sentry/releases
-```
-
-Release packages are intended to be built by GitHub CI when a version tag is published. Pick the package for your platform, unzip it, and edit the included `config.toml` before enabling Matrix, WebUI, or tunnel passwords.
 
 ## Which program do I run?
 
@@ -39,6 +73,7 @@ ed-sentry.exe
 ed-sentry-core.exe
 config.toml
 webui/
+tools/
 WebView2Loader.dll
 ```
 
@@ -50,24 +85,10 @@ For terminal-only use, run the core binary directly:
 .\ed-sentry-core.exe --config config.toml
 ```
 
-Linux packages provide the terminal binary:
+Linux packages provide the core binary:
 
 ```bash
-./ed-sentry --config config.toml
-```
-
-## Quick start
-
-1. Download and unzip a release package.
-2. Open `config.toml` in a text editor.
-3. Set your Journal folder if the default Windows Saved Games path is not enough.
-4. Set `[web] enabled = true` if you want the dashboard.
-5. Run `ed-sentry.exe` on Windows, or `./ed-sentry --config config.toml` on Linux.
-
-On Windows, leaving the Journal folder empty uses the normal Elite Dangerous Saved Games location:
-
-```text
-<Saved Games>\Frontier Developments\Elite Dangerous
+./ed-sentry-core --config config.toml
 ```
 
 ## Minimal config
@@ -134,14 +155,16 @@ Useful flags:
 
 ## Building locally
 
-Most users should use Releases. If you are building a local Windows GNU package from source:
+Most users should use Releases. If you are building packages from source:
 
 ```bash
 ./scripts/package-windows-gnu.sh
+./scripts/package-linux-x64.sh
 ```
 
-The output is:
+The release outputs are versioned zip files:
 
 ```text
-dist/ed-sentry-x86_64-pc-windows-gnu.zip
+dist/ed-sentry-v0.1.0-windows-x64.zip
+dist/ed-sentry-v0.1.0-linux-x64.zip
 ```
