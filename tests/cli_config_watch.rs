@@ -115,8 +115,16 @@ fn cli_config_watch_preloads_existing_event_output() {
         .arg("--set-file")
         .arg(&journal_path)
         .arg("--no-status-line");
-    let stdout = capture_text::capture_watch_startup(command);
+    let output = capture_output::capture_watch_output_until(
+        command,
+        &["Scan: Viper Mk III", "Kill: Viper Mk III"],
+        &[],
+        WATCH_READINESS_DEADLINE,
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
 
+    assert!(stderr.is_empty(), "{stderr}");
     assert!(stdout.contains("Scan: Viper Mk III"));
     assert!(stdout.contains("Kill: Viper Mk III"));
 }
