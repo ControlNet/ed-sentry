@@ -27,6 +27,7 @@ const mockScenarioValues = [
   "error",
   "loading",
   "long_feed",
+  "live_rates",
   "private_path",
   "service_statuses",
   "tunnel_auth_required",
@@ -58,6 +59,8 @@ export const mockDashboardAdapter: DashboardAdapter = {
         return new Promise(() => undefined)
       case "long_feed":
         return longFeedMockDashboardSnapshot
+      case "live_rates":
+        return liveRatesMockDashboardSnapshot()
       case "private_path":
         return privatePathMockDashboardSnapshot
       case "service_statuses":
@@ -133,6 +136,29 @@ export const mockDashboardAdapter: DashboardAdapter = {
 
     return () => undefined
   },
+}
+
+let liveRatesLoadCount = 0
+
+function liveRatesMockDashboardSnapshot() {
+  liveRatesLoadCount += 1
+  const killRate = liveRatesLoadCount === 1 ? "25.7/h" : "25.1/h"
+  const scanRate = liveRatesLoadCount === 1 ? "8.6/h" : "8.4/h"
+  return {
+    ...mockDashboardSnapshot,
+    generated_at_display: `2026-06-20T14:18:0${Math.min(liveRatesLoadCount, 9)}Z`,
+    session: {
+      ...mockDashboardSnapshot.session,
+      kill_total_rate_per_hour: {
+        ...mockDashboardSnapshot.session.kill_total_rate_per_hour,
+        display: killRate,
+      },
+      scan_total_rate_per_hour: {
+        ...mockDashboardSnapshot.session.scan_total_rate_per_hour,
+        display: scanRate,
+      },
+    },
+  }
 }
 
 function readMockScenario(): MockScenario {

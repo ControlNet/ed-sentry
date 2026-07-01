@@ -70,11 +70,17 @@ export function TacticalTelemetryView({
           />
           <DataRow
             label="KILL RATE / HR"
-            value={snapshot.session.kill_recent_rate_per_hour.display}
+            value={combatRateDisplay(
+              snapshot.session.kills,
+              snapshot.session.kill_total_rate_per_hour.display,
+            )}
           />
           <DataRow
             label="SCAN RATE / HR"
-            value={snapshot.session.scan_recent_rate_per_hour.display}
+            value={combatRateDisplay(
+              snapshot.session.scans,
+              snapshot.session.scan_total_rate_per_hour.display,
+            )}
           />
         </div>
       </TacticalPanel>
@@ -112,6 +118,13 @@ export function TacticalTelemetryView({
       <TacticalRecentAlerts snapshot={snapshot} />
     </div>
   )
+}
+
+function combatRateDisplay(events: number, display: string): string {
+  if (events === 0) {
+    return "-/h"
+  }
+  return display
 }
 
 function ChecklistItem({ row }: { readonly row: ChecklistRow }): React.JSX.Element {

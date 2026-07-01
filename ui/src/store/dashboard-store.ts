@@ -31,6 +31,8 @@ type DashboardState = {
   readonly loginTunnel: (password: string) => Promise<TunnelLoginResult>
 }
 
+const liveSnapshotRefreshMs = 1_000
+
 const initialConnection: DashboardConnectionState = {
   status: "idle",
   label: "Adapter idle",
@@ -48,7 +50,12 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   async start() {
     const { adapter, unsubscribe } = get()
     if (unsubscribe === null && adapter.subscribe !== undefined) {
-      const nextUnsubscribe = adapter.subscribe((event) => applyAdapterEvent(event, set, get))
+      const adapterUnsubscribe = adapter.subscribe((event) => applyAdapterEvent(event, set, get))
+      const refreshUnsubscribe = startLiveSnapshotRefresh(adapter, set, get)
+      const nextUnsubscribe = () => {
+        adapterUnsubscribe()
+        refreshUnsubscribe()
+      }
       set({ unsubscribe: nextUnsubscribe })
     }
     await get().refresh()
@@ -66,17 +73,8 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
       },
     })
     try {
-      const snapshot = normalizeSnapshot(await adapter.loadSnapshot())
-      set({
-        snapshot,
-        status: "ready",
-        connection: {
-          status: "connected",
-          label: adapter.label,
-          detail: snapshot.web.message ?? snapshot.web.status_label,
-          checkedAtDisplay: snapshot.generated_at_display,
-        },
-      })
+      const snapshot = await loadNormalizedSnapshot(adapter)
+      setSnapshotFromRefresh(snapshot, adapter, set)
     } catch (error) {
       if (error instanceof Error) {
         set({
@@ -124,6 +122,62 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     return result
   },
 }))
+
+function startLiveSnapshotRefresh(
+  adapter: DashboardAdapter,
+  set: (state: Partial<DashboardState>) => void,
+  get: () => DashboardState,
+): DashboardAdapterUnsubscribe {
+  let refreshInFlight = false
+  const refresh = () => {
+    if (refreshInFlight) {
+      return
+    }
+    refreshInFlight = true
+    void loadNormalizedSnapshot(adapter)
+      .then((snapshot) => setNormalizedSnapshot(snapshot, set, get))
+      .catch((error: unknown) => {
+        if (error instanceof Error) {
+          set({
+            connection: {
+              status: "degraded",
+              label: adapter.label,
+              detail: error.message,
+              checkedAtDisplay: get().snapshot?.generated_at_display ?? null,
+            },
+          })
+          return
+        }
+        throw error
+      })
+      .finally(() => {
+        refreshInFlight = false
+      })
+  }
+  const interval = globalThis.setInterval(refresh, liveSnapshotRefreshMs)
+  return () => globalThis.clearInterval(interval)
+}
+
+async function loadNormalizedSnapshot(adapter: DashboardAdapter): Promise<AppSnapshot> {
+  return normalizeSnapshot(await adapter.loadSnapshot())
+}
+
+function setSnapshotFromRefresh(
+  snapshot: AppSnapshot,
+  adapter: DashboardAdapter,
+  set: (state: Partial<DashboardState>) => void,
+): void {
+  set({
+    snapshot,
+    status: "ready",
+    connection: {
+      status: "connected",
+      label: adapter.label,
+      detail: snapshot.web.message ?? snapshot.web.status_label,
+      checkedAtDisplay: snapshot.generated_at_display,
+    },
+  })
+}
 
 function applyAdapterEvent(
   event: DashboardAdapterEvent,

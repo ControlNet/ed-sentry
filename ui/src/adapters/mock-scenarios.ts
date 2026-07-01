@@ -3,6 +3,27 @@ import type { AppSnapshot } from "@/adapters/types"
 
 export const emptyMockDashboardSnapshot = {
   ...mockDashboardSnapshot,
+  session: {
+    ...mockDashboardSnapshot.session,
+    kills: 0,
+    scans: 0,
+    kill_total_rate_per_hour: {
+      value: 0,
+      display: "0.0/h",
+    },
+    kill_recent_rate_per_hour: {
+      value: 0,
+      display: "0.0/h",
+    },
+    scan_total_rate_per_hour: {
+      value: 0,
+      display: "0.0/h",
+    },
+    scan_recent_rate_per_hour: {
+      value: 0,
+      display: "0.0/h",
+    },
+  },
   missions: {
     ...mockDashboardSnapshot.missions,
     active_count: 0,
