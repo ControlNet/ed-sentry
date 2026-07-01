@@ -261,10 +261,10 @@ fn fake_cloudflared_batch(behavior: &FakeCloudflared) -> String {
             batch_quote(path)
         ),
         FakeCloudflared::StderrUrl => {
-            "echo https://fixture.trycloudflare.com 1>&2\r\n:loop\r\nping -n 2 127.0.0.1 >NUL\r\ngoto loop".to_string()
+            "echo https://fixture.trycloudflare.com 1>&2\r\nping -n 31 127.0.0.1 >NUL".to_string()
         }
         FakeCloudflared::DrainingOutput(path) => format!(
-            "echo https://fixture.trycloudflare.com\r\nfor /L %%i in (1,1,2000) do echo post-url connectivity precheck log line with enough bytes to fill a pipe\r\necho drained> {}\r\n:loop\r\nping -n 2 127.0.0.1 >NUL\r\ngoto loop",
+            "echo https://fixture.trycloudflare.com\r\nfor /L %%i in (1,1,2000) do echo post-url connectivity precheck log line with enough bytes to fill a pipe\r\necho drained> {}\r\nping -n 31 127.0.0.1 >NUL",
             batch_quote(path)
         ),
         FakeCloudflared::NoUrl => "ping -n 31 127.0.0.1 >NUL".to_string(),
