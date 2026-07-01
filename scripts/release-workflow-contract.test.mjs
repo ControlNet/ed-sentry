@@ -18,6 +18,6 @@ test("release workflow gates on tag version and uploads only smartrelease-compat
   assert.match(workflow, /scripts\/package-linux-x64\.sh/u)
   assert.match(workflow, /ed-sentry-v\$\{\{ steps\.version\.outputs\.version \}\}-windows-x64\.zip/u)
   assert.match(workflow, /ed-sentry-v\$\{\{ steps\.version\.outputs\.version \}\}-linux-x64\.zip/u)
-  assert.doesNotMatch(workflow, /ed-sentry_x86_64-unknown-linux-gnu\.tar\.gz/u)
-  assert.doesNotMatch(workflow, /ed-sentry_x86_64-pc-windows-msvc\.zip/u)
+  assert.doesNotMatch(workflow, /ed-sentry-x86_64-unknown-linux-gnu\.tar\.gz/u)
+  assert.doesNotMatch(workflow, /ed-sentry-x86_64-pc-windows-msvc\.zip/u)
 })
