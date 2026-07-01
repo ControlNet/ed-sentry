@@ -127,7 +127,8 @@ async fn tunnel_lifecycle_manual_start_is_idempotent_while_running() {
     assert_eq!(first.kind, TunnelStatusKind::Running);
     assert_eq!(second.kind, TunnelStatusKind::Running);
     assert_eq!(first.session_id, second.session_id);
-    assert_eq!(fs::read_to_string(args_log).unwrap(), "started\n");
+    let starts = fs::read_to_string(args_log).unwrap();
+    assert_eq!(starts.lines().collect::<Vec<_>>(), ["started"]);
 }
 
 #[tokio::test]
