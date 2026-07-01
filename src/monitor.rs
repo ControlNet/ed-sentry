@@ -975,11 +975,11 @@ impl EventMonitor {
             } else {
                 0.0
             };
-            let average = if self.state.kills > 0 {
-                self.state.bounty_total / self.state.kills
-            } else {
-                0
-            };
+            let average = self
+                .state
+                .bounty_total
+                .checked_div(self.state.kills)
+                .unwrap_or(0);
             lines.push(format!(
                 "          -> Bounties: {} ({}/h | {}/kill)",
                 compact_number(self.state.bounty_total),

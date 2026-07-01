@@ -48,11 +48,9 @@ impl MissionTracker {
             }
             JournalEvent::CargoDepot(event) => self.apply_cargo_depot(event),
             JournalEvent::Bounty(event) => self.apply_bounty(event),
-            JournalEvent::FactionKillBond(event) => {
-                if event.reward.unwrap_or(0) > 0 {
-                    if let Some(victim_faction) = event.victim_faction.as_deref() {
-                        self.apply_massacre_kill(victim_faction);
-                    }
+            JournalEvent::FactionKillBond(event) if event.reward.unwrap_or(0) > 0 => {
+                if let Some(victim_faction) = event.victim_faction.as_deref() {
+                    self.apply_massacre_kill(victim_faction);
                 }
             }
             _ => {}
