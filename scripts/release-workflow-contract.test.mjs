@@ -16,6 +16,7 @@ test("release workflow gates on tag version and uploads only smartrelease-compat
   assert.match(workflow, /node scripts\/sync-release-version\.mjs --check-tag "\$\{\{ github\.ref_name \}\}"/u)
   assert.match(workflow, /scripts\/package-windows-gnu\.sh/u)
   assert.match(workflow, /scripts\/package-linux-x64\.sh/u)
+  assert.match(workflow, /libwebkit2gtk-4\.1-dev/u)
   assert.match(workflow, /pnpm --dir ui build/u)
   assert.match(workflow, /ed-sentry-v\$\{\{ steps\.version\.outputs\.version \}\}-windows-x64\.zip/u)
   assert.match(workflow, /ed-sentry-v\$\{\{ steps\.version\.outputs\.version \}\}-linux-x64\.zip/u)
