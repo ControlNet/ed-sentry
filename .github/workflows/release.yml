@@ -1,4 +1,4 @@
-name: Release Artifacts
+name: Release
 
 on:
   push:
@@ -6,29 +6,30 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  build:
-    name: Build ${{ matrix.target_name }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target_name: x86_64-unknown-linux-gnu
-            artifact_name: ed-sentry-x86_64-unknown-linux-gnu.tar.gz
-          - os: windows-latest
-            target_name: x86_64-pc-windows-msvc
-            artifact_name: ed-sentry-x86_64-pc-windows-msvc.zip
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Install stable Rust
-        run: rustup toolchain install stable --profile minimal
+        run: rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+
+      - name: Add Windows GNU target
+        run: rustup target add x86_64-pc-windows-gnu
+
+      - name: Install Windows packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            binutils-mingw-w64-x86-64 \
+            gcc-mingw-w64-x86-64 \
+            zip
 
       - name: Cache Cargo
         uses: actions/cache@v4
@@ -38,6 +39,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
+            ui/src-tauri/target/
           key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-release-
@@ -56,42 +58,55 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --dir ui install --frozen-lockfile
 
-      - name: Build WebUI assets
-        run: pnpm --dir ui build
+      - name: Sync and check release version
+        id: version
+        run: |
+          VERSION=$(node scripts/sync-release-version.mjs --print-version)
+          printf 'version=%s\n' "$VERSION" >> "$GITHUB_OUTPUT"
+          node scripts/sync-release-version.mjs --check-tag "${{ github.ref_name }}"
 
-      - name: Build release binary
-        run: cargo build --release
+      - name: Run release contract tests
+        run: node --test scripts/*.test.mjs
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run Rust tests
+        run: cargo test --all
+
+      - name: Run frontend lint
+        run: pnpm --dir ui lint
 
       - name: Package Linux artifact
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          mkdir -p dist/ed-sentry/webui
-          cp target/release/ed-sentry dist/ed-sentry/ed-sentry
-          cp config.example.toml dist/ed-sentry/config.toml
-          cp -R ui/dist/. dist/ed-sentry/webui/
-          test -f dist/ed-sentry/webui/index.html
-          tar -czf ed-sentry-x86_64-unknown-linux-gnu.tar.gz -C dist ed-sentry
+        run: scripts/package-linux-x64.sh
 
       - name: Verify Linux packaged WebUI root
-        if: runner.os == 'Linux'
-        shell: bash
         run: scripts/verify-packaged-webui.sh dist/ed-sentry dist/packaged-webui-root.http
 
       - name: Package Windows artifact
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path dist\ed-sentry\webui
-          Copy-Item target\release\ed-sentry.exe dist\ed-sentry\ed-sentry.exe
-          Copy-Item config.example.toml dist\ed-sentry\config.toml
-          Copy-Item ui\dist\* dist\ed-sentry\webui -Recurse
-          if (!(Test-Path dist\ed-sentry\webui\index.html)) { throw "Missing packaged WebUI index.html" }
-          Compress-Archive -Path dist\ed-sentry -DestinationPath ed-sentry-x86_64-pc-windows-msvc.zip -Force
+        run: scripts/package-windows-gnu.sh
 
-      - name: Upload release artifact
-        uses: actions/upload-artifact@v4
+      - name: Write checksums
+        run: |
+          sha256sum \
+            dist/ed-sentry-v${{ steps.version.outputs.version }}-linux-x64.zip \
+            dist/ed-sentry-v${{ steps.version.outputs.version }}-windows-x64.zip \
+            > dist/checksums.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
         with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_name }}
-          if-no-files-found: error
+          name: ED Sentry v${{ steps.version.outputs.version }}
+          body: |
+            Download the zip for your platform, unzip it, then run ED Sentry.
+
+            - Windows: ed-sentry-v${{ steps.version.outputs.version }}-windows-x64.zip
+            - Linux: ed-sentry-v${{ steps.version.outputs.version }}-linux-x64.zip
+          files: |
+            dist/ed-sentry-v${{ steps.version.outputs.version }}-windows-x64.zip
+            dist/ed-sentry-v${{ steps.version.outputs.version }}-linux-x64.zip
+            dist/checksums.txt
+          fail_on_unmatched_files: true
