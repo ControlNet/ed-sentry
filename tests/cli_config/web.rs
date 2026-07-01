@@ -13,7 +13,7 @@ pub fn write_web_config(path: &std::path::Path, journal_folder: &std::path::Path
         format!(
             r#"
             [journal]
-            folder = "{}"
+            folder = {:?}
 
             [web]
             enabled = true
@@ -21,7 +21,7 @@ pub fn write_web_config(path: &std::path::Path, journal_folder: &std::path::Path
             port = {}
             open_browser = false
             "#,
-            journal_folder.display(),
+            journal_folder.display().to_string(),
             web_port
         ),
     )
