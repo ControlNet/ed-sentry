@@ -108,26 +108,9 @@ async fn wait_for_tunnel_url(
     child: &mut Child,
     receiver: &mut mpsc::Receiver<String>,
 ) -> Result<String, String> {
-    loop {
-        tokio::select! {
-            received = receiver.recv() => {
-                match received {
-                    Some(public_url) => return Ok(public_url),
-                    None => return Err(child_exit_message(child).await),
-                }
-            }
-            _ = tokio::time::sleep(CHILD_EXIT_POLL) => {
-                match child.try_wait() {
-                    Ok(Some(exit_status)) => {
-                        return Err(format!("cloudflared exited before URL was reported: {exit_status}"));
-                    }
-                    Ok(None) => {}
-                    Err(error) => {
-                        return Err(format!("cloudflared status check failed: {}", line_safe(&error.to_string())));
-                    }
-                }
-            }
-        }
+    match receiver.recv().await {
+        Some(public_url) => Ok(public_url),
+        None => Err(child_exit_message(child).await),
     }
 }
 
