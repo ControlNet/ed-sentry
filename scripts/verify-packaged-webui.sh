@@ -12,7 +12,7 @@ fi
 
 PACKAGE_DIR="$1"
 EVIDENCE_PATH="$2"
-BIN_PATH="$PACKAGE_DIR/ed-sentry"
+BIN_PATH="$PACKAGE_DIR/ed-sentry-core"
 WEBUI_INDEX="$PACKAGE_DIR/webui/index.html"
 
 require_command() {

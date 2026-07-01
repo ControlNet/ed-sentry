@@ -9,10 +9,14 @@ PACKAGE_NAME="ed-sentry"
 CORE_PACKAGE_NAME="ed-sentry-core"
 DIST_DIR="$REPO_ROOT/dist"
 EXTRACTED_DIR="$DIST_DIR/$PACKAGE_NAME"
+VERSION=$(node "$SCRIPT_DIR/sync-release-version.mjs" --print-version)
+RELEASE_ZIP_PATH="$DIST_DIR/${PACKAGE_NAME}-v${VERSION}-windows-x64.zip"
 ZIP_PATH="$DIST_DIR/${PACKAGE_NAME}-${TARGET}.zip"
 CORE_EXE_PATH="$REPO_ROOT/target/$TARGET/release/${CORE_PACKAGE_NAME}.exe"
 GUI_EXE_PATH="$REPO_ROOT/ui/src-tauri/target/$TARGET/release/${PACKAGE_NAME}.exe"
 CONFIG_TEMPLATE="$REPO_ROOT/config.example.toml"
+README_PATH="$REPO_ROOT/README.md"
+LICENSE_PATH="$REPO_ROOT/LICENSE"
 WEBUI_DIST="$REPO_ROOT/ui/dist"
 WEBVIEW2_LOADER_PATH=""
 CLOUDFLARED_CACHE_TEST_ROOT=""
@@ -170,14 +174,27 @@ run_cloudflared_cache_tests() {
     printf 'cloudflared cache tests passed\n'
 }
 
+run_package_contract_test() {
+    printf '%s\n' "$RELEASE_ZIP_PATH"
+    printf '%s\n' "$PACKAGE_NAME/README.md"
+    printf '%s\n' "$PACKAGE_NAME/LICENSE"
+    printf '%s\n' "$PACKAGE_NAME/webui/index.html"
+    printf '%s\n' "$PACKAGE_NAME/tools/cloudflared/cloudflared.exe"
+}
+
 if [[ "${1:-}" == "--test-cloudflared-cache" ]]; then
     require_command sha256sum
     run_cloudflared_cache_tests
     exit 0
 fi
 
+if [[ "${1:-}" == "--test-package-contract" ]]; then
+    run_package_contract_test
+    exit 0
+fi
+
 if [[ $# -gt 0 ]]; then
-    printf 'Usage: %s [--test-cloudflared-cache]\n' "$0" >&2
+    printf 'Usage: %s [--test-cloudflared-cache|--test-package-contract]\n' "$0" >&2
     exit 2
 fi
 
@@ -227,6 +244,16 @@ if [[ ! -f "$CONFIG_TEMPLATE" ]]; then
     exit 1
 fi
 
+if [[ ! -f "$README_PATH" ]]; then
+    printf 'Missing README: %s\n' "$README_PATH" >&2
+    exit 1
+fi
+
+if [[ ! -f "$LICENSE_PATH" ]]; then
+    printf 'Missing license: %s\n' "$LICENSE_PATH" >&2
+    exit 1
+fi
+
 if [[ ! -f "$WEBUI_DIST/index.html" ]]; then
     printf 'Missing built WebUI index: %s\n' "$WEBUI_DIST/index.html" >&2
     exit 1
@@ -240,6 +267,8 @@ cp "$GUI_EXE_PATH" "$STAGING_DIR/$PACKAGE_NAME/${PACKAGE_NAME}.exe"
 cp "$CORE_EXE_PATH" "$STAGING_DIR/$PACKAGE_NAME/${CORE_PACKAGE_NAME}.exe"
 cp "$WEBVIEW2_LOADER_PATH" "$STAGING_DIR/$PACKAGE_NAME/WebView2Loader.dll"
 cp "$CONFIG_TEMPLATE" "$STAGING_DIR/$PACKAGE_NAME/config.toml"
+cp "$README_PATH" "$STAGING_DIR/$PACKAGE_NAME/README.md"
+cp "$LICENSE_PATH" "$STAGING_DIR/$PACKAGE_NAME/LICENSE"
 cp -R "$WEBUI_DIST"/. "$STAGING_DIR/$PACKAGE_NAME/webui/"
 stage_cloudflared
 
@@ -254,17 +283,21 @@ case "$EXTRACTED_DIR" in
 esac
 cp -R "$STAGING_DIR/$PACKAGE_NAME" "$EXTRACTED_DIR"
 
-ZIP_TMP="$STAGING_DIR/${PACKAGE_NAME}-${TARGET}.zip"
+ZIP_TMP="$STAGING_DIR/${PACKAGE_NAME}-v${VERSION}-windows-x64.zip"
 (
     cd "$STAGING_DIR"
     zip -qr "$ZIP_TMP" "$PACKAGE_NAME"
 )
-mv "$ZIP_TMP" "$ZIP_PATH"
+mv "$ZIP_TMP" "$RELEASE_ZIP_PATH"
+cp "$RELEASE_ZIP_PATH" "$ZIP_PATH"
 
 printf 'Packaged Windows GNU artifact:\n'
+printf '  %s\n' "$RELEASE_ZIP_PATH"
 printf '  %s\n' "$ZIP_PATH"
 printf '  %s\n' "$EXTRACTED_DIR"
 printf '  WebUI: %s\n' "$EXTRACTED_DIR/webui"
 test -f "$EXTRACTED_DIR/webui/index.html"
-sha256sum "$ZIP_PATH" "$EXTRACTED_DIR/${PACKAGE_NAME}.exe" "$EXTRACTED_DIR/${CORE_PACKAGE_NAME}.exe" "$EXTRACTED_DIR/webui/index.html"
+test -f "$EXTRACTED_DIR/README.md"
+test -f "$EXTRACTED_DIR/LICENSE"
+sha256sum "$RELEASE_ZIP_PATH" "$ZIP_PATH" "$EXTRACTED_DIR/${PACKAGE_NAME}.exe" "$EXTRACTED_DIR/${CORE_PACKAGE_NAME}.exe" "$EXTRACTED_DIR/webui/index.html"
 sha256sum "$EXTRACTED_DIR/WebView2Loader.dll" "$EXTRACTED_DIR/tools/cloudflared/cloudflared.exe"
