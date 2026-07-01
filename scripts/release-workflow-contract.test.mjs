@@ -7,6 +7,8 @@ test("CI workflow runs for branches and pull requests, not tag pushes", async ()
 
   assert.match(workflow, /push:\n\s+branches:\n\s+- ['"]\*\*['"]/u)
   assert.match(workflow, /pull_request:/u)
+  assert.match(workflow, /cargo clean/u)
+  assert.doesNotMatch(workflow, /\n\s+target\/\n/u)
 })
 
 test("release workflow gates on tag version and uploads only smartrelease-compatible assets", async () => {
@@ -18,6 +20,8 @@ test("release workflow gates on tag version and uploads only smartrelease-compat
   assert.match(workflow, /scripts\/package-linux-x64\.sh/u)
   assert.match(workflow, /libwebkit2gtk-4\.1-dev/u)
   assert.match(workflow, /pnpm --dir ui build/u)
+  assert.match(workflow, /cargo clean/u)
+  assert.doesNotMatch(workflow, /\n\s+(?:ui\/src-tauri\/)?target\/\n/u)
   assert.match(workflow, /ed-sentry-v\$\{\{ steps\.version\.outputs\.version \}\}-windows-x64\.zip/u)
   assert.match(workflow, /ed-sentry-v\$\{\{ steps\.version\.outputs\.version \}\}-linux-x64\.zip/u)
   assert.doesNotMatch(workflow, /ed-sentry-x86_64-unknown-linux-gnu\.tar\.gz/u)
