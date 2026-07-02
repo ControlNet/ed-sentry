@@ -14,8 +14,15 @@ test("README exposes bytedream smartrelease download URLs and visuals", async ()
   assert.match(readme, new RegExp(escapeRegExp(linuxUrl), "u"))
   assert.match(readme, /docs\/images\/dashboard\.png/u)
   assert.match(readme, /docs\/images\/logo\.png/u)
+  await assertFileExists("docs/images/logo.svg")
+  await assertFileExists("docs/images/logo.png")
 })
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
+}
+
+async function assertFileExists(path) {
+  const file = await readFile(path)
+  assert.ok(file.length > 0, `${path} should not be empty`)
 }
