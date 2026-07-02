@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import { Activity, EyeOff, Info, List, Minus, Settings, Square, Terminal, X } from "lucide-react"
+import { Activity, Info, List, Minus, Settings, Square, Terminal, X } from "lucide-react"
 import { useState } from "react"
 import type { AppSnapshot, DashboardAdapter, DashboardConnectionState } from "@/adapters/dashboard"
 import { cn } from "@/lib/utils"
@@ -90,17 +90,15 @@ export function DashboardShell({
             data-tauri-drag-region={tauriDragRegion}
             data-titlebar-drag-region="brand"
           >
-            <div
-              className="flex size-6 shrink-0 items-center justify-center rounded-sm border border-orange-500/40 bg-orange-950/20 shadow-[inset_0_0_8px_rgba(249,115,22,0.3)]"
+            <img
+              src="/logo.png"
+              alt=""
+              width="24"
+              height="24"
+              className="size-6 shrink-0 rounded-sm border border-orange-500/40 bg-orange-950/20 object-contain p-0.5 shadow-[inset_0_0_8px_rgba(249,115,22,0.3)]"
               data-tauri-drag-region={tauriDragRegion}
               data-titlebar-drag-region="brand-mark"
-            >
-              <EyeOff
-                aria-hidden="true"
-                className="size-3 text-tactical"
-                data-tauri-drag-region={tauriDragRegion}
-              />
-            </div>
+            />
             <div
               className="hidden min-w-0 sm:block"
               data-tauri-drag-region={tauriDragRegion}
