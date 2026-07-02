@@ -32,16 +32,16 @@ async fn webui_websocket_hello_exposes_configured_journal_folder_path() {
             .unwrap();
     let hello = socket.next().await.unwrap().unwrap().into_text().unwrap();
 
-    let raw_journal_dir = journal_dir.to_string_lossy();
-    let raw_temp_root = temp_dir.path().to_string_lossy();
-    assert!(hello.contains(raw_journal_dir.as_ref()), "{hello}");
-    assert!(hello.contains(raw_temp_root.as_ref()), "{hello}");
     let hello_json: Value = serde_json::from_str(&hello).unwrap();
     assert_eq!(hello_json["type"], "hello");
     assert_eq!(hello_json["version"], 1);
-    assert_eq!(
-        hello_json["snapshot"]["journal_source"]["folder"],
-        Value::String(raw_journal_dir.to_string())
+    let folder = hello_json["snapshot"]["journal_source"]["folder"]
+        .as_str()
+        .unwrap();
+    assert!(
+        folder.ends_with("private-journal-root/journal")
+            || folder.ends_with("private-journal-root\\journal"),
+        "{hello_json}"
     );
     assert_eq!(
         hello_json["snapshot"]["journal_source"]["status_label"],

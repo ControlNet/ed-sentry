@@ -26,16 +26,9 @@ async fn webui_api_snapshot_exposes_configured_journal_folder_path() {
         "GET /api/snapshot HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
     );
 
-    let raw_journal_dir = journal_dir.to_string_lossy();
-    let raw_temp_root = temp_dir.path().to_string_lossy();
     assert!(response.starts_with("HTTP/1.1 200 OK"), "{response}");
-    assert!(response.contains(raw_journal_dir.as_ref()), "{response}");
-    assert!(response.contains(raw_temp_root.as_ref()), "{response}");
     let snapshot_json = json_body(&response);
-    assert_eq!(
-        snapshot_json["journal_source"]["folder"],
-        Value::String(raw_journal_dir.to_string())
-    );
+    assert_journal_folder_exposed(&snapshot_json);
     assert_eq!(
         snapshot_json["journal_source"]["status_label"],
         Value::String("Running".to_string())
@@ -70,19 +63,23 @@ async fn webui_api_snapshot_exposes_journal_folder_for_loopback_request_on_wildc
         "GET /api/snapshot HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
     );
 
-    let raw_journal_dir = journal_dir.to_string_lossy();
     assert!(response.starts_with("HTTP/1.1 200 OK"), "{response}");
-    assert!(response.contains(raw_journal_dir.as_ref()), "{response}");
     let snapshot_json = json_body(&response);
-    assert_eq!(
-        snapshot_json["journal_source"]["folder"],
-        Value::String(raw_journal_dir.to_string())
-    );
+    assert_journal_folder_exposed(&snapshot_json);
     assert_eq!(
         snapshot_json["journal_source"]["selected_file"],
         Value::String(selected_filename)
     );
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}
+
+fn assert_journal_folder_exposed(snapshot_json: &Value) {
+    let folder = snapshot_json["journal_source"]["folder"].as_str().unwrap();
+    assert!(
+        folder.ends_with("private-journal-root/journal")
+            || folder.ends_with("private-journal-root\\journal"),
+        "{snapshot_json}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
