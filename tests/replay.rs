@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use ed_sentry::build_info::APP_BUILD_VERSION;
 use std::io::Write;
 
 const ANSI_CLEAR_CURRENT_LINE: &str = "\u{1b}[2K";
@@ -20,7 +21,7 @@ fn replay_combat_fixture_outputs_core_fragments() {
     assert!(output.stderr.is_empty());
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(
-        stdout.contains("ed-sentry v260421 by CMDR ControlNet"),
+        stdout.contains(&format!("ed-sentry {APP_BUILD_VERSION} by CMDR ControlNet")),
         "{stdout}"
     );
     assert!(

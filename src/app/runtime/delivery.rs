@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use chrono::{DateTime, Utc};
 
+use crate::build_info::APP_BUILD_VERSION;
 use crate::config::{MatrixRuntimeConfig, RuntimeConfig};
 use crate::delivery::{DeliveryHub, DeliveryWarning, RemoteDelivery, StatusCadence};
 use crate::matrix::MatrixDelivery;
@@ -189,7 +190,7 @@ fn matrix_startup_header_notification(
         .unwrap_or("[disabled]");
     let remote_text = format!(
         "🛰️ ed-sentry started\nVersion: {}\nStarted at: {}\nJournal folder: {}\nJournal file: {}\nMatrix room: {}",
-        env!("CARGO_PKG_VERSION"),
+        APP_BUILD_VERSION,
         program_started_at.to_rfc3339(),
         watch_journal_folder_display(config),
         journal_basename(set_file),
@@ -205,4 +206,35 @@ fn matrix_startup_header_notification(
         remote_text,
         program_started_at,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use chrono::{TimeZone, Utc};
+
+    use super::*;
+    use crate::build_info::APP_BUILD_VERSION;
+    use crate::config::{AppConfig, CliConfigOverrides};
+
+    #[test]
+    fn matrix_startup_header_uses_build_version() {
+        let config = AppConfig::default().into_runtime(&CliConfigOverrides::default());
+        let started_at = Utc.with_ymd_and_hms(2035, 6, 9, 16, 30, 0).unwrap();
+
+        let notification = matrix_startup_header_notification(
+            &config,
+            Path::new("Journal.2035-06-09T163000.01.log"),
+            started_at,
+        );
+
+        assert!(
+            notification
+                .remote_text
+                .contains(&format!("Version: {APP_BUILD_VERSION}")),
+            "{}",
+            notification.remote_text
+        );
+    }
 }

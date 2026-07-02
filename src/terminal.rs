@@ -8,13 +8,12 @@ use crossterm::{
     terminal::{Clear, ClearType},
 };
 
+use crate::build_info::app_title;
 use crate::config::MonitorConfig;
 use crate::notifier::{AlertLevel, Notification, Notifier};
 use crate::state::SessionState;
 use crate::text::{format_rate_per_hour, line_safe};
 use crate::time::TimeDisplayZone;
-
-const DEFAULT_WINDOW_TITLE: &str = "ed-sentry v260421";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TerminalMode {
@@ -224,7 +223,7 @@ pub fn render_dynamic_title(
     active_missions: usize,
 ) -> String {
     if !state.active_session {
-        return DEFAULT_WINDOW_TITLE.to_string();
+        return app_title();
     }
 
     let kill_rate = match state.kills {
@@ -254,6 +253,7 @@ pub fn set_platform_window_title(_title: &str) {
             .encode_wide()
             .chain(std::iter::once(0))
             .collect::<Vec<_>>();
+        // SAFETY: `wide` is null-terminated above and lives for the duration of the call.
         unsafe {
             SetConsoleTitleW(wide.as_ptr());
         }

@@ -4,6 +4,7 @@ use std::process::ExitCode;
 use clap::Parser;
 
 use crate::app::runtime::{run_replay, run_watch, RuntimeError};
+use crate::build_info::app_title;
 use crate::config::{AppConfig, CliConfigOverrides, RuntimeConfig};
 use crate::terminal::render_banner;
 use crate::text::line_safe;
@@ -138,7 +139,10 @@ async fn run_command(command: RuntimeCommand) -> Result<(), AppError> {
         eprintln!("Warning: --reset-session has no effect in replay");
     }
 
-    println!("{}", render_banner("ed-sentry v260421 by CMDR ControlNet"));
+    println!(
+        "{}",
+        render_banner(&format!("{} by CMDR ControlNet", app_title()))
+    );
     println!();
 
     match command.mode {

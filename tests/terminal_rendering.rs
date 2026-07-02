@@ -1,4 +1,5 @@
 use chrono::{DateTime, Duration, TimeZone, Utc};
+use ed_sentry::build_info::APP_BUILD_VERSION;
 use ed_sentry::config::MonitorConfig;
 use ed_sentry::notifier::{AlertLevel, Notification, Notifier};
 use ed_sentry::state::SessionState;
@@ -91,7 +92,7 @@ fn terminal_dynamic_title_matches_upstream_active_and_reset_text() {
     let mut inactive = fixed_status_state();
     inactive.active_session = false;
     let reset = render_dynamic_title(&inactive, &MonitorConfig::default(), fixed_now(), 5, 20);
-    assert_eq!(reset, "ed-sentry v260421");
+    assert_eq!(reset, format!("ed-sentry {APP_BUILD_VERSION}"));
 }
 
 #[test]

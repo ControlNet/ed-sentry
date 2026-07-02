@@ -8,12 +8,17 @@ mod command;
 mod journal;
 
 use assert_cmd::Command;
+use ed_sentry::build_info::APP_BUILD_VERSION;
 use predicates::prelude::*;
 use std::io::Write;
 use std::process::Stdio;
 use std::time::Duration;
 
 const WATCH_READINESS_DEADLINE: Duration = Duration::from_secs(10);
+
+fn expected_banner() -> String {
+    format!("ed-sentry {APP_BUILD_VERSION} by CMDR ControlNet")
+}
 
 #[test]
 fn cli_config_replay_flag_and_default_watch_mode() {
@@ -27,9 +32,7 @@ fn cli_config_replay_flag_and_default_watch_mode() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains(
-            "ed-sentry v260421 by CMDR ControlNet",
-        ))
+        .stdout(predicate::str::contains(expected_banner()))
         .stdout(predicate::str::contains(
             "Journal file: journal_combat_bounty.log",
         ))
@@ -62,7 +65,7 @@ fn cli_config_default_watch_mode_binary() {
         .arg("--no-status-line");
 
     let stdout = capture_text::capture_watch_startup(command);
-    assert!(stdout.contains("ed-sentry v260421 by CMDR ControlNet"));
+    assert!(stdout.contains(&expected_banner()));
     assert!(stdout.contains(&format!("Journal folder: {}", temp_dir.path().display())));
     assert!(stdout.contains("Starting... (Press Ctrl+C to stop)"));
 }
