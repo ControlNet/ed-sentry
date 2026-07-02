@@ -1,11 +1,9 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-
 use ed_sentry::web::start_with_state;
 use futures_util::StreamExt;
 use serde_json::Value;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
+use crate::fake_cloudflared::{fake_cloudflared, FakeCloudflared};
 use crate::support::{
     api_runtime, api_store, env_lock, request, runtime_backed_store, write_api_config, write_dist,
     write_journal_fixture, write_tunnel_api_config,
@@ -134,10 +132,7 @@ async fn tunnel_websocket_accepts_active_tunnel_host_without_bearer_token() {
     let dist = tempfile::tempdir().unwrap();
     write_dist(dist.path(), "tunnel ws dist");
     std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
-    let fake = fake_cloudflared(
-        temp_dir.path(),
-        "printf '%s\n' 'https://fixture.trycloudflare.com'; while :; do sleep 1; done",
-    );
+    let fake = fake_cloudflared(temp_dir.path(), FakeCloudflared::EmitUrlThenWait);
     std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
     let config_path = temp_dir.path().join("config.toml");
     write_tunnel_api_config(&config_path, temp_dir.path(), "fixture-tunnel-password");
@@ -171,15 +166,4 @@ async fn tunnel_websocket_accepts_active_tunnel_host_without_bearer_token() {
     assert!(hello_json.get("event_feed").is_some(), "{hello_json}");
     std::env::remove_var("ED_SENTRY_CLOUDFLARED_PATH");
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
-}
-
-fn fake_cloudflared(dir: &Path, script_body: &str) -> PathBuf {
-    let path = dir.join("cloudflared-fixture");
-    fs::write(&path, format!("#!/bin/sh\n{script_body}\n")).unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
-    }
-    path
 }

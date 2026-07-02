@@ -1,9 +1,8 @@
-use std::fs;
-use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use ed_sentry::web::start_with_state;
 
+use crate::fake_cloudflared::{fake_cloudflared, FakeCloudflared};
 use crate::support::{
     api_runtime, api_store, env_lock, request, write_dist, write_tunnel_api_config,
 };
@@ -20,10 +19,7 @@ async fn web_policy_accepts_only_active_tunnel_host_and_rejects_unrelated_tryclo
     let dist = tempfile::tempdir().unwrap();
     write_dist(dist.path(), "web policy dist");
     std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
-    let fake = fake_cloudflared(
-        temp_dir.path(),
-        "printf '%s\n' 'https://fixture.trycloudflare.com'; while :; do sleep 1; done",
-    );
+    let fake = fake_cloudflared(temp_dir.path(), FakeCloudflared::EmitUrlThenWait);
     std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
     let config_path = temp_dir.path().join("config.toml");
     write_tunnel_api_config(&config_path, temp_dir.path(), TUNNEL_PASSWORD);
@@ -81,11 +77,7 @@ async fn web_policy_rejects_stale_tunnel_host_after_crash_and_restart() {
     let counter = temp_dir.path().join("counter");
     let fake = fake_cloudflared(
         temp_dir.path(),
-        &format!(
-            "count=$(cat '{}' 2>/dev/null || printf 0); count=$((count + 1)); printf '%s' \"$count\" > '{}'; if [ \"$count\" = 1 ]; then printf '%s\n' 'https://fixture.trycloudflare.com'; exit 0; fi; printf '%s\n' 'https://rotated.trycloudflare.com'; while :; do sleep 1; done",
-            counter.display(),
-            counter.display()
-        ),
+        FakeCloudflared::EmitFirstUrlThenExit(counter),
     );
     std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
     let config_path = temp_dir.path().join("config.toml");
@@ -131,15 +123,4 @@ fn start_tunnel(port: u16) -> String {
         port,
         "POST /api/tunnel/start HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
     )
-}
-
-fn fake_cloudflared(dir: &Path, script_body: &str) -> PathBuf {
-    let path = dir.join("cloudflared-fixture");
-    fs::write(&path, format!("#!/bin/sh\n{script_body}\n")).unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
-    }
-    path
 }

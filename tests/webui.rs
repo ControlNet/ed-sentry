@@ -1,3 +1,5 @@
+#[path = "webui/fake_cloudflared.rs"]
+mod fake_cloudflared;
 #[path = "webui/support.rs"]
 mod support;
 

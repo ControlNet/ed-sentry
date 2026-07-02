@@ -1,10 +1,11 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use ed_sentry::config::AppConfig;
 use ed_sentry::web::start_with_state;
 use serde_json::Value;
 
+use crate::fake_cloudflared::{fake_cloudflared, FakeCloudflared};
 use crate::support::{
     api_runtime, api_store, env_lock, json_body, put_config, put_config_with_auth, request,
     write_dist, write_tunnel_api_config,
@@ -21,10 +22,7 @@ async fn tunnel_routes_status_start_login_success_and_failure() {
     let dist = tempfile::tempdir().unwrap();
     write_dist(dist.path(), "tunnel routes dist");
     std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
-    let fake = fake_cloudflared(
-        temp_dir.path(),
-        "printf '%s\n' 'https://fixture.trycloudflare.com'; while :; do sleep 1; done",
-    );
+    let fake = fake_cloudflared(temp_dir.path(), FakeCloudflared::EmitUrlThenWait);
     std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
     let config_path = temp_dir.path().join("config.toml");
     write_tunnel_api_config(&config_path, temp_dir.path(), TUNNEL_PASSWORD);
@@ -76,10 +74,7 @@ async fn config_api_requires_bearer_for_tunnel_host_and_preserves_loopback_acces
     let dist = tempfile::tempdir().unwrap();
     write_dist(dist.path(), "config policy dist");
     std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
-    let fake = fake_cloudflared(
-        temp_dir.path(),
-        "printf '%s\n' 'https://fixture.trycloudflare.com'; while :; do sleep 1; done",
-    );
+    let fake = fake_cloudflared(temp_dir.path(), FakeCloudflared::EmitUrlThenWait);
     std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
     let config_path = temp_dir.path().join("config.toml");
     write_tunnel_api_config(&config_path, temp_dir.path(), TUNNEL_PASSWORD);
@@ -152,10 +147,7 @@ async fn config_api_allows_tunnel_host_when_password_is_empty() {
     let dist = tempfile::tempdir().unwrap();
     write_dist(dist.path(), "empty password dist");
     std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
-    let fake = fake_cloudflared(
-        temp_dir.path(),
-        "printf '%s\n' 'https://fixture.trycloudflare.com'; while :; do sleep 1; done",
-    );
+    let fake = fake_cloudflared(temp_dir.path(), FakeCloudflared::EmitUrlThenWait);
     std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
     let config_path = temp_dir.path().join("config.toml");
     write_tunnel_api_config(&config_path, temp_dir.path(), "");
@@ -192,10 +184,7 @@ async fn tunnel_routes_manual_start_keeps_ssh_provider_unsupported() {
     let args_log = temp_dir.path().join("args.log");
     let fake = fake_cloudflared(
         temp_dir.path(),
-        &format!(
-            "printf 'started\n' >> {}; printf '%s\n' 'https://fixture.trycloudflare.com'; while :; do sleep 1; done",
-            shell_quote(&args_log)
-        ),
+        FakeCloudflared::LogStartedThenWait(args_log.clone()),
     );
     std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
     let config_path = temp_dir.path().join("config.toml");
@@ -240,17 +229,6 @@ fn login(port: u16, host: &str, password: &str) -> String {
     )
 }
 
-fn fake_cloudflared(dir: &Path, script_body: &str) -> PathBuf {
-    let path = dir.join("cloudflared-fixture");
-    fs::write(&path, format!("#!/bin/sh\n{script_body}\n")).unwrap();
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
-    }
-    path
-}
-
 fn write_ssh_tunnel_api_config(path: &Path, journal_dir: &Path) {
     fs::write(
         path,
@@ -273,8 +251,4 @@ fn write_ssh_tunnel_api_config(path: &Path, journal_dir: &Path) {
         ),
     )
     .unwrap();
-}
-
-fn shell_quote(path: &Path) -> String {
-    format!("'{}'", path.display().to_string().replace('\'', "'\\''"))
 }

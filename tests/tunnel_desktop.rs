@@ -13,13 +13,7 @@ async fn desktop_runtime_manual_start_keeps_ssh_provider_unsupported() {
     write_dist(dist.path());
     std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
     let args_log = temp_dir.path().join("args.log");
-    let fake = fake_cloudflared(
-        temp_dir.path(),
-        &format!(
-            "printf 'started\n' >> {}; printf '%s\n' 'https://fixture.trycloudflare.com'; while :; do sleep 1; done",
-            shell_quote(&args_log)
-        ),
-    );
+    let fake = fake_cloudflared(temp_dir.path(), args_log.clone());
     std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
     let journal_path = temp_dir.path().join("Journal.2035-01-08T124500.01.log");
     fs::write(
@@ -58,15 +52,40 @@ fn write_dist(path: &Path) {
     .unwrap();
 }
 
-fn fake_cloudflared(dir: &Path, script_body: &str) -> PathBuf {
-    let path = dir.join("cloudflared-fixture");
-    fs::write(&path, format!("#!/bin/sh\n{script_body}\n")).unwrap();
+fn fake_cloudflared(dir: &Path, args_log: PathBuf) -> PathBuf {
+    let path = dir.join(fake_cloudflared_name());
+    fs::write(&path, fake_cloudflared_script(&args_log)).unwrap();
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
     }
     path
+}
+
+fn fake_cloudflared_name() -> &'static str {
+    if cfg!(windows) {
+        "cloudflared-fixture.cmd"
+    } else {
+        "cloudflared-fixture"
+    }
+}
+
+fn fake_cloudflared_script(args_log: &Path) -> String {
+    if cfg!(windows) {
+        return format!(
+            "@echo off\r\necho started>> {}\r\necho https://fixture.trycloudflare.com\r\nping -n 31 127.0.0.1 >NUL\r\n",
+            batch_quote(args_log)
+        );
+    }
+    format!(
+        "#!/bin/sh\nprintf 'started\n' >> {}; printf '%s\n' 'https://fixture.trycloudflare.com'; while :; do sleep 1; done\n",
+        shell_quote(args_log)
+    )
+}
+
+fn batch_quote(path: &Path) -> String {
+    format!("\"{}\"", path.display())
 }
 
 fn shell_quote(path: &Path) -> String {
