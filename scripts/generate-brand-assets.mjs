@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { copyFile, stat } from "node:fs/promises"
-import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
 import { spawnSync } from "node:child_process"
+import { existsSync } from "node:fs"
+import { copyFile, stat } from "node:fs/promises"
+import path, { dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(scriptDir, "..")
@@ -16,7 +17,15 @@ const webFavicon = join(repoRoot, "ui", "public", "favicon.ico")
 
 async function main() {
   await requireFile(sourceLogo, "source logo SVG")
-  run("pnpm", ["--dir", "ui", "tauri", "icon", "../docs/images/logo.svg", "--output", "src-tauri/icons"])
+  run(resolvePnpmCommand(), [
+    "--dir",
+    "ui",
+    "tauri",
+    "icon",
+    "../docs/images/logo.svg",
+    "--output",
+    "src-tauri/icons",
+  ])
   await requireFile(tauriIconPng, "generated Tauri PNG icon")
   await requireFile(tauriIconIco, "generated Tauri ICO icon")
   await copyFile(tauriIconPng, docsLogoPng)
@@ -45,8 +54,27 @@ function run(command, args) {
   }
 }
 
-main().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error)
-  console.error(message)
-  process.exit(1)
-})
+export function resolvePnpmCommand(
+  env = process.env,
+  platform = process.platform,
+  fileExists = existsSync,
+) {
+  const executable = platform === "win32" ? "pnpm.cmd" : "pnpm"
+  const packageManagerHome = env.PNPM_HOME
+  if (packageManagerHome !== undefined && packageManagerHome.trim() !== "") {
+    const pathModule = platform === "win32" ? path.win32 : path.posix
+    const candidate = pathModule.join(packageManagerHome, executable)
+    if (fileExists(candidate)) {
+      return candidate
+    }
+  }
+  return executable
+}
+
+if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  main().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(message)
+    process.exit(1)
+  })
+}
