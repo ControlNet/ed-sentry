@@ -257,7 +257,7 @@ fn write_ssh_tunnel_api_config(path: &Path, journal_dir: &Path) {
         format!(
             r#"
             [journal]
-            folder = "{}"
+            folder = {:?}
 
             [web]
             enabled = true
@@ -269,7 +269,7 @@ fn write_ssh_tunnel_api_config(path: &Path, journal_dir: &Path) {
             provider = "ssh"
             auto_start = false
             "#,
-            journal_dir.display()
+            journal_dir.display().to_string()
         ),
     )
     .unwrap();

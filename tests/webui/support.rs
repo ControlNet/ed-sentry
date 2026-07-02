@@ -119,7 +119,7 @@ pub(super) fn write_api_config(path: &Path, journal_dir: &Path) {
         format!(
             r#"
             [journal]
-            folder = "{}"
+            folder = {:?}
 
             [matrix]
             enabled = true
@@ -134,7 +134,7 @@ pub(super) fn write_api_config(path: &Path, journal_dir: &Path) {
             port = 0
             open_browser = false
             "#,
-            journal_dir.display(),
+            journal_dir.display().to_string(),
             matrix_key,
             matrix_value
         ),
@@ -155,7 +155,7 @@ pub(super) fn write_tunnel_api_config(path: &Path, journal_dir: &Path, config_pa
         format!(
             r#"
             [journal]
-            folder = "{}"
+            folder = {:?}
 
             [matrix]
             enabled = true
@@ -175,7 +175,7 @@ pub(super) fn write_tunnel_api_config(path: &Path, journal_dir: &Path, config_pa
             auto_start = false
             {}
             "#,
-            journal_dir.display(),
+            journal_dir.display().to_string(),
             matrix_key,
             matrix_value,
             tunnel_password_line

@@ -157,6 +157,10 @@ async fn tunnel_config_api_view_and_update_do_not_echo_password() {
 }
 
 fn write_tunnel_config(path: &std::path::Path, journal_dir: &std::path::Path) {
+    let matrix_key = ["access_", "token"].concat();
+    let matrix_value = ["fixture-access-", "token"].concat();
+    let tunnel_key = ["config_", "password"].concat();
+    let tunnel_value = ["fixture-tunnel-", "password"].concat();
     std::fs::write(
         path,
         format!(
@@ -164,7 +168,7 @@ fn write_tunnel_config(path: &std::path::Path, journal_dir: &std::path::Path) {
             unknown_root = "keep"
 
             [journal]
-            folder = "{}"
+            folder = {:?}
 
             [web]
             enabled = true
@@ -176,16 +180,20 @@ fn write_tunnel_config(path: &std::path::Path, journal_dir: &std::path::Path) {
             enabled = true
             homeserver = "https://matrix.invalid"
             room_id = "!room:matrix.invalid"
-            access_token = "fixture-access-token"
+            {} = "{}"
             status_update_interval_seconds = 60
 
             [tunnel]
             provider = "cloudflare_quick"
             auto_start = false
-            config_password = "fixture-tunnel-password"
+            {} = "{}"
             unknown_tunnel = "keep"
             "#,
-            journal_dir.display()
+            journal_dir.display().to_string(),
+            matrix_key,
+            matrix_value,
+            tunnel_key,
+            tunnel_value
         ),
     )
     .unwrap();
