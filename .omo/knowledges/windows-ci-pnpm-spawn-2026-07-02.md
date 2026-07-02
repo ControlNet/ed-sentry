@@ -16,10 +16,13 @@ Mechanism: the outer PowerShell step can resolve `pnpm`, but the Node script's
 `spawnSync("pnpm", ...)` does not reliably resolve the GitHub Actions pnpm shim
 on Windows. The CI environment provides `PNPM_HOME`, so the script should prefer
 `PNPM_HOME/pnpm.cmd` on Windows when that shim exists, falling back to the bare
-command otherwise.
+command otherwise. Directly spawning the `.cmd` shim without a shell then failed
+with `spawnSync ... pnpm.cmd EINVAL`, so Windows command-shim execution must use
+`shell: true`.
 
 Regression test: `scripts/generate-brand-assets.test.mjs` covers Windows
-`PNPM_HOME` resolution and the missing-shim fallback.
+`PNPM_HOME` resolution, the missing-shim fallback, and Windows shell execution
+for command shims.
 
 Useful verification commands:
 

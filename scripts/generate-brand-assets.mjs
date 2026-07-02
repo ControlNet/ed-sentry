@@ -43,14 +43,21 @@ async function requireFile(path, label) {
 
 function run(command, args) {
   const result = spawnSync(command, args, {
-    cwd: repoRoot,
-    stdio: "inherit",
+    ...resolveSpawnOptions(),
   })
   if (result.error !== undefined) {
     throw result.error
   }
   if (result.status !== 0) {
     throw new Error(`${command} ${args.join(" ")} failed with status ${result.status}`)
+  }
+}
+
+export function resolveSpawnOptions(platform = process.platform) {
+  return {
+    cwd: repoRoot,
+    stdio: "inherit",
+    shell: platform === "win32",
   }
 }
 
