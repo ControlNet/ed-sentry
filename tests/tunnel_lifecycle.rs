@@ -16,7 +16,7 @@ enum FakeCloudflared {
     LogArgsLongRunning(PathBuf),
     LogStartedLongRunning(PathBuf),
     LogStartedThenExit(PathBuf),
-    ExitAfterUrl,
+    ExitAfterSignal(PathBuf),
 }
 
 fn fixture_time() -> chrono::DateTime<Utc> {
@@ -154,9 +154,13 @@ async fn tunnel_lifecycle_no_bound_port_does_not_spawn_for_manual_start() {
 
 #[tokio::test]
 async fn tunnel_lifecycle_clears_active_tunnel_after_crash_and_restart() {
-    // Given: the first process reports a URL and then exits.
+    // Given: the first process reports a URL and exits only after the test signals it.
     let temp = TempDir::new().unwrap();
-    let fake = fake_cloudflared(temp.path(), FakeCloudflared::ExitAfterUrl);
+    let exit_signal = temp.path().join("exit-signal");
+    let fake = fake_cloudflared(
+        temp.path(),
+        FakeCloudflared::ExitAfterSignal(exit_signal.clone()),
+    );
     let provider =
         CloudflareQuickTunnelProvider::with_executable_and_timeout(fake, FAKE_URL_TIMEOUT);
     let mut lifecycle = TunnelLifecycleManager::new(provider, Some(8765), true);
@@ -165,8 +169,8 @@ async fn tunnel_lifecycle_clears_active_tunnel_after_crash_and_restart() {
     assert!(lifecycle.provider().active_tunnel().is_some());
 
     // When: the child exits and status is refreshed.
-    tokio::time::sleep(Duration::from_millis(50)).await;
-    let crashed = lifecycle.refresh(fixture_time());
+    fs::write(exit_signal, "exit").unwrap();
+    let crashed = wait_for_crash(&mut lifecycle).await;
 
     // Then: stale host/session trust is cleared and restart creates a new session.
     assert_eq!(crashed.kind, TunnelStatusKind::Error);
@@ -174,6 +178,20 @@ async fn tunnel_lifecycle_clears_active_tunnel_after_crash_and_restart() {
     let restarted = lifecycle.manual_start(fixture_time()).await;
     assert_eq!(restarted.kind, TunnelStatusKind::Running);
     assert_ne!(running.session_id, restarted.session_id);
+}
+
+async fn wait_for_crash(lifecycle: &mut TunnelLifecycleManager) -> ed_sentry::app::TunnelStatus {
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            let status = lifecycle.refresh(fixture_time());
+            if status.kind == TunnelStatusKind::Error {
+                return status;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap()
 }
 
 fn fake_cloudflared(dir: &Path, behavior: FakeCloudflared) -> PathBuf {
@@ -219,9 +237,10 @@ fn fake_cloudflared_shell(behavior: &FakeCloudflared) -> String {
             "printf 'started\\n' >> {}; printf '%s\\n' 'https://fixture.trycloudflare.com'",
             shell_quote(path)
         ),
-        FakeCloudflared::ExitAfterUrl => {
-            "printf '%s\\n' 'https://fixture.trycloudflare.com'; exit 0".to_string()
-        }
+        FakeCloudflared::ExitAfterSignal(path) => format!(
+            "printf '%s\\n' 'https://fixture.trycloudflare.com'; while [ ! -f {} ]; do sleep 0.01; done",
+            shell_quote(path)
+        ),
     };
     format!("#!/bin/sh\n{body}\n")
 }
@@ -243,7 +262,10 @@ fn fake_cloudflared_batch(behavior: &FakeCloudflared) -> String {
             "echo started>> {}\r\necho https://fixture.trycloudflare.com",
             batch_quote(path)
         ),
-        FakeCloudflared::ExitAfterUrl => "echo https://fixture.trycloudflare.com".to_string(),
+        FakeCloudflared::ExitAfterSignal(path) => format!(
+            "echo https://fixture.trycloudflare.com\r\n:wait\r\nif not exist {} (ping -n 2 127.0.0.1 >NUL\r\ngoto wait)",
+            batch_quote(path)
+        ),
     };
     format!("@echo off\r\n{body}\r\n")
 }
