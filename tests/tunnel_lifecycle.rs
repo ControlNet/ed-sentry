@@ -232,11 +232,11 @@ fn fake_cloudflared_batch(behavior: &FakeCloudflared) -> String {
             "echo https://fixture.trycloudflare.com\r\nping -n 31 127.0.0.1 >NUL".to_string()
         }
         FakeCloudflared::LogArgsLongRunning(path) => format!(
-            "echo %*>> {}\r\necho https://fixture.trycloudflare.com\r\n:loop\r\nping -n 2 127.0.0.1 >NUL\r\ngoto loop",
+            "echo %*>> {}\r\necho https://fixture.trycloudflare.com\r\nping -n 31 127.0.0.1 >NUL",
             batch_quote(path)
         ),
         FakeCloudflared::LogStartedLongRunning(path) => format!(
-            "echo started>> {}\r\necho https://fixture.trycloudflare.com\r\n:loop\r\nping -n 2 127.0.0.1 >NUL\r\ngoto loop",
+            "echo started>> {}\r\necho https://fixture.trycloudflare.com\r\nping -n 31 127.0.0.1 >NUL",
             batch_quote(path)
         ),
         FakeCloudflared::LogStartedThenExit(path) => format!(
