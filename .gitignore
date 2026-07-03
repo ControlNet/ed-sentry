@@ -19,6 +19,10 @@
 /ui/test-results/
 /ui/.vite/
 /ui/src-tauri/target/
+/docs/images/logo.png
+/ui/public/logo.png
+/ui/public/favicon.ico
+/ui/src-tauri/icons/
 *.tar.gz
 *.zip
 Journal.*.log
