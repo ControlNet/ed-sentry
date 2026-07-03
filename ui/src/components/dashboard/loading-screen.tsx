@@ -99,13 +99,6 @@ export function LoadingScreen({ detail, isTauri }: LoadingScreenProps): React.JS
             <h1 className="loading-status tactical-overline text-tactical">{status}</h1>
           </div>
 
-          <div className="h-1 w-40 overflow-hidden rounded-none border border-tactical/10 bg-surface-raised/80 p-0.5">
-            <div
-              className="loading-linear-progress h-full origin-left bg-tactical"
-              style={{ transform: `scaleX(${progress / 100})` }}
-            />
-          </div>
-
           <p className="max-w-72 text-[11px] leading-4 text-text-muted">{detail}</p>
         </div>
       </section>

@@ -228,11 +228,6 @@ select {
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-tactical-accent) 80%, transparent));
 }
 
-.loading-linear-progress {
-  box-shadow: 0 0 8px color-mix(in srgb, var(--color-tactical-accent) 60%, transparent);
-  transition: transform 90ms ease-out;
-}
-
 [data-titlebar-drag-debug="true"] [data-titlebar-drag-region] {
   background:
     repeating-linear-gradient(

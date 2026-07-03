@@ -5,7 +5,7 @@ test("dashboard scaffold renders monitor state when mock adapter is active", asy
   await page.goto("/")
 
   await expect(page.getByRole("button", { name: /Dashboard/u })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Dashboard Interface" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Telemetry Link" })).toContainText(
     "Local Commander",
   )
@@ -31,7 +31,7 @@ test("@mock-dashboard renders the adapter-backed dashboard shell", async ({ page
   await page.goto("/")
 
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Dashboard Interface" })).toBeVisible()
   await expect(page.locator("main")).toContainText("SYS_RELAY: CONNECTED")
   await expect(page.getByRole("region", { name: "Combat Analytics" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Recent event feed" })).toContainText(
@@ -40,7 +40,7 @@ test("@mock-dashboard renders the adapter-backed dashboard shell", async ({ page
   await expect(page.getByRole("region", { name: "Mission progress" })).toContainText(
     "Massacre pirates",
   )
-  await expect(page.getByTestId("telemetry-active-mission-count")).toHaveText("2")
+  await expect(page.getByTestId("telemetry-active-mission-count")).toHaveText("ACTIVE 2")
   await expect(page.getByRole("region", { name: "Mission progress" })).not.toContainText("TOTAL")
   await expect(page.getByRole("region", { name: "Mission progress" })).not.toContainText(
     "1/2 active",
@@ -77,7 +77,7 @@ test("@todo10-dashboard renders all first-milestone operational regions", async 
   const checklist = page.getByRole("region", { name: "Checklist" })
 
   await expect(page.locator("main")).toContainText("Local Commander")
-  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Dashboard Interface" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Combat Analytics" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Ship Integrity" })).toHaveCount(0)
   await expect(checklist).toBeVisible()
@@ -257,7 +257,7 @@ test("@about workspace preserves telemetry navigation", async ({ page }) => {
   await page.getByRole("button", { name: /About/u }).click()
   await page.getByRole("button", { name: /Dashboard/u }).click()
 
-  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Dashboard Interface" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Service Nodes" })).toBeVisible()
 })
 
@@ -277,6 +277,7 @@ test("@loading-screen renders the tactical startup visual while awaiting a snaps
   await expect(page.getByRole("region", { name: "Dashboard startup" })).toBeVisible()
   await expectLoadingProgress(page)
   await expect(page.locator("svg").first()).toBeVisible()
+  await expect(page.locator(".loading-linear-progress")).toHaveCount(0)
   await expect(page.getByText("Loading dashboard snapshot")).toBeVisible()
 
   await captureFullPage(page, "../.omo/evidence/gui-webui-tauri/loading-screen.png")
