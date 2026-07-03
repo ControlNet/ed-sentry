@@ -13,9 +13,8 @@ test("README exposes bytedream smartrelease download URLs and visuals", async ()
   assert.match(readme, new RegExp(escapeRegExp(windowsUrl), "u"))
   assert.match(readme, new RegExp(escapeRegExp(linuxUrl), "u"))
   assert.match(readme, /docs\/images\/dashboard\.png/u)
-  assert.match(readme, /docs\/images\/logo\.png/u)
+  assert.match(readme, /docs\/images\/logo\.svg/u)
   await assertFileExists("docs/images/logo.svg")
-  await assertFileExists("docs/images/logo.png")
 })
 
 function escapeRegExp(value) {

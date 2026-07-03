@@ -1,6 +1,6 @@
 # ED Sentry
 
-![ED Sentry logo](docs/images/logo.png)
+![ED Sentry logo](docs/images/logo.svg)
 
 **ED Sentry** is an Elite Dangerous AFK monitoring dashboard for commanders. It watches your local Journal files and shows combat, service-node, tunnel, mission, and session status in a tactical desktop/Web interface.
 
