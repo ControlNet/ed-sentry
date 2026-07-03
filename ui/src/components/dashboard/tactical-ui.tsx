@@ -31,7 +31,7 @@ export function TacticalPanel({
       )}
     >
       <CornerMarks />
-      <div className="flex shrink-0 items-center justify-between border-b border-orange-500/20 bg-orange-950/20 px-3 py-2">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-orange-500/20 bg-orange-950/20 px-3 py-2">
         <div className="flex min-w-0 items-center gap-2">
           {Icon === undefined ? null : (
             <Icon aria-hidden="true" className="size-3.5 text-tactical" />
@@ -40,7 +40,9 @@ export function TacticalPanel({
             {title}
           </h2>
         </div>
-        {rightElement}
+        {rightElement === undefined ? null : (
+          <div className="flex w-full shrink-0 justify-end sm:w-auto">{rightElement}</div>
+        )}
       </div>
       <div className={cn("custom-scrollbar min-h-0 flex-1 overflow-auto p-4", bodyClassName)}>
         {children}
@@ -75,14 +77,26 @@ export function ProgressBar({
   current,
   total,
   tone = "brand",
+  className,
 }: {
   readonly current: number
   readonly total: number
   readonly tone?: "brand" | "success" | "danger" | "scan" | "mission"
+  readonly className?: string
 }): React.JSX.Element {
   const percent = total <= 0 ? 0 : Math.min(100, Math.max(0, (current / total) * 100))
   return (
-    <div className="mt-1 h-1.5 w-full overflow-hidden border border-slate-800 bg-slate-900/50">
+    <div
+      aria-label="Progress"
+      aria-valuemax={total}
+      aria-valuemin={0}
+      aria-valuenow={Math.min(Math.max(0, current), total)}
+      className={cn(
+        "mt-1 h-1.5 w-full overflow-hidden border border-slate-800 bg-slate-900/50",
+        className,
+      )}
+      role="progressbar"
+    >
       <div
         className={cn("h-full transition-all duration-500 ease-out", progressToneClass(tone))}
         style={{ width: `${percent}%` }}
