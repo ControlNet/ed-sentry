@@ -24,37 +24,31 @@ const workspaceTabs = [
     id: "dashboard",
     label: "Dashboard",
     icon: Activity,
-    title: "Telemetry Interface",
   },
   {
     id: "missions",
     label: "Missions",
     icon: List,
-    title: "Missions Interface",
   },
   {
     id: "events",
     label: "Comms Feed",
     icon: Terminal,
-    title: "Events Interface",
   },
   {
     id: "config",
     label: "Systems",
     icon: Settings,
-    title: "Config Interface",
   },
   {
     id: "about",
     label: "About",
     icon: Info,
-    title: "About Interface",
   },
 ] as const satisfies readonly {
   readonly id: WorkspaceTab
   readonly label: string
   readonly icon: typeof Activity
-  readonly title: string
 }[]
 
 export function DashboardShell({
@@ -95,7 +89,7 @@ export function DashboardShell({
               alt=""
               width="24"
               height="24"
-              className="size-6 shrink-0 rounded-sm border border-orange-500/40 bg-orange-950/20 object-contain p-0.5 shadow-[inset_0_0_8px_rgba(249,115,22,0.3)]"
+              className="size-6 shrink-0 object-contain"
               data-tauri-drag-region={tauriDragRegion}
               data-titlebar-drag-region="brand-mark"
             />
@@ -105,7 +99,7 @@ export function DashboardShell({
               data-titlebar-drag-region="brand-label"
             >
               <h1
-                className="text-shadow-glow truncate text-sm font-black uppercase tracking-wider text-slate-200"
+                className="text-shadow-glow truncate text-sm font-black uppercase leading-none tracking-wider text-slate-200"
                 data-tauri-drag-region={tauriDragRegion}
               >
                 ed-sentry
@@ -160,7 +154,7 @@ export function DashboardShell({
           <div className="mb-6 flex shrink-0 items-center justify-between border-b border-orange-500/10 pb-4">
             <div>
               <h1 className="text-shadow-glow text-xl font-bold uppercase tracking-widest text-slate-200">
-                {activeDefinition.title}
+                {activeDefinition.label} Interface
               </h1>
               <p className="font-mono text-[9px] uppercase text-slate-500">
                 SYS_RELAY: {connection.status.toUpperCase()}

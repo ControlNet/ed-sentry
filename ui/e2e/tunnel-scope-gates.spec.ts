@@ -14,7 +14,7 @@ test("@tunnel-scope keeps Systems config behind tunnel auth and leaves telemetry
 }) => {
   await page.goto("/?mock_state=tunnel_auth_required")
 
-  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Dashboard Interface" })).toBeVisible()
   await expect(page.locator("[data-service-node='Tunnel']")).toBeVisible()
 
   await page.getByRole("button", { name: /Systems/u }).click()

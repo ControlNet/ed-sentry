@@ -40,11 +40,11 @@ test("@responsive-desktop captures the 1280px WebUI state without horizontal ove
 test("@keyboard-focus reaches core controls and shows focus affordance", async ({ page }) => {
   await page.goto("/")
 
-  const dashboardButton = page.getByRole("button", { name: "Telemetry" })
+  const dashboardButton = page.getByRole("button", { name: "Dashboard" })
   const configButton = page.getByRole("button", { name: /Systems/u })
 
   await pressTabUntilFocused(page, dashboardButton)
-  await expectVisibleFocus(dashboardButton, "Telemetry")
+  await expectVisibleFocus(dashboardButton, "Dashboard")
 
   await pressTabUntilFocused(page, configButton)
   await expectVisibleFocus(configButton, "Systems")
@@ -78,7 +78,7 @@ test("@reduced-motion keeps controls usable while disabling non-essential motion
   await page.emulateMedia({ reducedMotion: "reduce" })
   await page.goto("/")
 
-  const telemetryButton = page.getByRole("button", { name: "Telemetry" })
+  const telemetryButton = page.getByRole("button", { name: "Dashboard" })
   await expect(telemetryButton).toBeVisible()
   await expect(page.locator("main")).toContainText("SYS_RELAY: CONNECTED")
 
@@ -140,11 +140,11 @@ test("@accessibility-smoke exposes landmarks, region names, and form labels", as
 
   await expect(page.locator("main")).toBeVisible()
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Dashboard Interface" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Telemetry Link" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Combat Analytics" })).toBeVisible()
   await expect(page.getByRole("region", { name: "Recent event feed" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Telemetry" })).toBeEnabled()
+  await expect(page.getByRole("button", { name: "Dashboard" })).toBeEnabled()
 
   await page.getByRole("button", { name: /Systems/u }).click()
   await expect(page.getByRole("region", { name: "Config editor" })).toBeVisible()
@@ -173,7 +173,7 @@ async function captureResponsiveDashboard(
 ): Promise<void> {
   await page.setViewportSize({ width, height: 900 })
   await page.goto("/")
-  await expect(page.getByRole("heading", { name: "Telemetry Interface" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Dashboard Interface" })).toBeVisible()
   await expect(page.locator("main")).toContainText("Local Commander")
   await expect(page.locator("main")).toContainText("SYS_RELAY: CONNECTED")
   await expect(page.getByRole("region", { name: "Combat Analytics" })).toBeVisible()
