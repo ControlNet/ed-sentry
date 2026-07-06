@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use chrono::{TimeZone, Utc};
@@ -8,8 +9,11 @@ use ed_sentry::app::{
 };
 use ed_sentry::config::RuntimeConfig;
 use tempfile::TempDir;
+use tokio::sync::{Mutex, MutexGuard};
 
 const FAKE_URL_TIMEOUT: Duration = Duration::from_secs(2);
+
+static CLOUDFLARED_PROCESS_TEST: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
 enum FakeCloudflared {
     LongRunning,
@@ -27,6 +31,8 @@ fn fixture_time() -> chrono::DateTime<Utc> {
 
 #[tokio::test]
 async fn tunnel_lifecycle_auto_start_requires_web_enabled_bound_port_and_watch_capable_runtime() {
+    let _guard = lock_cloudflared_process_test().await;
+
     // Given: auto-start is enabled, WebUI is enabled, a bound port exists, and runtime can watch.
     let temp = TempDir::new().unwrap();
     let fake = fake_cloudflared(temp.path(), FakeCloudflared::LongRunning);
@@ -52,6 +58,8 @@ async fn tunnel_lifecycle_auto_start_requires_web_enabled_bound_port_and_watch_c
 
 #[tokio::test]
 async fn tunnel_lifecycle_does_not_auto_start_for_replay_like_non_watch_runtime() {
+    let _guard = lock_cloudflared_process_test().await;
+
     // Given: auto-start is enabled but the runtime is not watch-capable.
     let temp = TempDir::new().unwrap();
     let args_log = temp.path().join("args.log");
@@ -78,6 +86,8 @@ async fn tunnel_lifecycle_does_not_auto_start_for_replay_like_non_watch_runtime(
 
 #[tokio::test]
 async fn tunnel_lifecycle_manual_start_keeps_ssh_provider_unsupported() {
+    let _guard = lock_cloudflared_process_test().await;
+
     // Given: config selects the future SSH provider and cloudflared would log if invoked.
     let temp = TempDir::new().unwrap();
     let args_log = temp.path().join("args.log");
@@ -108,6 +118,8 @@ async fn tunnel_lifecycle_manual_start_keeps_ssh_provider_unsupported() {
 
 #[tokio::test]
 async fn tunnel_lifecycle_manual_start_is_idempotent_while_running() {
+    let _guard = lock_cloudflared_process_test().await;
+
     // Given: a startable lifecycle manager with an invocation log.
     let temp = TempDir::new().unwrap();
     let args_log = temp.path().join("args.log");
@@ -133,6 +145,8 @@ async fn tunnel_lifecycle_manual_start_is_idempotent_while_running() {
 
 #[tokio::test]
 async fn tunnel_lifecycle_no_bound_port_does_not_spawn_for_manual_start() {
+    let _guard = lock_cloudflared_process_test().await;
+
     // Given: WebUI did not bind to any local port.
     let temp = TempDir::new().unwrap();
     let args_log = temp.path().join("args.log");
@@ -154,6 +168,8 @@ async fn tunnel_lifecycle_no_bound_port_does_not_spawn_for_manual_start() {
 
 #[tokio::test]
 async fn tunnel_lifecycle_clears_active_tunnel_after_crash_and_restart() {
+    let _guard = lock_cloudflared_process_test().await;
+
     // Given: the first process reports a URL and exits only after the test signals it.
     let temp = TempDir::new().unwrap();
     let exit_signal = temp.path().join("exit-signal");
@@ -276,4 +292,8 @@ fn batch_quote(path: &Path) -> String {
 
 fn shell_quote(path: &Path) -> String {
     format!("'{}'", path.display().to_string().replace('\'', "'\\''"))
+}
+
+async fn lock_cloudflared_process_test() -> MutexGuard<'static, ()> {
+    CLOUDFLARED_PROCESS_TEST.lock().await
 }
