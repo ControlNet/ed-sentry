@@ -3,6 +3,7 @@ import path from "node:path"
 import { test } from "node:test"
 
 import {
+  resolveGeneratedLogoPngPath,
   resolvePnpmCommand,
   resolveSpawnOptions,
   resolveTauriIconArgs,
@@ -54,4 +55,10 @@ test("brand asset generator passes absolute source and output paths to Tauri", (
   assert.ok(path.isAbsolute(args[6]), "Tauri icon output path should be absolute")
   assert.match(args[4], /docs[/\\]images[/\\]logo\.svg$/u)
   assert.match(args[6], /ui[/\\]src-tauri[/\\]icons$/u)
+})
+
+test("brand asset generator copies a stable generated PNG logo", () => {
+  const outputDir = path.join("tmp", "icons")
+
+  assert.equal(resolveGeneratedLogoPngPath(outputDir), path.join(outputDir, "128x128@2x.png"))
 })

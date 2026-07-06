@@ -9,7 +9,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(scriptDir, "..")
 const sourceLogo = join(repoRoot, "docs", "images", "logo.svg")
 const tauriIconDir = join(repoRoot, "ui", "src-tauri", "icons")
-const tauriIconPng = join(tauriIconDir, "icon.png")
+const tauriIconPng = resolveGeneratedLogoPngPath()
 const tauriIconIco = join(tauriIconDir, "icon.ico")
 const docsLogoPng = join(repoRoot, "docs", "images", "logo.png")
 const webLogoPng = join(repoRoot, "ui", "public", "logo.png")
@@ -55,6 +55,10 @@ export function resolveSpawnOptions(platform = process.platform) {
 
 export function resolveTauriIconArgs(sourcePath = sourceLogo, outputDir = tauriIconDir) {
   return ["--dir", "ui", "tauri", "icon", sourcePath, "--output", outputDir]
+}
+
+export function resolveGeneratedLogoPngPath(outputDir = tauriIconDir) {
+  return join(outputDir, "128x128@2x.png")
 }
 
 export function resolvePnpmCommand(
