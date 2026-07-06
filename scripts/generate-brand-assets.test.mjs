@@ -1,8 +1,11 @@
 import assert from "node:assert/strict"
+import { mkdtemp, rm, stat } from "node:fs/promises"
+import { tmpdir } from "node:os"
 import path from "node:path"
 import { test } from "node:test"
 
 import {
+  ensureOutputDirectories,
   resolveGeneratedLogoPngPath,
   resolvePnpmCommand,
   resolveSpawnOptions,
@@ -61,4 +64,17 @@ test("brand asset generator copies a stable generated PNG logo", () => {
   const outputDir = path.join("tmp", "icons")
 
   assert.equal(resolveGeneratedLogoPngPath(outputDir), path.join(outputDir, "128x128@2x.png"))
+})
+
+test("brand asset generator creates missing output directories", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "ed-sentry-brand-assets-"))
+  try {
+    const target = path.join(root, "ui", "public", "logo.png")
+
+    await ensureOutputDirectories([target])
+
+    assert.equal((await stat(path.dirname(target))).isDirectory(), true)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })

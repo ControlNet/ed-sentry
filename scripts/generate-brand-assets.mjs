@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process"
 import { existsSync } from "node:fs"
-import { copyFile, readFile, stat, writeFile } from "node:fs/promises"
+import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises"
 import path, { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -20,9 +20,14 @@ async function main() {
   run(resolvePnpmCommand(), resolveTauriIconArgs())
   await requireFile(tauriIconPng, "generated Tauri PNG icon")
   await requireFile(tauriIconIco, "generated Tauri ICO icon")
+  await ensureOutputDirectories([docsLogoPng, webLogoPng, webFavicon])
   await copyGeneratedPngLogo(tauriIconPng, [docsLogoPng, webLogoPng])
   await copyFile(tauriIconIco, webFavicon)
   process.stdout.write("Generated brand assets from docs/images/logo.svg\n")
+}
+
+export async function ensureOutputDirectories(targetPaths) {
+  await Promise.all(targetPaths.map((targetPath) => mkdir(dirname(targetPath), { recursive: true })))
 }
 
 async function copyGeneratedPngLogo(sourcePath, targetPaths) {
