@@ -1,6 +1,17 @@
 # ED Sentry
 
-<img src="docs/images/logo.svg" alt="ED Sentry logo" height="120">
+<p align="center">
+  <img src="docs/images/logo.svg" alt="ED Sentry logo" height="120">
+</p>
+
+<div align="center">
+  <a href="https://github.com/ControlNet/ed-sentry/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ControlNet/ed-sentry/ci.yml?branch=master&style=flat-square&label=CI" alt="CI status"></a>
+  <a href="https://github.com/ControlNet/ed-sentry/releases"><img src="https://img.shields.io/github/v/release/ControlNet/ed-sentry?style=flat-square" alt="Latest release"></a>
+  <a href="https://github.com/ControlNet/ed-sentry/issues"><img src="https://img.shields.io/github/issues/ControlNet/ed-sentry?style=flat-square" alt="Open issues"></a>
+  <a href="https://github.com/ControlNet/ed-sentry/stargazers"><img src="https://img.shields.io/github/stars/ControlNet/ed-sentry?style=flat-square" alt="GitHub stars"></a>
+  <a href="https://github.com/ControlNet/ed-sentry/network/members"><img src="https://img.shields.io/github/forks/ControlNet/ed-sentry?style=flat-square" alt="GitHub forks"></a>
+  <a href="https://github.com/ControlNet/ed-sentry/blob/master/LICENSE"><img src="https://img.shields.io/github/license/ControlNet/ed-sentry?style=flat-square" alt="License"></a>
+</div>
 
 **ED Sentry** is an Elite Dangerous AFK monitoring dashboard for commanders. It watches your local Journal files and shows combat, service-node, tunnel, mission, and session status in a tactical desktop/Web interface.
 

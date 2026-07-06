@@ -13,7 +13,16 @@ test("README exposes bytedream smartrelease download URLs and visuals", async ()
   assert.match(readme, new RegExp(escapeRegExp(windowsUrl), "u"))
   assert.match(readme, new RegExp(escapeRegExp(linuxUrl), "u"))
   assert.match(readme, /docs\/images\/dashboard\.png/u)
-  assert.match(readme, /<img src="docs\/images\/logo\.svg" alt="ED Sentry logo" height="120">/u)
+  assert.match(
+    readme,
+    /<p align="center">\s*<img src="docs\/images\/logo\.svg" alt="ED Sentry logo" height="120">\s*<\/p>/u,
+  )
+  assert.match(readme, /https:\/\/img\.shields\.io\/github\/actions\/workflow\/status\/ControlNet\/ed-sentry\/ci\.yml\?branch=master&style=flat-square&label=CI/u)
+  assert.match(readme, /https:\/\/img\.shields\.io\/github\/v\/release\/ControlNet\/ed-sentry\?style=flat-square/u)
+  assert.match(readme, /https:\/\/img\.shields\.io\/github\/issues\/ControlNet\/ed-sentry\?style=flat-square/u)
+  assert.match(readme, /https:\/\/img\.shields\.io\/github\/stars\/ControlNet\/ed-sentry\?style=flat-square/u)
+  assert.match(readme, /https:\/\/img\.shields\.io\/github\/forks\/ControlNet\/ed-sentry\?style=flat-square/u)
+  assert.match(readme, /https:\/\/img\.shields\.io\/github\/license\/ControlNet\/ed-sentry\?style=flat-square/u)
   assert.match(readme, /https:\/\/github\.com\/PsiPab\/ED-AFK-Monitor/u)
   assert.match(readme, /https:\/\/github\.com\/WarmedxMints\/ODEliteTracker/u)
   await assertFileExists("docs/images/logo.svg")
