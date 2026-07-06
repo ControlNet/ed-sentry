@@ -1,6 +1,6 @@
 # ED Sentry
 
-![ED Sentry logo](docs/images/logo.svg)
+<img src="docs/images/logo.svg" alt="ED Sentry logo" height="120">
 
 **ED Sentry** is an Elite Dangerous AFK monitoring dashboard for commanders. It watches your local Journal files and shows combat, service-node, tunnel, mission, and session status in a tactical desktop/Web interface.
 
@@ -168,3 +168,10 @@ The release outputs are versioned zip files:
 dist/ed-sentry-v0.1.0-windows-x64.zip
 dist/ed-sentry-v0.1.0-linux-x64.zip
 ```
+
+## Acknowledgements
+
+ED Sentry is inspired by:
+
+- [ED-AFK-Monitor](https://github.com/PsiPab/ED-AFK-Monitor)
+- [ODEliteTracker](https://github.com/WarmedxMints/ODEliteTracker)
