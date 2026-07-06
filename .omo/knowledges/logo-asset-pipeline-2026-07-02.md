@@ -7,3 +7,4 @@
 - `pnpm --dir ui build` runs `pnpm assets:brand` first, so Windows/Linux package scripts refresh icons through the normal WebUI build path.
 - GUI chrome uses generated `/logo.png`; README references `docs/images/logo.svg` directly.
 - Generated icon outputs are intentionally ignored and untracked: `docs/images/logo.png`, `ui/public/logo.png`, `ui/public/favicon.ico`, and `ui/src-tauri/icons/`.
+- Fresh CI checkouts may not have ignored output directories such as `ui/public/`; the generator must create parent directories before writing generated files.
