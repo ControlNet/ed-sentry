@@ -17,15 +17,7 @@ const webFavicon = join(repoRoot, "ui", "public", "favicon.ico")
 
 async function main() {
   await requireFile(sourceLogo, "source logo SVG")
-  run(resolvePnpmCommand(), [
-    "--dir",
-    "ui",
-    "tauri",
-    "icon",
-    "../docs/images/logo.svg",
-    "--output",
-    "src-tauri/icons",
-  ])
+  run(resolvePnpmCommand(), resolveTauriIconArgs())
   await requireFile(tauriIconPng, "generated Tauri PNG icon")
   await requireFile(tauriIconIco, "generated Tauri ICO icon")
   await copyFile(tauriIconPng, docsLogoPng)
@@ -59,6 +51,10 @@ export function resolveSpawnOptions(platform = process.platform) {
     stdio: "inherit",
     shell: platform === "win32",
   }
+}
+
+export function resolveTauriIconArgs(sourcePath = sourceLogo, outputDir = tauriIconDir) {
+  return ["--dir", "ui", "tauri", "icon", sourcePath, "--output", outputDir]
 }
 
 export function resolvePnpmCommand(
