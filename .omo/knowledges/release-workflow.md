@@ -24,3 +24,18 @@
   - Linux: `327a48c2e55b91d5fcb7e15389973578caebb7148289ded3163df7e755e02a1c`
 - Downloaded Windows zip contains `ed-sentry.exe`, `ed-sentry-core.exe`, `WebView2Loader.dll`, `config.toml`, `README.md`, `LICENSE`, `webui/index.html`, and `tools/cloudflared/cloudflared.exe`.
 - Downloaded Linux zip contains `ed-sentry-core`, `config.toml`, `README.md`, `LICENSE`, and `webui/index.html`.
+
+## v0.1.1 release verification, 2026-07-06
+
+- `v0.1.1` points to `e4633c65deb65b7b873c0aa5b133fa91ac2cdeb5` after `master` CI run `28809411040` passed.
+- Release workflow run `28810459913` completed successfully.
+- GitHub Release `ED Sentry v0.1.1` is published, not draft, not prerelease.
+- Published assets:
+  - `ed-sentry-v0.1.1-windows-x64.zip`
+  - `ed-sentry-v0.1.1-linux-x64.zip`
+  - `checksums.txt`
+- Downloaded SHA-256 values matched `checksums.txt`:
+  - Windows: `4fb01d13d52c64cea395d283d6780e3f04fe23af4fe037486d96ac86c4206461`
+  - Linux: `c9c5d911036444b4d2c4c5a47578e3cbb416350fd64e8936e2e614c19cf12cee`
+- Downloaded Windows zip contains `ed-sentry.exe`, `ed-sentry-core.exe`, `WebView2Loader.dll`, `config.toml`, `README.md`, `LICENSE`, `webui/index.html`, and `tools/cloudflared/cloudflared.exe`.
+- Downloaded Linux zip contains `ed-sentry-core`, `config.toml`, `README.md`, `LICENSE`, and `webui/index.html`.
