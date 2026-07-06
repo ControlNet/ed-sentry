@@ -176,8 +176,8 @@ Most users should use Releases. If you are building packages from source:
 The release outputs are versioned zip files:
 
 ```text
-dist/ed-sentry-v0.1.0-windows-x64.zip
-dist/ed-sentry-v0.1.0-linux-x64.zip
+dist/ed-sentry-v0.1.1-windows-x64.zip
+dist/ed-sentry-v0.1.1-linux-x64.zip
 ```
 
 ## Acknowledgements
