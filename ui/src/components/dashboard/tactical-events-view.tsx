@@ -1,81 +1,234 @@
-import { AlertTriangle, CheckCircle2, Terminal, XCircle } from "lucide-react"
+import clsx from "clsx"
+import { useState } from "react"
 import type { AppSnapshot, EventFeedItem } from "@/adapters/dashboard"
-import { eventTitle, lineSafeText } from "./dashboard-helpers"
-import { TacticalBadge, TacticalPanel } from "./tactical-ui"
+import {
+  type EventCategory,
+  eventCategory,
+  eventCategoryCounts,
+  eventCategoryLabels,
+  eventLevelTone,
+  eventTypeLabel,
+  presentEventCategories,
+} from "@/lib/events"
+import { parseTimestamp, utcClock } from "@/lib/format"
+import { sessionTimelineMarks } from "@/lib/timeline"
+import { lineSafeText } from "./dashboard-helpers"
+import { Ind, Panel } from "./g1-ui"
+
+type Filter = "all" | EventCategory
 
 export function TacticalEventsView({
   snapshot,
+  nowMs,
 }: {
   readonly snapshot: AppSnapshot
+  readonly nowMs: number
 }): React.JSX.Element {
+  const [filter, setFilter] = useState<Filter>("all")
+  const events = snapshot.event_feed
+  const categories = presentEventCategories(events)
+  const counts = eventCategoryCounts(events)
+  const activeFilter: Filter = filter === "all" || categories.includes(filter) ? filter : "all"
+  const shown =
+    activeFilter === "all" ? events : events.filter((item) => eventCategory(item) === activeFilter)
+
   return (
-    <TacticalPanel
-      title="System Telemetry Feed"
-      icon={Terminal}
-      className="tactical-workspace animate-in fade-in duration-500"
-    >
-      <div className="sticky -top-4 z-10 -mx-4 mb-2 grid grid-cols-12 gap-4 border-b border-orange-500/20 bg-[#060a11]/95 px-4 pb-2 pt-4 font-mono text-[9px] font-bold uppercase tracking-widest text-slate-600 shadow-[0_5px_15px_-5px_rgba(0,0,0,0.5)] backdrop-blur-md">
-        <div className="col-span-3 sm:col-span-2">Timestamp</div>
-        <div className="col-span-3 sm:col-span-2">Origin</div>
-        <div className="col-span-6 sm:col-span-8">Payload decode</div>
-      </div>
-      <div className="pb-4">
-        {snapshot.event_feed.length === 0 ? (
-          <p className="p-6 text-center font-mono text-xs uppercase tracking-widest text-slate-600">
+    <div className="col" style={{ gap: 16 }}>
+      {events.length === 0 ? null : (
+        <SessionTimeline
+          snapshot={snapshot}
+          nowMs={nowMs}
+          categories={categories}
+          counts={counts}
+          filter={activeFilter}
+          onFilter={setFilter}
+        />
+      )}
+      <Panel
+        label="Event log"
+        title="Event log"
+        right={<span className="lab">{shown.length} shown</span>}
+      >
+        {shown.length === 0 ? (
+          <p className="sec2" style={{ margin: 0 }}>
             No dashboard events have arrived.
           </p>
         ) : (
-          snapshot.event_feed.map((event) => <EventRow key={event.id} event={event} />)
+          <div className="list">
+            {shown.map((item, index) => (
+              <EventEntry key={item.id} item={item} newest={index === 0} />
+            ))}
+          </div>
         )}
-      </div>
-    </TacticalPanel>
-  )
-}
-
-function EventRow({ event }: { readonly event: EventFeedItem }): React.JSX.Element {
-  return (
-    <div className="grid grid-cols-12 gap-4 border-b border-slate-800/30 p-2 font-mono text-[10px] transition-colors hover:bg-slate-900/60">
-      <div className="col-span-3 pt-0.5 text-slate-500 sm:col-span-2">
-        {event.timestamp_display}
-      </div>
-      <div className="col-span-3 sm:col-span-2">
-        <TacticalBadge tone={event.source === "matrix" ? "brand" : "default"}>
-          {event.source}
-        </TacticalBadge>
-      </div>
-      <div className="col-span-6 min-w-0 sm:col-span-8">
-        <p className={`mb-0.5 flex items-center gap-2 font-bold ${eventToneClass(event.level)}`}>
-          {eventIcon(event.level)}
-          {eventTitle(event).toUpperCase()}
-        </p>
-        <p className="break-words text-slate-500">{lineSafeText(event.summary)}</p>
-      </div>
+      </Panel>
     </div>
   )
 }
 
-function eventIcon(level: number): React.JSX.Element | null {
-  if (level >= 3) {
-    return <XCircle aria-hidden="true" className="size-3" />
-  }
-  if (level >= 2) {
-    return <AlertTriangle aria-hidden="true" className="size-3" />
-  }
-  if (level === 1) {
-    return <CheckCircle2 aria-hidden="true" className="size-3" />
-  }
-  return null
+function SessionTimeline({
+  snapshot,
+  nowMs,
+  categories,
+  counts,
+  filter,
+  onFilter,
+}: {
+  readonly snapshot: AppSnapshot
+  readonly nowMs: number
+  readonly categories: readonly EventCategory[]
+  readonly counts: ReadonlyMap<EventCategory, number>
+  readonly filter: Filter
+  readonly onFilter: (filter: Filter) => void
+}): React.JSX.Element {
+  const events = snapshot.event_feed
+  const times = events.flatMap((item) => {
+    const atMs = parseTimestamp(item.timestamp)
+    return atMs === null ? [] : [atMs]
+  })
+  const startMs = Math.min(
+    parseTimestamp(snapshot.session.started_at) ?? Number.POSITIVE_INFINITY,
+    ...times,
+  )
+  const endMs = Math.max(nowMs, ...times)
+  const span = Math.max(1, endMs - startMs)
+  const marks = sessionTimelineMarks(startMs, endMs)
+  const chips: readonly { readonly id: Filter; readonly label: string; readonly count: number }[] =
+    [
+      { id: "all", label: "All", count: events.length },
+      ...categories.map((category) => ({
+        id: category,
+        label: eventCategoryLabels[category],
+        count: counts.get(category) ?? 0,
+      })),
+    ]
+
+  return (
+    <Panel label="Session timeline" title="Session timeline">
+      <fieldset className="chips" aria-label="Filter by type">
+        {chips.map((chip) => (
+          <button
+            key={chip.id}
+            type="button"
+            className={clsx("tchip", filter === chip.id && "tchip-on")}
+            aria-pressed={filter === chip.id}
+            onClick={() => onFilter(chip.id)}
+          >
+            <span>{chip.label}</span>
+            <span className="c">{chip.count}</span>
+          </button>
+        ))}
+      </fieldset>
+      <div className="lanes">
+        {categories.map((category) => {
+          const list = events.filter((item) => eventCategory(item) === category)
+          const dim = filter !== "all" && filter !== category ? "lane-dim" : undefined
+          const latest = list[0]
+          const latestMs = parseTimestamp(latest?.timestamp)
+          return (
+            <LaneRow
+              key={category}
+              category={category}
+              dim={dim}
+              items={list}
+              startMs={startMs}
+              span={span}
+              last={latestMs === null ? "—" : utcClock(latestMs)}
+            />
+          )
+        })}
+        <span />
+        <span className="axis stl-axis" style={{ height: 18, lineHeight: "18px" }}>
+          {marks.map((mark, index) => (
+            <span
+              key={mark.label}
+              className={index === 0 ? undefined : index === marks.length - 1 ? "ax-r cy" : "ax-c"}
+              style={{ left: `${mark.left}%` }}
+            >
+              {mark.label}
+            </span>
+          ))}
+        </span>
+        <span className="lane-t cy" style={{ fontSize: 12, letterSpacing: ".08em" }}>
+          NOW
+        </span>
+      </div>
+    </Panel>
+  )
 }
 
-function eventToneClass(level: number): string {
-  if (level >= 3) {
-    return "text-rose-500"
-  }
-  if (level >= 2) {
-    return "text-amber-400"
-  }
-  if (level === 1) {
-    return "text-emerald-400"
-  }
-  return "text-slate-300"
+function LaneRow({
+  category,
+  dim,
+  items,
+  startMs,
+  span,
+  last,
+}: {
+  readonly category: EventCategory
+  readonly dim: string | undefined
+  readonly items: readonly EventFeedItem[]
+  readonly startMs: number
+  readonly span: number
+  readonly last: string
+}): React.JSX.Element {
+  return (
+    <>
+      <span className={clsx("lane-l", dim)}>
+        <i className={clsx("sq", `ty-${category}`)} style={{ width: 8, height: 8 }} />
+        {eventCategoryLabels[category]}
+      </span>
+      <span className={clsx("lane", dim)} data-testid={`event-lane-${category}`}>
+        {items.map((item) => {
+          const atMs = parseTimestamp(item.timestamp)
+          if (atMs === null) {
+            return null
+          }
+          return (
+            <i
+              key={item.id}
+              className={`ty-${category}`}
+              style={{ left: `${((atMs - startMs) / span) * 100}%` }}
+              title={`${utcClock(atMs)} ${eventTypeLabel(item)}`}
+            />
+          )
+        })}
+        <i className="nowm" style={{ left: "100%" }} />
+      </span>
+      <span className={clsx("lane-t", dim)}>{last}</span>
+    </>
+  )
+}
+
+function EventEntry({
+  item,
+  newest,
+}: {
+  readonly item: EventFeedItem
+  readonly newest: boolean
+}): React.JSX.Element {
+  const atMs = parseTimestamp(item.timestamp)
+  return (
+    <article className="entry ev" data-testid="event-log-entry">
+      <div>
+        <p style={{ margin: 0, fontSize: 16, fontWeight: 500 }}>
+          {atMs === null ? item.timestamp_display : utcClock(atMs)}
+        </p>
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <Ind tone={eventLevelTone(item.level)}>{eventTypeLabel(item)}</Ind>
+        <p style={{ margin: "4px 0 0", fontSize: 16, color: "#e8ecf1", overflowWrap: "anywhere" }}>
+          {lineSafeText(item.summary)}
+          {newest ? <span className="cur" aria-hidden="true" /> : null}
+        </p>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <p className="k" style={{ margin: 0 }}>
+          {item.source}
+        </p>
+        <p className="sec2" style={{ margin: "2px 0 0", fontSize: 13 }}>
+          Level {item.level}
+        </p>
+      </div>
+    </article>
+  )
 }

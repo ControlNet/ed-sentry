@@ -1,4 +1,3 @@
-import { Loader2, ShieldCheck } from "lucide-react"
 import { type FormEvent, useState } from "react"
 import type { DashboardAdapter } from "@/adapters/dashboard"
 import { FieldMessage } from "./config-form-fields"
@@ -39,23 +38,20 @@ export function TunnelConfigAuthPrompt({
   }
 
   return (
-    <section aria-label="Tunnel config authentication" className="tactical-config-section">
-      <h3 className="absolute -top-3 left-4 flex items-center gap-2 bg-surface-panel px-2 text-[10px] font-bold uppercase tracking-widest text-tactical">
-        <ShieldCheck aria-hidden="true" className="size-3" />
-        Tunnel access
-      </h3>
-      <form className="mt-2 grid gap-3" onSubmit={(event) => void submit(event)}>
-        <p className="text-sm text-slate-400">
-          Enter the tunnel config password to unlock SYSTEMS for this browser session.
+    <section aria-label="Tunnel config authentication" className="pnl" style={{ maxWidth: 640 }}>
+      <h2 className="pt">
+        <span>Tunnel access</span>
+      </h2>
+      <form onSubmit={(event) => void submit(event)}>
+        <p className="sec2" style={{ margin: "0 0 4px" }}>
+          Enter the tunnel config password to unlock Systems for this browser session.
         </p>
-        <label className="text-sm">
-          <span className="mb-2 block font-mono text-[10px] uppercase text-slate-500">
-            Tunnel config password
-          </span>
+        <label className="frow">
+          <span>Tunnel config password</span>
           <input
             aria-label="Tunnel config password"
             autoComplete="current-password"
-            className="tactical-input"
+            className="inp"
             type="password"
             value={password}
             onChange={(event) => setPassword(event.currentTarget.value)}
@@ -66,12 +62,11 @@ export function TunnelConfigAuthPrompt({
         ) : null}
         <button
           type="submit"
-          className="flex w-fit cursor-pointer items-center gap-2 rounded-sm bg-tactical-accent px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-primary-foreground transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+          className="btn"
+          style={{ marginTop: 14 }}
+          aria-busy={loginState.status === "submitting"}
           disabled={loginState.status === "submitting" || password.trim().length === 0}
         >
-          {loginState.status === "submitting" ? (
-            <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
-          ) : null}
           Unlock Systems
         </button>
       </form>

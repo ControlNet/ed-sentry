@@ -1,10 +1,8 @@
-import { Loader2, RadioTower } from "lucide-react"
 import { useRef, useState } from "react"
 import type { TunnelStatusKind, TunnelStatusView } from "@/adapters/dashboard"
-import { cn } from "@/lib/utils"
 import { lineSafeText } from "./dashboard-helpers"
 import { handleExternalLinkClick } from "./external-link"
-import { TacticalBadge, type TacticalBadgeTone } from "./tactical-ui"
+import { Ind, iconPaths, StrokeIcon, type Tone } from "./g1-ui"
 import { TunnelLinkQr } from "./tunnel-link-qr"
 
 type TunnelServiceLineProps = {
@@ -18,6 +16,7 @@ export function TunnelServiceLine({ tunnel, onStart }: TunnelServiceLineProps): 
   const tunnelLinkRef = useRef<HTMLAnchorElement | null>(null)
   const canStart = tunnelCanStart(tunnel)
   const publicUrl = tunnel.kind === "running" ? (tunnel.public_url ?? null) : null
+  const busy = starting || tunnel.kind === "starting"
 
   const start = async (): Promise<void> => {
     if (!canStart || starting) {
@@ -32,23 +31,24 @@ export function TunnelServiceLine({ tunnel, onStart }: TunnelServiceLineProps): 
   }
 
   return (
-    <div
-      className="flex items-start justify-between gap-3"
-      data-service-node="Tunnel"
-      data-status-kind={tunnel.kind}
-    >
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase text-slate-500">
-          <RadioTower aria-hidden="true" className="size-3 text-slate-400" />
-          Tunnel
-        </p>
-        <div className="relative mt-1 w-fit max-w-full">
+    <div className="row svc" data-service-node="Tunnel" data-status-kind={tunnel.kind}>
+      <span style={{ display: "flex", gap: 10, minWidth: 0 }}>
+        <StrokeIcon
+          path={iconPaths.tunnel}
+          className="or"
+          style={{ width: 17, height: 17, marginTop: 3 }}
+        />
+        <span style={{ minWidth: 0, position: "relative" }}>
+          <span className="nm">Tunnel</span>
           {publicUrl === null ? (
-            <p className="truncate font-mono text-[8px] text-slate-600">{tunnelDetail(tunnel)}</p>
+            <span className="dt" title={tunnelDetail(tunnel)}>
+              {tunnelDetail(tunnel)}
+            </span>
           ) : (
             <a
               ref={tunnelLinkRef}
-              className="block truncate font-mono text-[8px] text-data-scan underline-offset-2 transition-colors hover:text-tactical hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="dt"
+              style={{ color: "#3cb8ff" }}
               href={publicUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -64,32 +64,34 @@ export function TunnelServiceLine({ tunnel, onStart }: TunnelServiceLineProps): 
           {publicUrl !== null && qrVisible ? (
             <TunnelLinkQr anchor={tunnelLinkRef.current} url={publicUrl} />
           ) : null}
-        </div>
-      </div>
-      <div className="flex shrink-0 items-center">
-        {canStart ? (
-          <button
-            type="button"
-            className="m-0 border-0 bg-transparent p-0 font-inherit text-inherit focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-wait"
-            disabled={starting}
-            onClick={() => {
-              void start()
-            }}
-          >
-            <TacticalBadge
-              className={cn(starting ? "cursor-wait" : "cursor-pointer")}
-              tone={tunnelBadgeTone(tunnel.kind)}
-            >
-              {starting ? <Loader2 aria-hidden="true" className="size-3 animate-spin" /> : null}
-              {starting ? "STARTING" : tunnelStatusLabel(tunnel.kind)}
-            </TacticalBadge>
-          </button>
-        ) : (
-          <TacticalBadge tone={tunnelBadgeTone(tunnel.kind)}>
-            {tunnelStatusLabel(tunnel.kind)}
-          </TacticalBadge>
-        )}
-      </div>
+        </span>
+      </span>
+      {busy ? (
+        <button type="button" className="btn btn-busy" aria-busy="true" disabled>
+          Starting
+          <span className="tsegs" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+        </button>
+      ) : canStart ? (
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            void start()
+          }}
+        >
+          {tunnel.kind === "error" ? "Retry" : "Start"}
+        </button>
+      ) : (
+        <Ind tone={tunnelTone(tunnel.kind)} live={tunnel.kind === "running"}>
+          {tunnelStatusLabel(tunnel.kind)}
+        </Ind>
+      )}
     </div>
   )
 }
@@ -101,34 +103,34 @@ function tunnelCanStart(tunnel: TunnelStatusView): boolean {
 function tunnelStatusLabel(kind: TunnelStatusKind): string {
   switch (kind) {
     case "start":
-      return "START"
+      return "Start"
     case "starting":
-      return "STARTING"
+      return "Starting"
     case "running":
-      return "RUNNING"
+      return "Online"
     case "error":
-      return "ERROR"
+      return "Error"
     case "unsupported":
-      return "UNSUPPORTED"
+      return "Unsupported"
     case "disabled":
-      return "UNAVAILABLE"
+      return "Unavailable"
     default:
       return assertNever(kind)
   }
 }
 
-function tunnelBadgeTone(kind: TunnelStatusKind): TacticalBadgeTone {
+function tunnelTone(kind: TunnelStatusKind): Tone {
   switch (kind) {
     case "running":
-      return "success"
+      return "ok"
     case "start":
     case "starting":
-      return "warning"
+      return "warn"
     case "error":
-      return "danger"
+      return "bad"
     case "disabled":
     case "unsupported":
-      return "default"
+      return "off"
     default:
       return assertNever(kind)
   }
@@ -138,7 +140,7 @@ function tunnelDetail(tunnel: TunnelStatusView): string {
   if (tunnel.kind === "disabled") {
     return "Tunnel unavailable"
   }
-  return lineSafeText(tunnel.message ?? tunnel.status_label)
+  return lineSafeText(tunnel.message ?? tunnel.provider_label ?? tunnel.status_label)
 }
 
 function tunnelLinkLabel(url: string): string {

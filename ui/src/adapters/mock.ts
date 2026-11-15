@@ -142,20 +142,20 @@ let liveRatesLoadCount = 0
 
 function liveRatesMockDashboardSnapshot() {
   liveRatesLoadCount += 1
-  const killRate = liveRatesLoadCount === 1 ? "25.7/h" : "25.1/h"
-  const scanRate = liveRatesLoadCount === 1 ? "8.6/h" : "8.4/h"
+  const killRate = liveRatesLoadCount === 1 ? 25.7 : 25.1
+  const scanRate = liveRatesLoadCount === 1 ? 8.6 : 8.4
   return {
     ...mockDashboardSnapshot,
     generated_at_display: `2026-06-20T14:18:0${Math.min(liveRatesLoadCount, 9)}Z`,
     session: {
       ...mockDashboardSnapshot.session,
       kill_total_rate_per_hour: {
-        ...mockDashboardSnapshot.session.kill_total_rate_per_hour,
-        display: killRate,
+        value: killRate,
+        display: `${killRate.toFixed(1)}/h`,
       },
       scan_total_rate_per_hour: {
-        ...mockDashboardSnapshot.session.scan_total_rate_per_hour,
-        display: scanRate,
+        value: scanRate,
+        display: `${scanRate.toFixed(1)}/h`,
       },
     },
   }

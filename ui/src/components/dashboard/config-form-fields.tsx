@@ -1,11 +1,5 @@
+import clsx from "clsx"
 import type * as React from "react"
-import { cn } from "@/lib/utils"
-
-type FieldShellProps = {
-  readonly label: string
-  readonly description?: string
-  readonly children: React.ReactNode
-}
 
 type NumberFieldProps = {
   readonly label: string
@@ -28,7 +22,6 @@ type TextFieldProps = {
 type SelectOption = {
   readonly value: string
   readonly label: string
-  readonly disabled?: boolean
 }
 
 type SelectFieldProps = {
@@ -41,24 +34,28 @@ type SelectFieldProps = {
 type ToggleFieldProps = {
   readonly label: string
   readonly checked: boolean
-  readonly description?: string
   readonly onChange: (checked: boolean) => void
 }
 
-export function SectionTitle({
+/** One settings section: a panel with an orange-ruled title. */
+export function ConfigSection({
+  id,
+  label,
   title,
-  description,
+  children,
 }: {
+  readonly id: string
+  readonly label: string
   readonly title: string
-  readonly description: string
+  readonly children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <div className="min-w-0">
-      <h2 className="font-mono text-[10px] font-bold uppercase tracking-widest text-orange-500">
-        {title}
+    <section className="pnl sys-sec" id={id} aria-label={label}>
+      <h2 className="pt">
+        <span>{title}</span>
       </h2>
-      <p className="mt-1 text-xs text-slate-500">{description}</p>
-    </div>
+      {children}
+    </section>
   )
 }
 
@@ -71,17 +68,18 @@ export function TextField({
   onChange,
 }: TextFieldProps): React.JSX.Element {
   return (
-    <FieldShell label={label}>
+    <label className="frow">
+      <span>{label}</span>
       <input
         aria-label={label}
-        className="tactical-input"
+        className="inp"
         type={type}
         value={value}
         placeholder={placeholder}
         autoComplete={autoComplete}
         onChange={(event) => onChange(event.currentTarget.value)}
       />
-    </FieldShell>
+    </label>
   )
 }
 
@@ -94,10 +92,11 @@ export function NumberField({
   onChange,
 }: NumberFieldProps): React.JSX.Element {
   return (
-    <FieldShell label={label}>
+    <label className="frow">
+      <span>{label}</span>
       <input
         aria-label={label}
-        className="tactical-input"
+        className="inp"
         type="number"
         value={String(value)}
         min={min}
@@ -105,7 +104,7 @@ export function NumberField({
         step={step}
         onChange={(event) => onChange(Number(event.currentTarget.value))}
       />
-    </FieldShell>
+    </label>
   )
 }
 
@@ -116,46 +115,39 @@ export function SelectField({
   onChange,
 }: SelectFieldProps): React.JSX.Element {
   return (
-    <FieldShell label={label}>
+    <label className="frow">
+      <span>{label}</span>
       <select
         aria-label={label}
-        className="tactical-input"
+        className="inp"
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
       >
         {options.map((option) => (
-          <option disabled={option.disabled} key={option.value} value={option.value}>
+          <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
       </select>
-    </FieldShell>
+    </label>
   )
 }
 
-export function ToggleField({
-  label,
-  checked,
-  description,
-  onChange,
-}: ToggleFieldProps): React.JSX.Element {
+export function ToggleField({ label, checked, onChange }: ToggleFieldProps): React.JSX.Element {
   return (
-    <label className="flex min-h-11 items-start gap-3 border border-slate-800/50 bg-slate-900/50 p-2 transition-colors hover:border-orange-500/50">
-      <input
-        className="mt-1 size-4 accent-orange-500"
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.currentTarget.checked)}
-      />
-      <span className="min-w-0">
-        <span className="block font-mono text-xs uppercase tracking-widest text-slate-200">
-          {label}
-        </span>
-        {description === undefined ? null : (
-          <span className="mt-1 block text-xs text-slate-500">{description}</span>
-        )}
+    <div className="frow">
+      <span>{label}</span>
+      <span>
+        <button
+          type="button"
+          role="switch"
+          aria-label={label}
+          aria-checked={checked}
+          className={clsx("sw", checked && "sw-on")}
+          onClick={() => onChange(!checked)}
+        />
       </span>
-    </label>
+    </div>
   )
 }
 
@@ -166,29 +158,5 @@ export function FieldMessage({
   readonly tone: "info" | "success" | "warning" | "error"
   readonly children: React.ReactNode
 }): React.JSX.Element {
-  return (
-    <p
-      className={cn(
-        "border bg-slate-900/50 p-3 text-sm",
-        tone === "success" && "border-emerald-800 text-emerald-400",
-        tone === "warning" && "border-amber-800 text-amber-400",
-        tone === "error" && "border-rose-800 text-rose-400",
-        tone === "info" && "border-slate-800 text-slate-400",
-      )}
-    >
-      {children}
-    </p>
-  )
-}
-
-function FieldShell({ label, description, children }: FieldShellProps): React.JSX.Element {
-  return (
-    <div className="text-sm">
-      <span className="mb-2 block font-mono text-[10px] uppercase text-slate-500">{label}</span>
-      {children}
-      {description === undefined ? null : (
-        <span className="mt-1 block text-xs text-slate-500">{description}</span>
-      )}
-    </div>
-  )
+  return <p className={clsx("note", `note-${tone}`)}>{children}</p>
 }

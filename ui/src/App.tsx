@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { DashboardShell } from "@/components/dashboard/dashboard-shell"
+import { AppFrame } from "@/components/dashboard/g1-ui"
 import { LoadingScreen } from "@/components/dashboard/loading-screen"
-import { Button } from "@/components/ui/button"
 import { useDashboardStore } from "@/store/dashboard-store"
 
 export function App(): React.JSX.Element {
@@ -19,17 +19,25 @@ export function App(): React.JSX.Element {
 
   if (status === "error") {
     return (
-      <main className="flex min-h-[100dvh] items-center justify-center bg-background p-6 text-foreground">
-        <section className="w-full max-w-md rounded-lg border bg-card p-5">
-          <h1 className="text-lg font-semibold tracking-normal">Dashboard unavailable</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {errorMessage ?? "The active adapter did not return a dashboard snapshot."}
-          </p>
-          <Button type="button" className="mt-4" onClick={() => void refresh()}>
-            Retry
-          </Button>
-        </section>
-      </main>
+      <AppFrame>
+        <main className="layer err-wrap">
+          <section
+            className="pnl"
+            aria-label="Dashboard unavailable"
+            style={{ width: "min(100%, 560px)" }}
+          >
+            <h1 className="pt">
+              <span>Dashboard unavailable</span>
+            </h1>
+            <p className="sec2" style={{ margin: "0 0 16px" }}>
+              {errorMessage ?? "The active adapter did not return a dashboard snapshot."}
+            </p>
+            <button type="button" className="btn" onClick={() => void refresh()}>
+              Retry
+            </button>
+          </section>
+        </main>
+      </AppFrame>
     )
   }
 

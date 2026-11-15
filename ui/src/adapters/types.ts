@@ -168,6 +168,16 @@ export const afkChecklistViewSchema = z.object({
   rows: z.array(afkChecklistRowViewSchema),
 })
 
+export const warningThresholdsViewSchema = z.object({
+  warn_kill_rate_per_hour: z.number(),
+  warn_no_kills_minutes: z.number(),
+})
+
+const defaultWarningThresholds = {
+  warn_kill_rate_per_hour: 20,
+  warn_no_kills_minutes: 20,
+} as const
+
 export const appSnapshotSchema = z.object({
   generated_at: z.string(),
   generated_at_display: z.string(),
@@ -180,6 +190,7 @@ export const appSnapshotSchema = z.object({
   matrix: serviceStatusViewSchema,
   web: serviceStatusViewSchema,
   tunnel: tunnelStatusViewSchema,
+  thresholds: warningThresholdsViewSchema.default(defaultWarningThresholds),
 })
 
 export type ValueDisplayNumber = Readonly<z.infer<typeof valueDisplayNumberSchema>>
@@ -194,6 +205,7 @@ export type JournalSourceView = Readonly<z.infer<typeof journalSourceViewSchema>
 export type ServiceStatusView = Readonly<z.infer<typeof serviceStatusViewSchema>>
 export type AfkChecklistRowView = Readonly<z.infer<typeof afkChecklistRowViewSchema>>
 export type AfkChecklistView = Readonly<z.infer<typeof afkChecklistViewSchema>>
+export type WarningThresholdsView = Readonly<z.infer<typeof warningThresholdsViewSchema>>
 export type AppSnapshot = Readonly<z.infer<typeof appSnapshotSchema>>
 
 export type DashboardConnectionState = {

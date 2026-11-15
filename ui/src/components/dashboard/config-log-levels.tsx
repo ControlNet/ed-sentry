@@ -1,44 +1,16 @@
-import { ListFilter } from "lucide-react"
-import { type LogLevelKey, logLevelKeys } from "@/adapters/config"
-import { cn } from "@/lib/utils"
+import clsx from "clsx"
+import type { LogLevelKey } from "@/adapters/config"
+import { routingGroups } from "@/lib/config-status"
+import { ConfigSection } from "./config-form-fields"
 import type { ConfigFormState } from "./config-form-model"
 
 type RoutingLevel = 0 | 1 | 2
 
-type RoutingLevelOption = {
-  readonly value: RoutingLevel
-  readonly label: string
-  readonly detail: string
-  readonly badgeClassName: string
-  readonly selectedClassName: string
-}
-
 const routingLevelOptions = [
-  {
-    value: 0,
-    label: "Off",
-    detail: "Do not route this event.",
-    badgeClassName: "border-slate-500/30 bg-slate-500/10 text-slate-300",
-    selectedClassName:
-      "border-slate-400/50 bg-slate-400/15 text-slate-100 shadow-[0_0_14px_rgb(148_163_184/0.14)]",
-  },
-  {
-    value: 1,
-    label: "Notify",
-    detail: "Send a standard notification.",
-    badgeClassName: "border-cyan-500/30 bg-cyan-500/10 text-cyan-300",
-    selectedClassName:
-      "border-cyan-400/50 bg-cyan-500/20 text-cyan-100 shadow-[0_0_14px_rgb(34_211_238/0.16)]",
-  },
-  {
-    value: 2,
-    label: "Mention",
-    detail: "Notify and mention the Matrix user.",
-    badgeClassName: "border-orange-500/30 bg-orange-500/10 text-orange-300",
-    selectedClassName:
-      "border-orange-500/50 bg-orange-500/20 text-orange-100 shadow-[0_0_14px_rgb(249_115_22/0.16)]",
-  },
-] as const satisfies readonly RoutingLevelOption[]
+  { value: 0, label: "Off" },
+  { value: 1, label: "Notify" },
+  { value: 2, label: "Mention" },
+] as const satisfies readonly { readonly value: RoutingLevel; readonly label: string }[]
 
 type ConfigLogLevelsSectionProps = {
   readonly form: ConfigFormState
@@ -50,40 +22,45 @@ export function ConfigLogLevelsSection({
   onChange,
 }: ConfigLogLevelsSectionProps): React.JSX.Element {
   const setLogLevel = (key: LogLevelKey, value: number): void => {
-    onChange({
-      ...form,
-      log_levels: {
-        ...form.log_levels,
-        [key]: value,
-      },
-    })
+    onChange({ ...form, log_levels: { ...form.log_levels, [key]: value } })
   }
 
   return (
-    <section aria-label="Log level settings" className="tactical-config-section">
-      <h3 className="absolute -top-3 left-4 flex items-center gap-2 bg-[#060a11] px-2 text-[10px] font-bold uppercase tracking-widest text-orange-500">
-        <ListFilter aria-hidden="true" className="size-3" />
-        Event routing levels
-      </h3>
-      <p className="mt-2 text-xs text-slate-500">
-        Choose how each event is routed: off, normal notification, or notification with a Matrix
-        mention.
+    <ConfigSection id="sys-routing" label="Event routing" title="Event routing">
+      <p className="sec2" style={{ margin: "0 0 4px" }}>
+        Notify sends a Matrix message. Mention also mentions the Mention user ID.
       </p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {logLevelKeys.map((key) => (
-          <RoutingLevelSlider
-            key={key}
-            label={logLevelLabel(key)}
-            value={form.log_levels[key]}
-            onChange={(value) => setLogLevel(key, value)}
-          />
-        ))}
-      </div>
-    </section>
+      {routingGroups.map((group) => (
+        <div key={group.name}>
+          <h3
+            style={{
+              margin: "20px 0 2px",
+              paddingBottom: 6,
+              borderBottom: "1px solid rgba(255,255,255,.12)",
+              fontSize: 14,
+              fontWeight: 500,
+              letterSpacing: ".1em",
+              textTransform: "uppercase",
+              color: "#e8ecf1",
+            }}
+          >
+            {group.name}
+          </h3>
+          {group.keys.map((key) => (
+            <RoutingLevelRow
+              key={key}
+              label={logLevelLabel(key)}
+              value={form.log_levels[key]}
+              onChange={(value) => setLogLevel(key, value)}
+            />
+          ))}
+        </div>
+      ))}
+    </ConfigSection>
   )
 }
 
-function RoutingLevelSlider({
+function RoutingLevelRow({
   label,
   value,
   onChange,
@@ -93,57 +70,31 @@ function RoutingLevelSlider({
   readonly onChange: (value: RoutingLevel) => void
 }): React.JSX.Element {
   const activeLevel = displayRoutingLevel(value)
-  const activeOption = routingLevelOption(activeLevel)
-  const descriptionId = `${label.toLowerCase().replaceAll(" ", "-")}-routing-description`
-
+  const name = `${label.toLowerCase().replaceAll(" ", "-")}-routing-level`
   return (
-    <div className="border border-slate-800/70 bg-slate-950/40 p-3 transition-colors hover:border-orange-500/40">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <span className="block font-mono text-[10px] uppercase tracking-widest text-slate-400">
-            {label}
-          </span>
-          <span id={descriptionId} className="mt-1 block text-xs text-slate-500">
-            {activeOption.detail}
-          </span>
-        </div>
-        <span
-          className={cn(
-            "shrink-0 border px-2 py-1 font-mono text-[10px] uppercase tracking-widest",
-            activeOption.badgeClassName,
-          )}
-        >
-          {activeOption.label}
-        </span>
-      </div>
+    <div className="frow" style={{ gridTemplateColumns: "minmax(0, 1fr) auto" }}>
+      <span style={{ minWidth: 0 }}>{label}</span>
       <div
-        aria-describedby={descriptionId}
-        aria-label={`${label} routing level`}
-        className="mt-3 grid grid-cols-3 gap-1 rounded-sm border border-slate-800 bg-black/40 p-1"
         role="radiogroup"
+        aria-label={`${label} routing level`}
+        style={{ display: "flex", gap: 3 }}
       >
         {routingLevelOptions.map((option) => {
           const selected = option.value === activeLevel
-
           return (
             <label
-              className={cn(
-                "cursor-pointer border border-transparent px-2 py-1.5 text-center font-mono text-[10px] uppercase tracking-widest transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-orange-500/60",
-                selected
-                  ? option.selectedClassName
-                  : "text-slate-500 hover:border-slate-700 hover:bg-slate-900/80 hover:text-slate-200",
-              )}
               key={option.value}
+              className={clsx("seg", selected && `seg-on seg-${option.value}`)}
             >
               <input
                 aria-label={`${option.label} level ${option.value}`}
                 checked={selected}
                 className="sr-only"
-                name={`${descriptionId}-level`}
+                name={name}
                 type="radio"
                 onChange={() => onChange(option.value)}
               />
-              <span className="block text-[11px]">{option.label}</span>
+              {option.label}
             </label>
           )
         })}
@@ -160,17 +111,6 @@ function displayRoutingLevel(value: number): RoutingLevel {
     return 1
   }
   return 2
-}
-
-function routingLevelOption(level: RoutingLevel): RoutingLevelOption {
-  switch (level) {
-    case 0:
-      return routingLevelOptions[0]
-    case 1:
-      return routingLevelOptions[1]
-    case 2:
-      return routingLevelOptions[2]
-  }
 }
 
 function logLevelLabel(key: LogLevelKey): string {

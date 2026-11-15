@@ -229,4 +229,8 @@ export const mockDashboardSnapshot: AppSnapshot = {
     checked_at_display: "2026-06-20T14:18:00Z",
     retryable_error: false,
   },
+  thresholds: {
+    warn_kill_rate_per_hour: 20,
+    warn_no_kills_minutes: 20,
+  },
 }

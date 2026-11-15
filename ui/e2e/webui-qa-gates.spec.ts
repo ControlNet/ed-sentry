@@ -60,11 +60,11 @@ test("@keyboard-focus reaches core controls and shows focus affordance", async (
   const tokenInput = page.getByRole("textbox", { name: "Replace access token" })
   await tokenInput.fill("SANITIZED_QA_TOKEN")
 
-  const saveButton = page.getByRole("button", { name: "Save Protected Change" })
+  const saveButton = page.getByRole("button", { name: "Save protected change" })
   await expect(saveButton).toBeEnabled()
 
   await pressTabUntilFocused(page, saveButton, { maxSteps: 90 })
-  await expectVisibleFocus(saveButton, "Save Protected Change")
+  await expectVisibleFocus(saveButton, "Save protected change")
 
   await page.screenshot({
     path: `${evidenceDir}/task-12-keyboard-focus.png`,
@@ -80,7 +80,7 @@ test("@reduced-motion keeps controls usable while disabling non-essential motion
 
   const telemetryButton = page.getByRole("button", { name: "Dashboard" })
   await expect(telemetryButton).toBeVisible()
-  await expect(page.locator("main")).toContainText("SYS_RELAY: CONNECTED")
+  await expect(page.locator("header")).toContainText("Synced")
 
   const transitionDurations = await telemetryButton.evaluate(
     (element) => getComputedStyle(element).transitionDuration,
@@ -90,7 +90,7 @@ test("@reduced-motion keeps controls usable while disabling non-essential motion
   await page.goto("/?mock_state=loading")
   await expect(page.getByText("Loading dashboard snapshot")).toBeVisible()
   const animationDurations = await page
-    .locator(".animate-spin")
+    .locator(".ld-run")
     .first()
     .evaluate((element) => getComputedStyle(element).animationDuration)
   expect(parseCssTimeListMs(animationDurations).every((duration) => duration <= 1)).toBe(true)
@@ -106,7 +106,7 @@ test("@reduced-motion keeps controls usable while disabling non-essential motion
 
 test("@state-coverage renders empty, loading, and error dashboard states", async ({ page }) => {
   await page.goto("/?mock_state=empty")
-  await expect(page.getByRole("region", { name: "Recent event feed" })).toContainText(
+  await expect(page.getByRole("region", { name: "Recent events" })).toContainText(
     "No dashboard events have arrived.",
   )
   await expect(page.getByRole("region", { name: "Mission progress" })).toContainText(
@@ -140,10 +140,10 @@ test("@accessibility-smoke exposes landmarks, region names, and form labels", as
 
   await expect(page.locator("main")).toBeVisible()
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "Dashboard Interface" })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Telemetry Link" })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Combat Analytics" })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Recent event feed" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Ship status and AFK readiness" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Combat" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Recent events" })).toBeVisible()
   await expect(page.getByRole("button", { name: "Dashboard" })).toBeEnabled()
 
   await page.getByRole("button", { name: /Systems/u }).click()
@@ -173,13 +173,10 @@ async function captureResponsiveDashboard(
 ): Promise<void> {
   await page.setViewportSize({ width, height: 900 })
   await page.goto("/")
-  await expect(page.getByRole("heading", { name: "Dashboard Interface" })).toBeVisible()
-  await expect(page.locator("main")).toContainText("Local Commander")
-  await expect(page.locator("main")).toContainText("SYS_RELAY: CONNECTED")
-  await expect(page.getByRole("region", { name: "Combat Analytics" })).toBeVisible()
-  await expect(page.getByRole("region", { name: "Recent event feed" })).toContainText(
-    "Bounty voucher",
-  )
+  await expect(page.getByRole("heading", { name: "Dashboard", level: 1 })).toBeVisible()
+  await expect(page.locator("header")).toContainText("Synced")
+  await expect(page.getByRole("region", { name: "Combat" })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Recent events" })).toContainText("Bounty voucher")
   await assertNoHorizontalOverflow(page, label)
   await assertNoForbiddenText(page)
   await page.screenshot({ path, fullPage: true })

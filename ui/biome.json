@@ -45,5 +45,16 @@
       "!src-tauri/gen",
       "!src-tauri/target"
     ]
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/g1.css"],
+      "linter": {
+        "rules": {
+          "complexity": { "noImportantStyles": "off" },
+          "style": { "noDescendingSpecificity": "off" }
+        }
+      }
+    }
+  ]
 }

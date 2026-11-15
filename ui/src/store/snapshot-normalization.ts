@@ -32,6 +32,7 @@ function stableSnapshotKey(snapshot: AppSnapshot): string {
     matrix: snapshot.matrix,
     web: snapshot.web,
     tunnel: snapshot.tunnel,
+    thresholds: snapshot.thresholds,
   })
 }
 

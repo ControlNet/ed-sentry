@@ -1,13 +1,15 @@
-import type { LucideIcon } from "lucide-react"
-import { Activity, Info, List, Minus, Settings, Square, Terminal, X } from "lucide-react"
-import { useState } from "react"
+import clsx from "clsx"
+import { useRef, useState } from "react"
 import type { AppSnapshot, DashboardAdapter, DashboardConnectionState } from "@/adapters/dashboard"
-import { cn } from "@/lib/utils"
+import { formatMinutes, parseTimestamp, utcClock } from "@/lib/format"
+import { AppFrame, Ind, type Tone } from "./g1-ui"
+import { NavCardArt } from "./nav-card-art"
 import { TacticalAboutView } from "./tactical-about-view"
 import { TacticalEventsView } from "./tactical-events-view"
 import { TacticalMissionsView } from "./tactical-missions-view"
 import { TacticalSystemsView } from "./tactical-systems-view"
 import { TacticalTelemetryView } from "./tactical-telemetry-view"
+import { useLiveNow } from "./use-live-now"
 
 type DashboardShellProps = {
   readonly snapshot: AppSnapshot
@@ -20,36 +22,12 @@ type DashboardShellProps = {
 type WorkspaceTab = "dashboard" | "missions" | "events" | "config" | "about"
 
 const workspaceTabs = [
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    icon: Activity,
-  },
-  {
-    id: "missions",
-    label: "Missions",
-    icon: List,
-  },
-  {
-    id: "events",
-    label: "Comms Feed",
-    icon: Terminal,
-  },
-  {
-    id: "config",
-    label: "Systems",
-    icon: Settings,
-  },
-  {
-    id: "about",
-    label: "About",
-    icon: Info,
-  },
-] as const satisfies readonly {
-  readonly id: WorkspaceTab
-  readonly label: string
-  readonly icon: typeof Activity
-}[]
+  { id: "dashboard", label: "Dashboard" },
+  { id: "missions", label: "Missions" },
+  { id: "events", label: "Events" },
+  { id: "config", label: "Systems" },
+  { id: "about", label: "About" },
+] as const satisfies readonly { readonly id: WorkspaceTab; readonly label: string }[]
 
 export function DashboardShell({
   snapshot,
@@ -57,115 +35,189 @@ export function DashboardShell({
   connection,
 }: DashboardShellProps): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("dashboard")
+  const scrollRef = useRef<HTMLElement | null>(null)
+  const nowMs = useLiveNow(snapshot.generated_at)
   const titlebarDragDebugEnabled = readTitlebarDragDebugFlag()
   const activeDefinition = workspaceTabs.find((tab) => tab.id === activeTab) ?? workspaceTabs[0]
   const isTauri = adapter.mode === "tauri"
   const showTauriChrome = isTauri || titlebarDragDebugEnabled
   const tauriDragRegion = showTauriChrome ? "" : undefined
+  const system = snapshot.session.system ?? null
+  const lastEventMs = parseTimestamp(snapshot.event_feed[0]?.timestamp)
+
+  const selectTab = (tab: WorkspaceTab): void => {
+    setActiveTab(tab)
+    if (scrollRef.current !== null) {
+      scrollRef.current.scrollTop = 0
+    }
+  }
 
   return (
-    <div
-      className="bg-tactical relative h-screen w-full select-none overflow-hidden bg-[#03060a] font-sans text-slate-300"
-      data-titlebar-drag-debug={titlebarDragDebugEnabled ? "true" : undefined}
-    >
-      <div className="relative z-10 flex h-screen flex-col">
-        <header
-          className="z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-orange-500/20 bg-[#04070d]/90 pl-4 shadow-lg backdrop-blur-md md:pl-6"
+    <AppFrame dragDebug={titlebarDragDebugEnabled}>
+      <header
+        className="hdr layer"
+        data-tauri-drag-region={tauriDragRegion}
+        data-titlebar-drag-region="titlebar"
+        onPointerDownCapture={(event) => {
+          if (isTauri && shouldStartWindowDrag(event)) {
+            void startWindowDrag()
+          }
+        }}
+      >
+        <div
+          className="brand"
           data-tauri-drag-region={tauriDragRegion}
-          data-titlebar-drag-region="titlebar"
-          onPointerDownCapture={(event) => {
-            if (isTauri && shouldStartWindowDrag(event)) {
-              void startWindowDrag()
-            }
-          }}
+          data-titlebar-drag-region="brand"
         >
-          <div
-            className="flex w-auto min-w-0 items-center gap-3 md:w-48"
+          <img
+            src="/logo.png"
+            alt=""
+            width="34"
+            height="34"
+            style={{ flexShrink: 0, objectFit: "contain" }}
             data-tauri-drag-region={tauriDragRegion}
-            data-titlebar-drag-region="brand"
+            data-titlebar-drag-region="brand-mark"
+          />
+          <div
+            style={{ minWidth: 0 }}
+            data-tauri-drag-region={tauriDragRegion}
+            data-titlebar-drag-region="brand-label"
           >
-            <img
-              src="/logo.png"
-              alt=""
-              width="24"
-              height="24"
-              className="size-6 shrink-0 object-contain"
-              data-tauri-drag-region={tauriDragRegion}
-              data-titlebar-drag-region="brand-mark"
-            />
-            <div
-              className="hidden min-w-0 sm:block"
-              data-tauri-drag-region={tauriDragRegion}
-              data-titlebar-drag-region="brand-label"
-            >
-              <h1
-                className="text-shadow-glow truncate text-sm font-black uppercase leading-none tracking-wider text-slate-200"
-                data-tauri-drag-region={tauriDragRegion}
-              >
-                ed-sentry
-              </h1>
-              <p className="sr-only">AFK monitor</p>
-            </div>
+            <p className="hctx" data-tauri-drag-region={tauriDragRegion}>
+              <span className="or">ED Sentry</span>
+              {system === null ? null : (
+                <>
+                  <span className="pipe">|</span>
+                  <span className="sec2">{system}</span>
+                </>
+              )}
+            </p>
+            <h1 className="htl" data-tauri-drag-region={tauriDragRegion}>
+              {activeDefinition.label}
+            </h1>
           </div>
-
-          <nav
-            aria-label="Primary"
-            className="custom-scrollbar relative min-w-0 flex-1 overflow-x-auto"
+        </div>
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 20 }}
+          data-tauri-drag-region={tauriDragRegion}
+          data-titlebar-drag-region="status"
+        >
+          <span
             data-tauri-drag-region={tauriDragRegion}
-            data-titlebar-drag-region="primary-nav"
+            data-titlebar-drag-region="status-label"
+            data-connection-status={connection.status}
+            title={connection.detail}
           >
-            <div
-              className="flex w-fit gap-2"
-              data-tauri-drag-region={tauriDragRegion}
-              data-titlebar-drag-region="primary-nav-list"
-            >
-              {workspaceTabs.map((tab) => (
-                <WorkspaceTabButton
-                  key={tab.id}
-                  tab={tab}
-                  active={activeTab === tab.id}
-                  onSelect={() => setActiveTab(tab.id)}
-                />
-              ))}
-            </div>
-          </nav>
+            <ConnectionIndicator status={connection.status} />
+          </span>
+          <div className="clock" data-tauri-drag-region={tauriDragRegion}>
+            <span className="lab">Last event</span>
+            <b>{lastEventMs === null ? "—" : utcClock(lastEventMs)}</b>
+          </div>
+        </div>
+        {showTauriChrome ? <WindowControls /> : null}
+      </header>
 
-          <div
-            className="flex w-auto shrink-0 items-center justify-end gap-3"
-            data-tauri-drag-region={tauriDragRegion}
-            data-titlebar-drag-region="status"
-          >
-            <span
-              className={connectionStatusClass(connection.status)}
-              data-tauri-drag-region={tauriDragRegion}
-              data-titlebar-drag-region="status-label"
+      <div className="body layer">
+        <nav className="side" aria-label="Primary">
+          {workspaceTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={clsx("card", activeTab === tab.id && "card-on")}
+              aria-label={tab.label}
+              aria-current={activeTab === tab.id ? "page" : undefined}
+              data-workspace-tab={tab.id}
+              onClick={() => selectTab(tab.id)}
             >
-              <span
-                className="size-1.5 animate-pulse rounded-full bg-current shadow-[0_0_5px_currentColor]"
-                data-tauri-drag-region={tauriDragRegion}
-              />
-              {connectionStatusLabel(connection.status)}
+              <NavCardArt kind={tab.id} />
+              <span className="capb">
+                <span className="t">{tab.label}</span>
+              </span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="main">
+          <main className="scroll" ref={scrollRef}>
+            {renderWorkspace(activeTab, snapshot, adapter, nowMs, () => selectTab("events"))}
+          </main>
+          <footer className="keys">
+            <span className="sb">
+              Session <span className="wh">{sessionElapsed(snapshot, nowMs)}</span>
             </span>
-          </div>
-          {showTauriChrome ? <WindowControls /> : <div className="w-4 shrink-0 md:w-6" />}
-        </header>
-
-        <main className="custom-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto bg-gradient-to-b from-[#04070d]/50 to-transparent p-6">
-          <div className="mb-6 flex shrink-0 items-center justify-between border-b border-orange-500/10 pb-4">
-            <div>
-              <h1 className="text-shadow-glow text-xl font-bold uppercase tracking-widest text-slate-200">
-                {activeDefinition.label} Interface
-              </h1>
-              <p className="font-mono text-[9px] uppercase text-slate-500">
-                SYS_RELAY: {connection.status.toUpperCase()}
-              </p>
-            </div>
-          </div>
-
-          {renderWorkspace(activeTab, snapshot, adapter)}
-        </main>
+            <CommanderLine session={snapshot.session} />
+          </footer>
+        </div>
       </div>
-    </div>
+    </AppFrame>
+  )
+}
+
+function ConnectionIndicator({
+  status,
+}: {
+  readonly status: DashboardConnectionState["status"]
+}): React.JSX.Element {
+  if (status === "connected") {
+    return (
+      <span className="sync">
+        <span className="sq" />
+        Synced
+      </span>
+    )
+  }
+  const [tone, label] = connectionTone(status)
+  return <Ind tone={tone}>{label}</Ind>
+}
+
+function connectionTone(
+  status: Exclude<DashboardConnectionState["status"], "connected">,
+): readonly [Tone, string] {
+  switch (status) {
+    case "loading":
+      return ["warn", "Loading"]
+    case "degraded":
+      return ["warn", "Degraded"]
+    case "error":
+      return ["bad", "Error"]
+    case "idle":
+      return ["off", "Idle"]
+    default:
+      return assertNever(status)
+  }
+}
+
+function sessionElapsed(snapshot: AppSnapshot, nowMs: number): string {
+  const startedMs = parseTimestamp(snapshot.session.started_at)
+  if (!snapshot.session.active || startedMs === null) {
+    return snapshot.session.elapsed_display
+  }
+  return formatMinutes((nowMs - startedMs) / 1000)
+}
+
+function CommanderLine({
+  session,
+}: {
+  readonly session: AppSnapshot["session"]
+}): React.JSX.Element | null {
+  const commander = session.commander ?? null
+  const details = [session.ship, session.mode].filter(
+    (value): value is string => typeof value === "string" && value !== "",
+  )
+  if (commander === null && details.length === 0) {
+    return null
+  }
+  return (
+    <span className="sb cmdr">
+      {commander === null ? null : <span className="wh">CMDR {commander}</span>}
+      {details.map((detail, index) => (
+        <span key={detail}>
+          {index > 0 || commander !== null ? " · " : ""}
+          {detail}
+        </span>
+      ))}
+    </span>
   )
 }
 
@@ -174,15 +226,22 @@ type ClosestCapableElement = Element & {
   closest(selectors: string): Element | null
 }
 
+const windowControlIcons: Readonly<Record<WindowCommand, string>> = {
+  minimize: "M5 12h14",
+  maximize: "M5 5h14v14H5z",
+  close: "M18 6 6 18M6 6l12 12",
+}
+
 function WindowControls(): React.JSX.Element {
   return (
     <div
-      className="flex h-full shrink-0 items-stretch border-l border-orange-500/15"
+      className="winctl"
+      style={{ display: "flex", gap: 2 }}
       data-titlebar-no-drag="window-controls"
     >
-      <WindowControlButton command="minimize" label="Minimize window" icon={Minus} />
-      <WindowControlButton command="maximize" label="Maximize window" icon={Square} />
-      <WindowControlButton command="close" label="Close window" icon={X} danger />
+      <WindowControlButton command="minimize" label="Minimize window" />
+      <WindowControlButton command="maximize" label="Maximize window" />
+      <WindowControlButton command="close" label="Close window" />
     </div>
   )
 }
@@ -190,30 +249,25 @@ function WindowControls(): React.JSX.Element {
 function WindowControlButton({
   command,
   label,
-  icon: Icon,
-  danger = false,
 }: {
   readonly command: WindowCommand
   readonly label: string
-  readonly icon: LucideIcon
-  readonly danger?: boolean
 }): React.JSX.Element {
   return (
     <button
       type="button"
       aria-label={label}
+      title={label}
+      className={clsx("winb", command === "close" && "winx")}
       data-titlebar-no-drag="window-control"
       data-window-control={command}
-      title={label}
       onClick={() => {
         void runWindowCommand(command)
       }}
-      className={cn(
-        "flex h-full w-12 items-center justify-center text-slate-500 transition-colors duration-150 hover:bg-slate-900/70 hover:text-slate-100 focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-orange-400",
-        danger && "hover:bg-rose-950/80 hover:text-rose-200",
-      )}
     >
-      <Icon aria-hidden="true" className="size-3.5" />
+      <svg className="ico" viewBox="0 0 24 24" aria-hidden="true">
+        <path d={windowControlIcons[command]} />
+      </svg>
     </button>
   )
 }
@@ -266,88 +320,20 @@ function readTitlebarDragDebugFlag(): boolean {
   return new URLSearchParams(window.location.search).get("debug_titlebar_drag") === "1"
 }
 
-function WorkspaceTabButton({
-  tab,
-  active,
-  onSelect,
-}: {
-  readonly tab: (typeof workspaceTabs)[number]
-  readonly active: boolean
-  readonly onSelect: () => void
-}): React.JSX.Element {
-  const Icon = tab.icon
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-current={active ? "page" : undefined}
-      aria-label={tab.id === "config" ? "Systems Config" : tab.label}
-      data-titlebar-no-drag="workspace-tab"
-      className={cn(
-        "flex items-center gap-2 whitespace-nowrap rounded-sm border-b-2 px-4 py-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-200",
-        active
-          ? "border-orange-500 bg-orange-500/10 text-orange-400 shadow-[inset_0_-10px_10px_-10px_rgba(249,115,22,0.5)]"
-          : "border-transparent text-slate-400 hover:bg-slate-900/60 hover:text-slate-200",
-      )}
-    >
-      <Icon
-        aria-hidden="true"
-        className={cn(
-          "size-3.5",
-          active ? "text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]" : "opacity-60",
-        )}
-      />
-      <span>{tab.label}</span>
-    </button>
-  )
-}
-
-function connectionStatusLabel(status: DashboardConnectionState["status"]): string {
-  switch (status) {
-    case "connected":
-      return "SYNCED"
-    case "loading":
-      return "LOADING"
-    case "degraded":
-      return "DEGRADED"
-    case "error":
-      return "ERROR"
-    case "idle":
-      return "IDLE"
-    default:
-      return assertNever(status)
-  }
-}
-
-function connectionStatusClass(status: DashboardConnectionState["status"]): string {
-  switch (status) {
-    case "connected":
-      return "hidden items-center gap-1.5 font-mono text-[9px] text-emerald-500 sm:flex"
-    case "loading":
-      return "hidden items-center gap-1.5 font-mono text-[9px] text-amber-400 sm:flex"
-    case "degraded":
-      return "hidden items-center gap-1.5 font-mono text-[9px] text-amber-400 sm:flex"
-    case "error":
-      return "hidden items-center gap-1.5 font-mono text-[9px] text-rose-500 sm:flex"
-    case "idle":
-      return "hidden items-center gap-1.5 font-mono text-[9px] text-slate-500 sm:flex"
-    default:
-      return assertNever(status)
-  }
-}
-
 function renderWorkspace(
   activeTab: WorkspaceTab,
   snapshot: AppSnapshot,
   adapter: DashboardAdapter,
+  nowMs: number,
+  openEvents: () => void,
 ): React.JSX.Element {
   switch (activeTab) {
     case "dashboard":
-      return <TacticalTelemetryView snapshot={snapshot} />
+      return <TacticalTelemetryView snapshot={snapshot} nowMs={nowMs} onOpenEvents={openEvents} />
     case "missions":
-      return <TacticalMissionsView snapshot={snapshot} />
+      return <TacticalMissionsView snapshot={snapshot} nowMs={nowMs} />
     case "events":
-      return <TacticalEventsView snapshot={snapshot} />
+      return <TacticalEventsView snapshot={snapshot} nowMs={nowMs} />
     case "config":
       return <TacticalSystemsView adapter={adapter} />
     case "about":
@@ -358,5 +344,5 @@ function renderWorkspace(
 }
 
 function assertNever(value: never): never {
-  throw new Error(`Unhandled workspace tab: ${String(value)}`)
+  throw new Error(`Unhandled shell variant: ${String(value)}`)
 }

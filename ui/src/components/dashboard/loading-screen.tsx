@@ -1,108 +1,99 @@
-import { EyeOff, Loader2 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { AppFrame } from "./g1-ui"
 
 type LoadingScreenProps = {
   readonly detail: string
   readonly isTauri: boolean
 }
 
-const RADIUS = 70
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS
-const MAX_PENDING_PROGRESS = 96
-
+/**
+ * Shown until the first snapshot arrives. The adapter reports no measurable
+ * progress, so the bar is indeterminate and the text is the adapter's own
+ * connection detail.
+ */
 export function LoadingScreen({ detail, isTauri }: LoadingScreenProps): React.JSX.Element {
-  const [progress, setProgress] = useState(0)
   const titlebarDragDebugEnabled = readTitlebarDragDebugFlag()
   const showTauriDragRegion = isTauri || titlebarDragDebugEnabled
   const tauriDragRegion = showTauriDragRegion ? "" : undefined
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setProgress((currentProgress) => {
-        if (currentProgress >= MAX_PENDING_PROGRESS) {
-          return MAX_PENDING_PROGRESS
-        }
-        const increment = currentProgress < 70 ? 2 : 1
-        return Math.min(MAX_PENDING_PROGRESS, currentProgress + increment)
-      })
-    }, 90)
-
-    return () => window.clearInterval(timer)
-  }, [])
-
-  const status = useMemo(() => loadingStatus(progress, detail), [progress, detail])
-  const strokeDashoffset = CIRCUMFERENCE - (progress / 100) * CIRCUMFERENCE
-
   return (
-    <main
-      className="bg-tactical relative flex min-h-[100dvh] w-full select-none items-center justify-center overflow-hidden font-mono text-slate-300"
-      data-titlebar-drag-debug={titlebarDragDebugEnabled ? "true" : undefined}
-    >
+    <AppFrame dragDebug={titlebarDragDebugEnabled}>
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 z-20 h-14"
+        style={{ position: "absolute", left: 0, right: 0, top: 0, height: 56, zIndex: 2 }}
         data-tauri-drag-region={tauriDragRegion}
         data-titlebar-drag-region="loading-titlebar"
         onPointerDownCapture={(event) => {
-          if (isTauri && shouldStartWindowDrag(event)) {
+          if (isTauri && event.button === 0) {
             void startWindowDrag()
           }
         }}
       />
-      <section
-        aria-label="Dashboard startup"
-        aria-live="polite"
-        className="relative z-10 flex flex-col items-center gap-8 px-6 text-center"
+      <main
+        className="layer"
+        style={{
+          flex: "1 1 auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 56,
+          padding: 40,
+          flexWrap: "wrap",
+        }}
       >
-        <div className="relative flex items-center justify-center">
-          <svg
-            aria-hidden="true"
-            className="-rotate-90 transform"
-            height="176"
-            viewBox="0 0 160 160"
-            width="176"
+        <div
+          style={{ position: "relative", width: 300, height: 300, flexShrink: 0 }}
+          aria-hidden="true"
+        >
+          <div
+            className="orb spin"
+            style={{ width: 290, height: 290, border: "1px dashed rgba(60,184,255,.35)" }}
+          />
+          <div
+            className="orb"
+            style={{ width: 210, height: 210, border: "1px solid rgba(255,122,0,.3)" }}
+          />
+          <div
+            className="orb"
+            style={{ width: 130, height: 130, border: "1px solid rgba(60,184,255,.2)" }}
+          />
+          <div className="orb" style={{ width: 26, height: 26, background: "#ff7a00" }} />
+        </div>
+        <section
+          className="pnl"
+          aria-label="Dashboard startup"
+          aria-live="polite"
+          style={{ width: "min(100%, 560px)" }}
+        >
+          <h1 className="pt" style={{ marginBottom: 18 }}>
+            <span>
+              <span className="or">ED Sentry</span>
+              <span style={{ margin: "0 10px", color: "#4b525c" }}>|</span>
+              <span className="sec2">Starting</span>
+            </span>
+            <span className="lab">v{import.meta.env.VITE_ED_SENTRY_BUILD_VERSION}</span>
+          </h1>
+          <h2
+            className="loading-status"
+            style={{
+              margin: "0 0 6px",
+              fontSize: 20,
+              fontWeight: 500,
+              letterSpacing: ".08em",
+              textTransform: "uppercase",
+              color: "#ff8a1a",
+            }}
           >
-            <circle
-              className="fill-none stroke-tactical/10"
-              cx="80"
-              cy="80"
-              r={RADIUS}
-              strokeWidth="3"
-            />
-            <circle
-              className="loading-progress-ring fill-none stroke-tactical"
-              cx="80"
-              cy="80"
-              r={RADIUS}
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="square"
-              strokeWidth="3"
-            />
-          </svg>
-
-          <div className="absolute flex flex-col items-center justify-center">
-            {progress >= MAX_PENDING_PROGRESS ? (
-              <EyeOff aria-hidden="true" className="loading-core-icon size-8 text-tactical" />
-            ) : (
-              <span className="loading-progress-value text-3xl font-bold text-tactical">
-                {progress}
-                <span className="ml-0.5 text-sm text-tactical/70">%</span>
-              </span>
-            )}
+            Waiting for first snapshot
+          </h2>
+          <p className="sec2" style={{ margin: "0 0 18px" }} data-testid="loading-detail">
+            {detail}
+          </p>
+          <div className="bar ld-bar" aria-hidden="true">
+            <div className="ld-run" />
           </div>
-        </div>
-
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Loader2 aria-hidden="true" className="size-3 animate-spin text-tactical" />
-            <h1 className="loading-status tactical-overline text-tactical">{status}</h1>
-          </div>
-
-          <p className="max-w-72 text-[11px] leading-4 text-text-muted">{detail}</p>
-        </div>
-      </section>
-    </main>
+        </section>
+      </main>
+    </AppFrame>
   )
 }
 
@@ -111,32 +102,9 @@ async function startWindowDrag(): Promise<void> {
   await getCurrentWindow().startDragging()
 }
 
-function shouldStartWindowDrag(event: React.PointerEvent<HTMLElement>): boolean {
-  return event.button === 0
-}
-
 function readTitlebarDragDebugFlag(): boolean {
   if (typeof window === "undefined") {
     return false
   }
   return new URLSearchParams(window.location.search).get("debug_titlebar_drag") === "1"
-}
-
-function loadingStatus(progress: number, detail: string): string {
-  if (progress < 20) {
-    return "RESOLVING JOURNAL DIR..."
-  }
-  if (progress < 50) {
-    return "PARSING FLIGHT JOURNAL..."
-  }
-  if (progress < 85) {
-    return "ESTABLISHING MATRIX RELAY..."
-  }
-  if (progress < MAX_PENDING_PROGRESS) {
-    return "SYNCING COMMANDER DATA..."
-  }
-  if (detail.trim().length > 0) {
-    return "AWAITING TELEMETRY LINK..."
-  }
-  return "AWAITING DASHBOARD SNAPSHOT..."
 }

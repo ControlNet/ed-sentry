@@ -11,7 +11,7 @@ test("@tunnel-service renders running link and QR on hover and keyboard focus", 
   const tunnelLink = tunnel.getByRole("link", { name: "task-9.trycloudflare.com" })
   const tunnelQr = page.getByTestId("tunnel-link-qr")
 
-  await expect(tunnel).toContainText("RUNNING")
+  await expect(tunnel).toContainText("Online")
   await expect(tunnelLink).toBeVisible()
   await expect(tunnelLink).toHaveAttribute("href", "https://task-9.trycloudflare.com/")
   await expect(tunnelLink).toHaveAttribute("target", "_blank")
@@ -29,41 +29,42 @@ test("@tunnel-service renders running link and QR on hover and keyboard focus", 
 test("@tunnel-service starts only from start or retryable error states", async ({ page }) => {
   await page.goto("/?mock_state=tunnel_start")
   const startTunnel = page.locator("[data-service-node='Tunnel']").getByRole("button", {
-    name: "START",
+    name: "Start",
+    exact: true,
   })
 
   await expect(startTunnel).toBeVisible()
   await startTunnel.click()
-  await expect(page.locator("[data-service-node='Tunnel']")).toContainText("RUNNING")
+  await expect(page.locator("[data-service-node='Tunnel']")).toContainText("Online")
 
   await page.goto("/?mock_state=tunnel_disabled")
   const disabledTunnel = page.locator("[data-service-node='Tunnel']")
-  await expect(disabledTunnel).toContainText("UNAVAILABLE")
-  await expect(disabledTunnel.getByRole("button", { name: "START" })).toHaveCount(0)
+  await expect(disabledTunnel).toContainText("Unavailable")
+  await expect(disabledTunnel.getByRole("button")).toHaveCount(0)
 
   await page.goto("/?mock_state=tunnel_running")
   const runningTunnel = page.locator("[data-service-node='Tunnel']")
-  await expect(runningTunnel).toContainText("RUNNING")
-  await expect(runningTunnel.getByRole("button", { name: "START" })).toHaveCount(0)
+  await expect(runningTunnel).toContainText("Online")
+  await expect(runningTunnel.getByRole("button")).toHaveCount(0)
 })
 
 test("@tunnel-service starts only from retryable tunnel errors", async ({ page }) => {
   await page.goto("/?mock_state=tunnel_retryable_error")
   const retryableTunnel = page.locator("[data-service-node='Tunnel']")
-  await expect(retryableTunnel).toContainText("ERROR")
+  await expect(retryableTunnel).toHaveAttribute("data-status-kind", "error")
   await expect(retryableTunnel).toContainText(
     "Fixture tunnel process stopped before a URL was assigned",
   )
-  const retryTunnel = retryableTunnel.getByRole("button", { name: "ERROR" })
+  const retryTunnel = retryableTunnel.getByRole("button", { name: "Retry" })
   await expect(retryTunnel).toBeVisible()
   await retryTunnel.click()
-  await expect(retryableTunnel).toContainText("RUNNING")
+  await expect(retryableTunnel).toContainText("Online")
 
   await page.goto("/?mock_state=tunnel_non_retryable_error")
   const nonRetryableTunnel = page.locator("[data-service-node='Tunnel']")
-  await expect(nonRetryableTunnel).toContainText("ERROR")
+  await expect(nonRetryableTunnel).toContainText("Error")
   await expect(nonRetryableTunnel).toContainText("Fixture tunnel provider is unavailable")
-  await expect(nonRetryableTunnel.getByRole("button", { name: "ERROR" })).toHaveCount(0)
+  await expect(nonRetryableTunnel.getByRole("button")).toHaveCount(0)
 })
 
 test("@tunnel-config auth prompt blocks Systems config until login succeeds", async ({ page }) => {

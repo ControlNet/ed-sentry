@@ -13,12 +13,14 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
     "test:e2e": "node ./scripts/playwright.mjs",
     "test:e2e:install": "playwright install chromium",
     "audit:react": "react-doctor --json --no-score -y",
     "lint": "biome check ."
   },
   "dependencies": {
+    "@fontsource-variable/saira": "^5.3.0",
     "@radix-ui/react-slot": "^1.2.3",
     "@tauri-apps/api": "2.11.0",
     "class-variance-authority": "^0.7.1",
@@ -50,6 +52,7 @@
     "shadcn": "^3.6.2",
     "typescript": "^5.9.3",
     "vite": "^7.3.0",
-    "vite-plugin-react-scan": "^1.0.1"
+    "vite-plugin-react-scan": "^1.0.1",
+    "vitest": "^3.2.7"
   }
 }

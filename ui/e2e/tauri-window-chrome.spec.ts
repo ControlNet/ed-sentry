@@ -52,11 +52,9 @@ test("@tauri-window-chrome enables frameless drag and window controls", async ()
   expect(shellSource).toContain("shouldStartWindowDrag")
   expect(shellSource).toContain("onPointerDownCapture")
   expect(shellSource).toContain("data-tauri-drag-region={tauriDragRegion}")
-  expect(shellSource).toContain('data-titlebar-drag-region="primary-nav"')
   expect(shellSource).toContain('data-titlebar-drag-region="brand-mark"')
   expect(shellSource).toContain('data-titlebar-drag-region="brand-label"')
   expect(shellSource).toContain('data-titlebar-drag-region="status-label"')
-  expect(shellSource).toContain('data-titlebar-no-drag="workspace-tab"')
   expect(shellSource).toContain('data-titlebar-no-drag="window-control"')
   expect(shellSource).toContain("readTitlebarDragDebugFlag")
   expect(shellSource).toContain('label: "Dashboard"')
@@ -70,12 +68,7 @@ test("@tauri-window-chrome visualizes titlebar drag hitmap", async ({ page }) =>
   await page.goto("/?debug_titlebar_drag=1")
 
   await expect(page.locator("[data-titlebar-drag-debug='true']")).toBeVisible()
-  await expect(page.locator("[data-titlebar-drag-region='primary-nav']")).toBeVisible()
-  await expect(page.locator("[data-titlebar-drag-region='primary-nav']")).toHaveAttribute(
-    "data-tauri-drag-region",
-    "",
-  )
-  await expect(page.locator("[data-titlebar-drag-region='primary-nav-list']")).toHaveAttribute(
+  await expect(page.locator("[data-titlebar-drag-region='titlebar']")).toHaveAttribute(
     "data-tauri-drag-region",
     "",
   )
@@ -84,7 +77,9 @@ test("@tauri-window-chrome visualizes titlebar drag hitmap", async ({ page }) =>
   await expect(page.locator("[data-titlebar-drag-region='brand-label']")).toBeVisible()
   await expect(page.locator("[data-titlebar-drag-region='status']")).toBeVisible()
   await expect(page.locator("[data-titlebar-drag-region='status-label']")).toBeVisible()
-  await expect(page.locator("[data-titlebar-no-drag='workspace-tab']")).toHaveCount(5)
+  await expect(
+    page.getByRole("navigation", { name: "Primary" }).locator("[data-workspace-tab]"),
+  ).toHaveCount(5)
   await expect(page.locator("[data-titlebar-no-drag='window-controls']")).toHaveCount(1)
   await expect(page.locator("[data-titlebar-no-drag='window-control']")).toHaveCount(3)
 

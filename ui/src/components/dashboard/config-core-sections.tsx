@@ -1,5 +1,5 @@
-import { Activity, Database, RadioTower, Server } from "lucide-react"
 import {
+  ConfigSection,
   FieldMessage,
   NumberField,
   SelectField,
@@ -7,126 +7,36 @@ import {
   ToggleField,
 } from "./config-form-fields"
 import type { ConfigFormState } from "./config-form-model"
+import { Ind } from "./g1-ui"
 
 type ConfigSectionProps = {
   readonly form: ConfigFormState
   readonly onChange: (form: ConfigFormState) => void
 }
 
-type MatrixSectionProps = ConfigSectionProps & {
-  readonly tokenPresent: boolean
-}
-
-const tunnelProviderOptions = [
+const supportedTunnelProviders = [
   { value: "cloudflare_quick", label: "Cloudflare Quick Tunnel" },
-  { value: "ssh", label: "SSH tunnel (unsupported)", disabled: true },
 ] as const
 
 export function JournalConfigSection({ form, onChange }: ConfigSectionProps): React.JSX.Element {
   return (
-    <section aria-label="Journal settings" className="tactical-config-section">
-      <h3 className="absolute -top-3 left-4 flex items-center gap-2 bg-[#060a11] px-2 text-[10px] font-bold uppercase tracking-widest text-orange-500">
-        <Database aria-hidden="true" className="size-3" />
-        Local ingestion
-      </h3>
-      <div className="mt-2 grid gap-3 md:grid-cols-[minmax(0,1fr)_12rem]">
-        <TextField
-          label="Journal folder"
-          value={form.journal.folder}
-          placeholder="Default journal folder"
-          onChange={(folder) => onChange({ ...form, journal: { ...form.journal, folder } })}
-        />
-        <NumberField
-          label="Recent files"
-          value={form.journal.recent_files}
-          min={1}
-          max={100}
-          onChange={(recent_files) =>
-            onChange({ ...form, journal: { ...form.journal, recent_files } })
-          }
-        />
-      </div>
-    </section>
-  )
-}
-
-export function WebConfigSection({ form, onChange }: ConfigSectionProps): React.JSX.Element {
-  return (
-    <section aria-label="Web settings" className="tactical-config-section">
-      <h3 className="absolute -top-3 left-4 flex items-center gap-2 bg-[#060a11] px-2 text-[10px] font-bold uppercase tracking-widest text-orange-500">
-        <Server aria-hidden="true" className="size-3" />
-        Local API gateway
-      </h3>
-      <div className="mt-2 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <ToggleField
-          label="Enabled"
-          checked={form.web.enabled}
-          onChange={(enabled) => onChange({ ...form, web: { ...form.web, enabled } })}
-        />
-        <ToggleField
-          label="Open browser"
-          checked={form.web.open_browser}
-          onChange={(open_browser) => onChange({ ...form, web: { ...form.web, open_browser } })}
-        />
-        <TextField
-          label="Host"
-          value={form.web.host}
-          onChange={(host) => onChange({ ...form, web: { ...form.web, host } })}
-        />
-        <NumberField
-          label="Port"
-          value={form.web.port}
-          min={1}
-          max={65_535}
-          onChange={(port) => onChange({ ...form, web: { ...form.web, port } })}
-        />
-      </div>
-    </section>
-  )
-}
-
-export function TunnelConfigSection({ form, onChange }: ConfigSectionProps): React.JSX.Element {
-  return (
-    <section aria-label="Tunnel settings" className="tactical-config-section">
-      <h3 className="absolute -top-3 left-4 flex items-center gap-2 bg-surface-panel px-2 text-[10px] font-bold uppercase tracking-widest text-tactical">
-        <RadioTower aria-hidden="true" className="size-3" />
-        Tunnel gateway
-      </h3>
-      <div className="mt-2 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <SelectField
-          label="Provider"
-          options={tunnelProviderOptions}
-          value={form.tunnel.provider}
-          onChange={(provider) => onChange({ ...form, tunnel: { ...form.tunnel, provider } })}
-        />
-        <ToggleField
-          label="Auto start tunnel"
-          checked={form.tunnel.auto_start}
-          onChange={(auto_start) => onChange({ ...form, tunnel: { ...form.tunnel, auto_start } })}
-        />
-        <TextField
-          label="Replace tunnel config password"
-          type="password"
-          value={form.tunnel_password_replacement_input}
-          placeholder="Write-only replacement"
-          autoComplete="new-password"
-          onChange={(tunnel_password_replacement_input) =>
-            onChange({ ...form, tunnel_password_replacement_input })
-          }
-        />
-        <ToggleField
-          label="Clear tunnel config password on save"
-          checked={form.tunnel.clear_config_password}
-          onChange={(clear_config_password) =>
-            onChange({ ...form, tunnel: { ...form.tunnel, clear_config_password } })
-          }
-        />
-      </div>
-      <FieldMessage tone="info">
-        Leaving the replacement field blank preserves the stored tunnel password. The current
-        password is never loaded into the browser.
-      </FieldMessage>
-    </section>
+    <ConfigSection id="sys-journal" label="Journal settings" title="Journal">
+      <TextField
+        label="Journal folder"
+        value={form.journal.folder}
+        placeholder="Default journal folder"
+        onChange={(folder) => onChange({ ...form, journal: { ...form.journal, folder } })}
+      />
+      <NumberField
+        label="Recent files"
+        value={form.journal.recent_files}
+        min={1}
+        max={100}
+        onChange={(recent_files) =>
+          onChange({ ...form, journal: { ...form.journal, recent_files } })
+        }
+      />
+    </ConfigSection>
   )
 }
 
@@ -134,79 +44,144 @@ export function MatrixConfigSection({
   form,
   tokenPresent,
   onChange,
-}: MatrixSectionProps): React.JSX.Element {
+}: ConfigSectionProps & { readonly tokenPresent: boolean }): React.JSX.Element {
   return (
-    <section aria-label="Matrix settings" className="tactical-config-section">
-      <h3 className="absolute -top-3 left-4 flex items-center gap-2 bg-[#060a11] px-2 text-[10px] font-bold uppercase tracking-widest text-orange-500">
-        <Activity aria-hidden="true" className="size-3" />
-        Matrix relay protocol
-      </h3>
-      <div className="mt-2 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        <div className="md:col-span-2 xl:col-span-3">
-          <ToggleField
-            label="Enable Matrix Broadcasting"
-            checked={form.matrix.enabled}
-            onChange={(enabled) => onChange({ ...form, matrix: { ...form.matrix, enabled } })}
-          />
-        </div>
-        <TextField
-          label="Homeserver URI"
-          value={form.matrix.homeserver ?? ""}
-          onChange={(homeserver) => onChange({ ...form, matrix: { ...form.matrix, homeserver } })}
-        />
-        <TextField
-          label="Room ID"
-          value={form.matrix.room_id ?? ""}
-          onChange={(room_id) => onChange({ ...form, matrix: { ...form.matrix, room_id } })}
-        />
-        <TextField
-          label="Mention user ID"
-          value={form.matrix.mention_user_id ?? ""}
-          onChange={(mention_user_id) =>
-            onChange({ ...form, matrix: { ...form.matrix, mention_user_id } })
-          }
-        />
-        <NumberField
-          label="Status cadence"
-          value={form.matrix.status_update_interval_seconds}
-          min={10}
-          max={86_400}
-          onChange={(status_update_interval_seconds) =>
-            onChange({ ...form, matrix: { ...form.matrix, status_update_interval_seconds } })
-          }
-        />
-        <div className="border-t border-slate-800/50 pt-4 md:col-span-2 xl:col-span-3">
-          <div className="mb-2 flex justify-between font-mono text-[10px] uppercase">
-            <span className="text-slate-500">
-              Access Token <span className="ml-1 text-rose-500/80">(WRITE-ONLY)</span>
-            </span>
-            <span className="font-bold text-emerald-500">
-              {tokenPresent ? "TOKEN PRESENT IN VAULT" : "NO TOKEN IN VAULT"}
-            </span>
-          </div>
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_14rem]">
-            <TextField
-              label="Replace access token"
-              type="password"
-              value={form.token_replacement_input}
-              placeholder="Write-only replacement"
-              autoComplete="new-password"
-              onChange={(token_replacement_input) => onChange({ ...form, token_replacement_input })}
-            />
-            <ToggleField
-              label="Clear stored token on save"
-              checked={form.matrix.clear_access_token}
-              onChange={(clear_access_token) =>
-                onChange({ ...form, matrix: { ...form.matrix, clear_access_token } })
-              }
-            />
-          </div>
-        </div>
-      </div>
+    <ConfigSection id="sys-matrix" label="Matrix settings" title="Matrix">
+      <p style={{ margin: "0 0 6px" }} data-testid="matrix-token-state">
+        <Ind tone={tokenPresent ? "ok" : "off"}>
+          {tokenPresent ? "Access token stored" : "No access token stored"}
+        </Ind>
+      </p>
+      <ToggleField
+        label="Enable Matrix"
+        checked={form.matrix.enabled}
+        onChange={(enabled) => onChange({ ...form, matrix: { ...form.matrix, enabled } })}
+      />
+      <TextField
+        label="Homeserver URI"
+        value={form.matrix.homeserver ?? ""}
+        onChange={(homeserver) => onChange({ ...form, matrix: { ...form.matrix, homeserver } })}
+      />
+      <TextField
+        label="Room ID"
+        value={form.matrix.room_id ?? ""}
+        onChange={(room_id) => onChange({ ...form, matrix: { ...form.matrix, room_id } })}
+      />
+      <TextField
+        label="Mention user ID"
+        value={form.matrix.mention_user_id ?? ""}
+        onChange={(mention_user_id) =>
+          onChange({ ...form, matrix: { ...form.matrix, mention_user_id } })
+        }
+      />
+      <NumberField
+        label="Status update interval (seconds)"
+        value={form.matrix.status_update_interval_seconds}
+        min={10}
+        max={86_400}
+        onChange={(status_update_interval_seconds) =>
+          onChange({ ...form, matrix: { ...form.matrix, status_update_interval_seconds } })
+        }
+      />
+      <TextField
+        label="Replace access token"
+        type="password"
+        value={form.token_replacement_input}
+        placeholder="New token"
+        autoComplete="new-password"
+        onChange={(token_replacement_input) => onChange({ ...form, token_replacement_input })}
+      />
+      <ToggleField
+        label="Clear stored token on save"
+        checked={form.matrix.clear_access_token}
+        onChange={(clear_access_token) =>
+          onChange({ ...form, matrix: { ...form.matrix, clear_access_token } })
+        }
+      />
       <FieldMessage tone="info">
-        Leaving the replacement field blank preserves the stored token. The current token is never
-        loaded into the browser.
+        Leave blank to keep the stored token. The stored token is never sent to the browser.
       </FieldMessage>
-    </section>
+    </ConfigSection>
+  )
+}
+
+export function TunnelConfigSection({
+  form,
+  passwordPresent,
+  onChange,
+}: ConfigSectionProps & { readonly passwordPresent: boolean }): React.JSX.Element {
+  const providerOptions = supportedTunnelProviders.some(
+    (option) => option.value === form.tunnel.provider,
+  )
+    ? supportedTunnelProviders
+    : [...supportedTunnelProviders, { value: form.tunnel.provider, label: form.tunnel.provider }]
+  return (
+    <ConfigSection id="sys-tunnel" label="Tunnel settings" title="Tunnel">
+      <p style={{ margin: "0 0 6px" }}>
+        <Ind tone={passwordPresent ? "ok" : "off"}>
+          {passwordPresent ? "Config password stored" : "No config password stored"}
+        </Ind>
+      </p>
+      <SelectField
+        label="Provider"
+        options={providerOptions}
+        value={form.tunnel.provider}
+        onChange={(provider) => onChange({ ...form, tunnel: { ...form.tunnel, provider } })}
+      />
+      <ToggleField
+        label="Auto start tunnel"
+        checked={form.tunnel.auto_start}
+        onChange={(auto_start) => onChange({ ...form, tunnel: { ...form.tunnel, auto_start } })}
+      />
+      <TextField
+        label="Replace tunnel config password"
+        type="password"
+        value={form.tunnel_password_replacement_input}
+        placeholder="New password"
+        autoComplete="new-password"
+        onChange={(tunnel_password_replacement_input) =>
+          onChange({ ...form, tunnel_password_replacement_input })
+        }
+      />
+      <ToggleField
+        label="Clear tunnel config password on save"
+        checked={form.tunnel.clear_config_password}
+        onChange={(clear_config_password) =>
+          onChange({ ...form, tunnel: { ...form.tunnel, clear_config_password } })
+        }
+      />
+      <FieldMessage tone="info">
+        Leave blank to keep the stored password. The stored password is never sent to the browser.
+      </FieldMessage>
+    </ConfigSection>
+  )
+}
+
+export function WebConfigSection({ form, onChange }: ConfigSectionProps): React.JSX.Element {
+  return (
+    <ConfigSection id="sys-web" label="Web settings" title="Web UI">
+      <ToggleField
+        label="Enabled"
+        checked={form.web.enabled}
+        onChange={(enabled) => onChange({ ...form, web: { ...form.web, enabled } })}
+      />
+      <ToggleField
+        label="Open browser"
+        checked={form.web.open_browser}
+        onChange={(open_browser) => onChange({ ...form, web: { ...form.web, open_browser } })}
+      />
+      <TextField
+        label="Host"
+        value={form.web.host}
+        onChange={(host) => onChange({ ...form, web: { ...form.web, host } })}
+      />
+      <NumberField
+        label="Port"
+        value={form.web.port}
+        min={1}
+        max={65_535}
+        onChange={(port) => onChange({ ...form, web: { ...form.web, port } })}
+      />
+    </ConfigSection>
   )
 }

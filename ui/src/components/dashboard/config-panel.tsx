@@ -1,6 +1,7 @@
-import { AlertTriangle, Loader2, Save } from "lucide-react"
+import clsx from "clsx"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ConfigApiView, DashboardAdapter } from "@/adapters/dashboard"
+import { type ConfigSectionId, configSectionIds, configSectionStatus } from "@/lib/config-status"
 import {
   JournalConfigSection,
   MatrixConfigSection,
@@ -17,6 +18,7 @@ import {
 } from "./config-form-model"
 import { ConfigLogLevelsSection } from "./config-log-levels"
 import { ConfigMonitorSection } from "./config-monitor-section"
+import { Ind } from "./g1-ui"
 import { TunnelConfigAuthPrompt } from "./tunnel-config-auth-prompt"
 
 type ConfigPanelProps = {
@@ -46,6 +48,12 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
   const [loadRevision, setLoadRevision] = useState(0)
   const formRevisionRef = useRef(0)
   const saveAttemptRef = useRef(0)
+  const [activeSection, setActiveSection] = useState<ConfigSectionId>("journal")
+
+  const jumpToSection = (id: ConfigSectionId): void => {
+    setActiveSection(id)
+    scrollSectionIntoView(id)
+  }
 
   useEffect(() => {
     let active = true
@@ -158,11 +166,10 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
 
   if (state.status === "loading") {
     return (
-      <section aria-label="Config editor" className="tactical-config-section">
-        <div className="flex items-center gap-3 text-sm text-text-muted">
-          <Loader2 aria-hidden="true" className="size-4 animate-spin text-tactical" />
+      <section aria-label="Config editor" className="pnl">
+        <p className="sec2" style={{ margin: 0 }}>
           Loading config
-        </div>
+        </p>
       </section>
     )
   }
@@ -178,72 +185,154 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
     }
 
     return (
-      <section aria-label="Config editor" className="tactical-config-section">
-        <div className="flex items-center gap-3">
-          <AlertTriangle aria-hidden="true" className="size-5 text-status-danger" />
-          <h2 className="tactical-overline text-status-danger">Config unavailable</h2>
-        </div>
+      <section aria-label="Config editor" className="pnl">
+        <h2 className="pt">
+          <span>Config unavailable</span>
+        </h2>
         <FieldMessage tone="error">{state.message}</FieldMessage>
       </section>
     )
   }
 
-  return (
-    <section aria-label="Config editor" className="space-y-6 p-2">
-      {!state.view.policy.state_changing_enabled ? (
-        <FieldMessage tone="warning">{state.view.policy.state_changing_reason}</FieldMessage>
-      ) : null}
-      {validationErrors.map((message) => (
-        <FieldMessage key={message} tone="error">
-          {message}
-        </FieldMessage>
-      ))}
-      {protectedChange ? (
-        <FieldMessage tone="warning">
-          Secret changes are protected and will not autosave. Save them explicitly when the
-          replacement or clear request is ready.
-        </FieldMessage>
-      ) : null}
-      {saveMessage === null ? null : (
-        <FieldMessage
-          tone={saveState === "error" ? "error" : saveState === "saved" ? "success" : "info"}
-        >
-          {saveMessage}
-        </FieldMessage>
-      )}
+  const status = configSectionStatus(state.form)
+  const savingEnabled = state.view.policy.state_changing_enabled
+  const messages = [
+    savingEnabled ? null : (
+      <FieldMessage key="policy" tone="warning">
+        {state.view.policy.state_changing_reason}
+      </FieldMessage>
+    ),
+    ...validationErrors.map((message) => (
+      <FieldMessage key={message} tone="error">
+        {message}
+      </FieldMessage>
+    )),
+    protectedChange ? (
+      <FieldMessage key="protected" tone="warning">
+        Secret changes are protected and will not autosave. Save them explicitly when the
+        replacement or clear request is ready.
+      </FieldMessage>
+    ) : null,
+  ].filter((message) => message !== null)
 
-      <JournalConfigSection form={state.form} onChange={setForm} />
-      <MatrixConfigSection
-        form={state.form}
-        tokenPresent={state.view.config.matrix?.access_token_present ?? false}
-        onChange={setForm}
-      />
-      <TunnelConfigSection form={state.form} onChange={setForm} />
-      <WebConfigSection form={state.form} onChange={setForm} />
-      <ConfigMonitorSection form={state.form} onChange={setForm} />
-      <ConfigLogLevelsSection form={state.form} onChange={setForm} />
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-orange-500/10 px-2 pt-4">
-        <div className="font-mono text-[10px] uppercase tracking-widest text-slate-500">
-          {protectedChange ? "Protected secret change pending" : "Autosave enabled"}
+  return (
+    <section aria-label="Config editor" className="sys">
+      <aside className="pnl sys-ix" aria-label="Configuration index">
+        <h2 className="pt">
+          <span>Sections</span>
+        </h2>
+        <div className="list">
+          {configSectionIds.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={clsx("idx", activeSection === id && "idx-on")}
+              aria-current={activeSection === id ? "true" : undefined}
+              onClick={() => jumpToSection(id)}
+            >
+              <span className="ixt">
+                <span className="ixl">{sectionTitles[id]}</span>
+                <span className="ixs">
+                  <span className={status[id].on ? "sq cy" : "sqo"} />
+                  {status[id].text}
+                </span>
+              </span>
+            </button>
+          ))}
         </div>
-        {protectedChange ? (
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-sm bg-tactical-accent px-5 py-2 text-[10px] font-bold uppercase tracking-widest text-primary-foreground transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!canSave}
-            onClick={saveProtectedChange}
-          >
-            {saveState === "saving" ? (
-              <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
-            ) : (
-              <Save aria-hidden="true" className="size-3.5" />
-            )}
-            Save Protected Change
-          </button>
+        {savingEnabled ? (
+          <div style={{ marginTop: 14 }} data-testid="config-save-state">
+            <SaveIndicator
+              protectedChange={protectedChange}
+              saveState={saveState}
+              saveMessage={saveMessage}
+            />
+            {protectedChange ? (
+              <button
+                type="button"
+                className="btn"
+                style={{ marginTop: 10 }}
+                disabled={!canSave}
+                onClick={saveProtectedChange}
+              >
+                Save protected change
+              </button>
+            ) : null}
+          </div>
         ) : null}
+      </aside>
+
+      <div style={{ minWidth: 0 }}>
+        {messages.length === 0 ? null : <div className="sys-msgs">{messages}</div>}
+        <JournalConfigSection form={state.form} onChange={setForm} />
+        <MatrixConfigSection
+          form={state.form}
+          tokenPresent={state.view.config.matrix?.access_token_present ?? false}
+          onChange={setForm}
+        />
+        <TunnelConfigSection
+          form={state.form}
+          passwordPresent={state.view.config.tunnel.config_password_present}
+          onChange={setForm}
+        />
+        <WebConfigSection form={state.form} onChange={setForm} />
+        <ConfigMonitorSection form={state.form} onChange={setForm} />
+        <ConfigLogLevelsSection form={state.form} onChange={setForm} />
       </div>
     </section>
   )
+}
+
+const sectionTitles: Readonly<Record<ConfigSectionId, string>> = {
+  journal: "Journal",
+  matrix: "Matrix",
+  tunnel: "Tunnel",
+  web: "Web UI",
+  monitor: "Monitor",
+  routing: "Event routing",
+}
+
+function SaveIndicator({
+  protectedChange,
+  saveState,
+  saveMessage,
+}: {
+  readonly protectedChange: boolean
+  readonly saveState: SaveState
+  readonly saveMessage: string | null
+}): React.JSX.Element {
+  if (protectedChange && saveState !== "saving") {
+    return <Ind tone="warn">Protected secret change pending</Ind>
+  }
+  switch (saveState) {
+    case "idle":
+      return <Ind tone="ok">{saveMessage ?? "Autosave enabled"}</Ind>
+    case "pending":
+    case "saving":
+      return <Ind tone="warn">{saveMessage ?? "Autosave pending"}</Ind>
+    case "saved":
+      return <Ind tone="ok">{saveMessage ?? "All changes saved"}</Ind>
+    case "error":
+      return <Ind tone="bad">{saveMessage ?? "Config save failed"}</Ind>
+    default:
+      return assertNever(saveState)
+  }
+}
+
+/** Scroll the content pane (not the whole window) so the section starts at the top. */
+function scrollSectionIntoView(id: ConfigSectionId): void {
+  const element = document.getElementById(`sys-${id}`)
+  const scroller = element?.closest(".scroll")
+  if (element === null || element === undefined || scroller === null || scroller === undefined) {
+    return
+  }
+  const padTop = Number.parseFloat(getComputedStyle(scroller).paddingTop) || 0
+  scroller.scrollTop +=
+    element.getBoundingClientRect().top - scroller.getBoundingClientRect().top - padTop
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled save state: ${String(value)}`)
 }
 
 function hasProtectedSecretChange(form: ConfigFormState): boolean {
