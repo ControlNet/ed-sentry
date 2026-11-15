@@ -116,6 +116,8 @@ async fn webui_api_snapshot_redacts_journal_folder_for_remote_bind_host() {
         snapshot_json["journal_source"]["selected_file"],
         Value::String(selected_filename)
     );
+    assert_eq!(snapshot_json["thresholds"]["warn_kill_rate_per_hour"], 20);
+    assert_eq!(snapshot_json["thresholds"]["warn_no_kills_minutes"], 20);
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }
 

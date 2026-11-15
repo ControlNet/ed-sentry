@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
+use crate::config::MonitorConfig;
 use crate::mission::MissionTracker;
 use crate::state::SessionState;
 
@@ -24,6 +25,24 @@ pub struct AppSnapshot {
     pub matrix: MatrixStatusView,
     pub web: WebStatusView,
     pub tunnel: TunnelStatusView,
+    pub thresholds: WarningThresholdsView,
+}
+
+/// Monitor warning thresholds the dashboard draws against. They are copied from
+/// the active monitor config so viewers without config access still see them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct WarningThresholdsView {
+    pub warn_kill_rate_per_hour: u16,
+    pub warn_no_kills_minutes: u16,
+}
+
+impl From<&MonitorConfig> for WarningThresholdsView {
+    fn from(monitor: &MonitorConfig) -> Self {
+        Self {
+            warn_kill_rate_per_hour: monitor.warn_kill_rate,
+            warn_no_kills_minutes: monitor.warn_no_kills_minutes,
+        }
+    }
 }
 
 impl AppSnapshot {
@@ -46,7 +65,13 @@ impl AppSnapshot {
             matrix: matrix.into(),
             web: web.into(),
             tunnel: TunnelStatus::default().into(),
+            thresholds: WarningThresholdsView::from(&MonitorConfig::default()),
         }
+    }
+
+    pub fn with_thresholds(mut self, monitor: &MonitorConfig) -> Self {
+        self.thresholds = WarningThresholdsView::from(monitor);
+        self
     }
 
     pub fn with_tunnel_status(mut self, tunnel: TunnelStatus) -> Self {

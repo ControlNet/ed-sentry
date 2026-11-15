@@ -72,7 +72,8 @@ pub async fn start(config: &WebConfig) -> WebServer {
         Utc::now(),
         MatrixStartupStatus::disabled(),
         WebStartupStatus::from_current_runtime_config(&runtime_config),
-    );
+    )
+    .with_thresholds(&runtime_config.monitor);
     start_with_state(&runtime_config, AppEventStore::new(snapshot)).await
 }
 

@@ -28,7 +28,7 @@ pub use events::{
 pub use feed::{EventFeedItem, JournalSourceView, NotificationView};
 pub use missions::{MissionListView, MissionProgressView, MissionView};
 pub use session::SessionView;
-pub use snapshot::AppSnapshot;
+pub use snapshot::{AppSnapshot, WarningThresholdsView};
 pub use status::{
     MatrixStartupStatus, MatrixStatusView, ServiceStatusKind, WebStartupStatus, WebStatusView,
 };

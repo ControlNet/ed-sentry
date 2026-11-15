@@ -249,3 +249,33 @@ fn runtime_service_starts_with_explicit_non_journal_named_file() {
 
     assert!(runtime.is_ok());
 }
+
+#[test]
+fn runtime_service_snapshot_carries_configured_warning_thresholds() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let journal_path = temp_dir.path().join("Journal.2035-01-05T080000.01.log");
+    std::fs::write(
+        &journal_path,
+        r#"{"timestamp":"2035-01-05T08:00:00Z","event":"LoadGame","Commander":"Cmdr Fixture","Odyssey":true}"#,
+    )
+    .unwrap();
+    let mut config = AppConfig::default().into_runtime(&CliConfigOverrides {
+        set_file: Some(journal_path),
+        ..CliConfigOverrides::default()
+    });
+    config.monitor.warn_kill_rate = 17;
+    config.monitor.warn_no_kills_minutes = 9;
+
+    let runtime = MonitorRuntime::start(
+        &config,
+        &mut ConfiguredJournalSelector,
+        MatrixStartupStatus::disabled(),
+        WebStartupStatus::disabled(),
+    )
+    .unwrap();
+    let now = Utc.with_ymd_and_hms(2035, 1, 5, 8, 5, 0).unwrap();
+    let json = serde_json::to_value(runtime.snapshot(now)).unwrap();
+
+    assert_eq!(json["thresholds"]["warn_kill_rate_per_hour"], 17);
+    assert_eq!(json["thresholds"]["warn_no_kills_minutes"], 9);
+}
