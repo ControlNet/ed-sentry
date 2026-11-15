@@ -218,3 +218,14 @@ The 1440x900 board broke below about 1300 px. The fixed breakpoints, checked at 
 
 ## Approved design (2026-11-15)
 The user approved **G1 v2** (`G1v2.dc.html`, plus the `G1v2Tablet` / `G1v2Phone` previews) as the design to implement in `ui/src`. It supersedes "G1 + Motion layer" as the implementation reference. The copy rules, the copy mapping and the responsive breakpoints above all apply.
+
+## Implementation notes (G1 v2 in `ui/src`, 2026-11-15)
+- **Plain CSS beside Tailwind.** The design CSS is ported verbatim into `ui/src/g1.css` and imported after `styles.css` in `main.tsx`. The class names follow the design board, so a board tweak maps 1:1 to the app. `biome.json` has an override for this file only (`noImportantStyles`, `noDescendingSpecificity` off), because the responsive rules must beat inline `display:flex`. The SVG ring class was renamed `.ring-p` to avoid a clash.
+- **Font.** `@fontsource-variable/saira/wdth.css` (OFL) is bundled. The family name is `"Saira Variable"`, and the width axis (`font-stretch`) gives the condensed headings. No external font requests.
+- **View logic lives in `ui/src/lib/*.ts` with vitest tests** (`pnpm test`). `vitest.config.ts` uses the threads pool with `maxThreads: 2` to stay inside the machine's memory limit.
+- **Live clock anchor.** Counters such as "Since last kill" and the session time tick from `generated_at + (local now − time the snapshot was received)` (`liveNowMs`, `use-live-now.ts`). The UI therefore does not depend on the browser clock agreeing with the backend clock.
+- **Idle rate.** A rate shows `-/h` while its event count is 0. This matches the CLI status line (`src/terminal.rs`). Otherwise the UI formats `value` with one decimal, the same as the backend's `format_rate_per_hour`. Mock fixtures must keep `value` and `display` consistent; the `live_rates` mock used to change only `display`.
+- **Thresholds.** The snapshot carries `thresholds.warn_kill_rate_per_hour` and `warn_no_kills_minutes`. `stableSnapshotKey` must include `thresholds`; otherwise a threshold-only change is deduplicated and never re-renders.
+- **Focus affordance.** The QA gate requires a focused control to have a non-`none` outline or box-shadow. A border-colour change alone fails, so `.inp:focus-visible` adds a 1 px box-shadow ring.
+- **Playwright browsers.** `@playwright/test` 1.61 needs `chromium_headless_shell-1228`. Another tool's playwright-core install can garbage-collect it, which makes every e2e test fail at launch. Restore it with `pnpm --dir ui test:e2e:install`.
+- **Shell-scripting pitfall.** `pkill -f "<pattern>"` also matches the invoking shell when the pattern is part of its command line, which kills the shell (exit 144). Keep the background PID (`$!`) and use `kill` on that PID instead.
