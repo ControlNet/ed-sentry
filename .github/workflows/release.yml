@@ -90,6 +90,9 @@ jobs:
       - name: Run frontend lint
         run: pnpm --dir ui lint
 
+      - name: Run frontend unit tests
+        run: pnpm --dir ui test
+
       - name: Package Linux artifact
         run: scripts/package-linux-x64.sh
 

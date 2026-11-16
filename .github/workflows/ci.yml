@@ -63,6 +63,13 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --dir ui install --frozen-lockfile
 
+      - name: Run frontend lint
+        if: runner.os == 'Linux'
+        run: pnpm --dir ui lint
+
+      - name: Run frontend unit tests
+        run: pnpm --dir ui test
+
       - name: Build WebUI assets
         run: pnpm --dir ui build
 
