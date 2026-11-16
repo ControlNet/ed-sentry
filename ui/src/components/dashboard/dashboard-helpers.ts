@@ -1,6 +1,3 @@
-import type { EventFeedItem, MissionProgressView, ServiceStatusKind } from "@/adapters/dashboard"
-import type { TacticalBadgeTone } from "./tactical-ui"
-
 const statusGlyphLabels = new Map<string, string>([
   ["💥", "Kills"],
   ["📦", "Scans"],
@@ -10,35 +7,6 @@ const statusGlyphLabels = new Map<string, string>([
 ])
 const pictographicGlyphPattern = /\p{Extended_Pictographic}/u
 
-export function eventTitle(event: EventFeedItem): string {
-  return lineSafeText(event.event_type).replaceAll("_", " ")
-}
-
-export function missionProgressLabel(progress: MissionProgressView): string {
-  switch (progress.kind) {
-    case "none":
-      return "No progress tracked"
-    case "massacre":
-    case "trade":
-      return progress.display
-    default:
-      return assertNever(progress)
-  }
-}
-
-export function missionProgressPercent(progress: MissionProgressView): number {
-  switch (progress.kind) {
-    case "none":
-      return 0
-    case "massacre":
-      return boundedPercent(progress.kills, progress.kill_count)
-    case "trade":
-      return boundedPercent(progress.delivered, progress.count)
-    default:
-      return assertNever(progress)
-  }
-}
-
 export function sourceDetail(folder: string, selectedFile: string | null | undefined): string {
   const safeFolder = displaySafeText(folder)
   if (selectedFile === null || selectedFile === undefined) {
@@ -47,76 +15,12 @@ export function sourceDetail(folder: string, selectedFile: string | null | undef
   return joinJournalPath(safeFolder, displaySafeText(selectedFile))
 }
 
-export function statusTextClass(kind: ServiceStatusKind): string {
-  switch (kind) {
-    case "running":
-      return "text-status-online"
-    case "warning":
-    case "starting":
-      return "text-status-warning"
-    case "error":
-      return "text-status-danger"
-    case "disabled":
-      return "text-status-neutral"
-    default:
-      return assertNever(kind)
-  }
-}
-
-export function serviceStatusBadgeTone(kind: ServiceStatusKind): TacticalBadgeTone {
-  switch (kind) {
-    case "running":
-      return "success"
-    case "warning":
-    case "starting":
-      return "warning"
-    case "error":
-      return "danger"
-    case "disabled":
-      return "default"
-    default:
-      return assertNever(kind)
-  }
-}
-
 export function assertNever(value: never): never {
   throw new Error(`Unhandled dashboard variant: ${String(value)}`)
 }
 
 export function lineSafeText(value: string): string {
   return displaySafeText(value).replaceAll(/Journal\.[^\s/\\]+\.log/g, "Selected Journal file")
-}
-
-export function fuelSummary(events: readonly EventFeedItem[]): string {
-  const fuelEvent = events.find((event) => event.event_type === "fuel_report")
-  return fuelEvent === undefined ? "Fuel telemetry unavailable" : lineSafeText(fuelEvent.summary)
-}
-
-export function healthToneClass(percent: number | null | undefined): string {
-  if (percent === null || percent === undefined) {
-    return "bg-status-neutral"
-  }
-  if (percent <= 0.35) {
-    return "bg-status-danger"
-  }
-  if (percent <= 0.7) {
-    return "bg-status-warning"
-  }
-  return "bg-status-online"
-}
-
-export function healthPercent(percent: number | null | undefined): number {
-  if (percent === null || percent === undefined) {
-    return 0
-  }
-  return Math.min(100, Math.max(0, Math.round(percent * 100)))
-}
-
-function boundedPercent(value: number, total: number): number {
-  if (total <= 0) {
-    return 0
-  }
-  return Math.min(100, Math.max(0, Math.round((value / total) * 100)))
 }
 
 function displaySafeCharacter(character: string): string {
@@ -164,7 +68,7 @@ function isStatusGlyph(codePoint: number, character: string): boolean {
   )
 }
 
-export function displaySafeText(value: string): string {
+function displaySafeText(value: string): string {
   return Array.from(value, displaySafeCharacter)
     .join("")
     .replaceAll(/\s{2,}/g, " ")

@@ -5,7 +5,7 @@
    cyan = on / pass / current; red = fail or over threshold.
    Motion: looping ambient motion plus two short cues when live data changes
    (a changed value flashes, a newly arrived event row glows once); no entry
-   animations; .m-off and prefers-reduced-motion disable all animation. */
+   animations; prefers-reduced-motion disables all animation. */
 body {
   margin: 0;
   background: #04060b;
@@ -236,11 +236,6 @@ a:hover {
   border-right: 1px solid rgba(255, 255, 255, 0.08);
   overflow-y: auto;
 }
-.side-h {
-  margin: 0 2px 2px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
 .card {
   display: flex;
   flex-direction: column;
@@ -336,18 +331,6 @@ a:hover {
 .card-on .a-o {
   stroke: #ff7a00;
 }
-.side-ft {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: auto;
-  padding: 10px 2px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #8d96a1;
-}
 .main {
   flex: 1 1 auto;
   display: flex;
@@ -396,11 +379,6 @@ a:hover {
 }
 .pt .lab {
   letter-spacing: 0.08em;
-}
-.cells {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px;
 }
 .cell {
   padding: 12px 12px;
@@ -496,28 +474,6 @@ a:hover {
   background: #ff9233;
   outline: none;
 }
-.btn2 {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 14px;
-  border: 0;
-  background: #12151b;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #ff8a1a;
-  cursor: pointer;
-}
-.btn2:hover,
-.btn2:focus-visible {
-  background: #191d25;
-  box-shadow: inset 2px 0 0 #ff7a00;
-  outline: none;
-}
 .link {
   border: 0;
   background: transparent;
@@ -605,24 +561,6 @@ a:hover {
   font-size: 20px;
   color: #a0a8b3;
 }
-.sysl {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: #0a0e16;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #3cb8ff;
-}
 .list {
   display: flex;
   flex-direction: column;
@@ -664,43 +602,6 @@ a:hover {
 }
 .mrow-on .barf {
   background: #120800;
-}
-.filt {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: 42px;
-  padding: 0 14px;
-  border: 0;
-  background: #12151b;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #e8ecf1;
-  cursor: pointer;
-  text-align: left;
-}
-.filt:hover,
-.filt:focus-visible {
-  background: #191d25;
-  box-shadow: inset 2px 0 0 #ff7a00;
-  outline: none;
-}
-.filt-on,
-.filt-on:hover,
-.filt-on:focus-visible {
-  background: #ff7a00;
-  color: #120800;
-  box-shadow: none;
-}
-.filt .c {
-  color: #a0a8b3;
-}
-.filt-on .c {
-  color: #3a1c00;
 }
 .entry {
   display: grid;
@@ -879,37 +780,10 @@ select.inp {
   background: #070a10;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
-.kc {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  min-height: 30px;
-  border: 0;
-  background: #12151b;
-  font: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #a0a8b3;
-  white-space: nowrap;
-}
-button.kc {
-  cursor: pointer;
-}
-button.kc:hover,
-button.kc:focus-visible {
-  background: #191d25;
-  color: #e8ecf1;
-  box-shadow: inset 2px 0 0 #ff7a00;
-  outline: none;
-}
 /* Motion layer ------------------------------------------------------------
    All animation for this board lives here so it can be ported to ui/src.
-   Rules: animate transform/opacity only; few infinite loops; classes on .app:
-   .m-full = everything, .m-subtle = state-meaningful motion only, .m-off = none.
-   prefers-reduced-motion behaves like .m-off. */
+   Rules: animate transform/opacity only; few infinite loops. Motion rules are
+   scoped to .m-full on .app; prefers-reduced-motion disables all of them. */
 .pnl {
   position: relative;
 }
@@ -1009,8 +883,7 @@ button.kc:focus-visible {
     transform: rotate(360deg);
   }
 }
-.m-full .s-head,
-.m-subtle .s-head {
+.m-full .s-head {
   animation: seg-head 1.8s ease-in-out infinite;
 }
 .orbit {
@@ -1080,12 +953,10 @@ button.kc:focus-visible {
   }
 }
 
-.m-full .sync .sq,
-.m-subtle .sync .sq {
+.m-full .sync .sq {
   animation: breathe 3s ease-in-out infinite;
 }
-.m-full .live,
-.m-subtle .live {
+.m-full .live {
   animation: breathe 2s ease-in-out infinite;
 }
 /* A changed value flashes; fx-a and fx-b alternate so each change restarts it. */
@@ -1099,12 +970,10 @@ button.kc:focus-visible {
     color: #ffd9b3;
   }
 }
-.m-full .fx-a,
-.m-subtle .fx-a {
+.m-full .fx-a {
   animation: flash-a 0.7s ease-out;
 }
-.m-full .fx-b,
-.m-subtle .fx-b {
+.m-full .fx-b {
   animation: flash-b 0.7s ease-out;
 }
 
@@ -1141,30 +1010,18 @@ button.kc:focus-visible {
   animation: sheen 6s ease-in-out 1.2s infinite;
 }
 /* 6. Lists: hover edge + nudge, selection wipe */
-.nv,
 .mrow,
-.filt,
-.idx,
-.btn2 {
+.idx {
   position: relative;
 }
-.nv:hover,
-.nv:focus-visible,
 .mrow:hover,
 .mrow:focus-visible,
-.filt:hover,
-.filt:focus-visible,
 .idx:hover,
-.idx:focus-visible,
-.btn2:hover,
-.btn2:focus-visible {
+.idx:focus-visible {
   box-shadow: none;
 }
-.nv::before,
 .mrow::before,
-.filt::before,
-.idx::before,
-.btn2::before {
+.idx::before {
   content: "";
   position: absolute;
   left: 0;
@@ -1175,76 +1032,41 @@ button.kc:focus-visible {
   transform: scaleY(0);
   z-index: 2;
 }
-.nv:hover::before,
-.nv:focus-visible::before,
 .mrow:hover::before,
 .mrow:focus-visible::before,
-.filt:hover::before,
-.filt:focus-visible::before,
 .idx:hover::before,
-.idx:focus-visible::before,
-.btn2:hover::before,
-.btn2:focus-visible::before {
+.idx:focus-visible::before {
   transform: scaleY(1);
 }
-.m-full .nv,
 .m-full .mrow,
-.m-full .filt,
-.m-full .idx,
-.m-full .btn2,
-.m-subtle .nv,
-.m-subtle .mrow,
-.m-subtle .filt,
-.m-subtle .idx,
-.m-subtle .btn2 {
+.m-full .idx {
   transition:
     transform 0.15s ease-out,
     background-color 0.15s;
 }
-.m-full .nv::before,
 .m-full .mrow::before,
-.m-full .filt::before,
-.m-full .idx::before,
-.m-full .btn2::before,
-.m-subtle .nv::before,
-.m-subtle .mrow::before,
-.m-subtle .filt::before,
-.m-subtle .idx::before,
-.m-subtle .btn2::before {
+.m-full .idx::before {
   transition: transform 0.18s ease-out;
 }
-.m-full .nv:hover,
 .m-full .mrow:hover,
-.m-full .filt:hover,
-.m-full .idx:hover,
-.m-full .btn2:hover {
+.m-full .idx:hover {
   transform: translateX(2px);
 }
-.nv-on:hover,
 .mrow-on:hover,
-.filt-on:hover,
 .idx-on:hover {
   transform: none !important;
 }
-.nv-on::before,
 .mrow-on::before,
-.filt-on::before,
 .idx-on::before {
   display: none;
 }
-.nv-on,
-.nv-on:hover,
 .mrow-on,
 .mrow-on:hover,
-.filt-on,
-.filt-on:hover,
 .idx-on,
 .idx-on:hover {
   background: #12151b;
 }
-.nv-on::after,
 .mrow-on::after,
-.filt-on::after,
 .idx-on::after {
   content: "";
   position: absolute;
@@ -1253,9 +1075,7 @@ button.kc:focus-visible {
   background: #ff7a00;
   transform-origin: left center;
 }
-.nv-on > *,
 .mrow-on > *,
-.filt-on > *,
 .idx-on > * {
   position: relative;
   z-index: 1;
@@ -1312,8 +1132,7 @@ button.kc:focus-visible {
   background: none;
   inset: 0;
 }
-.m-full .ev.fresh::before,
-.m-subtle .ev.fresh::before {
+.m-full .ev.fresh::before {
   animation: glow-out 1s ease-out;
 }
 /* 8. Tunnel start button */
@@ -1338,8 +1157,7 @@ button.kc:focus-visible {
   background: #120800;
   opacity: 0.35;
 }
-.m-full .tsegs i,
-.m-subtle .tsegs i {
+.m-full .tsegs i {
   animation: seg-run 1s linear infinite;
 }
 .tsegs i:nth-child(2) {
@@ -1358,22 +1176,7 @@ button.kc:focus-visible {
   background: #c25d00;
   cursor: progress;
 }
-.btn-online {
-  background: transparent;
-  border: 1px solid #3cb8ff;
-  color: #3cb8ff;
-}
-.btn-online:hover,
-.btn-online:focus-visible {
-  background: rgba(60, 184, 255, 0.12);
-}
-/* Off: kill every animation and transition */
-.m-off *,
-.m-off *::before,
-.m-off *::after {
-  animation: none !important;
-  transition: none !important;
-}
+/* Reduced motion: kill every animation and transition */
 @media (prefers-reduced-motion: reduce) {
   .app *,
   .app *::before,
@@ -1414,10 +1217,6 @@ button.kc:focus-visible {
   .capb {
     justify-content: center;
   }
-  .side-h,
-  .side-ft {
-    display: none;
-  }
 }
 @media (max-width: 760px) {
   .app {
@@ -1446,7 +1245,7 @@ button.kc:focus-visible {
 
 /* G1 card art motion: every card animates; inactive cards run dimmer and slower,
    hover brightens, the active card runs at full intensity with a scan sweep.
-   .m-subtle animates only the active card; .m-off / reduced-motion disable all. */
+   prefers-reduced-motion disables all of it. */
 .art {
   position: relative;
   overflow: hidden;
@@ -1494,92 +1293,74 @@ button.kc:focus-visible {
   animation: ca-art-sweep 4.8s linear infinite;
 }
 /* Dashboard: tick chase, sweeping needle, pulsing hub, data flowing outward. */
-.m-full .tk,
-.m-subtle .card-on .tk {
+.m-full .tk {
   animation: ca-tk-chase 2.4s ease-in-out infinite;
   animation-delay: calc(var(--i) * 0.16s);
 }
-.m-full .needle,
-.m-subtle .card-on .needle {
+.m-full .needle {
   transform-origin: 103px 40px;
   animation: ca-needle 4s ease-in-out infinite alternate;
 }
-.m-full .pulse,
-.m-subtle .card-on .pulse {
+.m-full .pulse {
   transform-origin: 103px 40px;
   animation: ca-hub 1.6s ease-in-out infinite;
 }
 .flow-out {
   stroke-dasharray: 6 6;
 }
-.m-full .flow-out,
-.m-subtle .card-on .flow-out {
+.m-full .flow-out {
   animation: ca-flow 1.4s linear infinite;
 }
 /* Missions: reticle rotates, core pings, lock-on brackets close in. */
-.m-full .ret,
-.m-subtle .card-on .ret {
+.m-full .ret {
   transform-origin: 103px 22px;
   animation: ca-spin 9s linear infinite;
 }
-.m-full .ping,
-.m-subtle .card-on .ping {
+.m-full .ping {
   transform-origin: 103px 22px;
   animation: ca-ping 1.8s ease-out infinite;
 }
-.m-full .br-l,
-.m-subtle .card-on .br-l {
+.m-full .br-l {
   animation: ca-lock-l 3.2s ease-in-out infinite;
 }
-.m-full .br-r,
-.m-subtle .card-on .br-r {
+.m-full .br-r {
   animation: ca-lock-r 3.2s ease-in-out infinite;
 }
 /* Comms: oscilloscope trace scrolls, a message line types, cursor blinks. */
-.m-full .wave,
-.m-subtle .card-on .wave {
+.m-full .wave {
   animation: ca-wave 1.6s linear infinite;
 }
 .typing {
   transform-origin: 70px 34px;
 }
-.m-full .typing,
-.m-subtle .card-on .typing {
+.m-full .typing {
   animation: ca-type 3s steps(13) infinite;
 }
-.m-full .cursor,
-.m-subtle .card-on .cursor {
+.m-full .cursor {
   animation: ca-blink 1s steps(2, jump-none) infinite;
 }
 /* Systems: knobs drift on their tracks at different rates. */
-.m-full .kn1,
-.m-subtle .card-on .kn1 {
+.m-full .kn1 {
   animation: ca-kn1 3.1s ease-in-out infinite alternate;
 }
-.m-full .kn2,
-.m-subtle .card-on .kn2 {
+.m-full .kn2 {
   animation: ca-kn2 4.3s ease-in-out infinite alternate;
 }
-.m-full .kn3,
-.m-subtle .card-on .kn3 {
+.m-full .kn3 {
   animation: ca-kn3 3.7s ease-in-out infinite alternate;
 }
 /* About: ping ring expands, dot blinks, blips run outward. */
-.m-full .ring-p,
-.m-subtle .card-on .ring-p {
+.m-full .ring-p {
   transform-origin: 103px 22px;
   animation: ca-ring 2.6s ease-out infinite;
 }
-.m-full .idot,
-.m-subtle .card-on .idot {
+.m-full .idot {
   animation: ca-blink 1.6s steps(2, jump-none) infinite;
 }
-.m-full .bl-l,
-.m-subtle .card-on .bl-l {
+.m-full .bl-l {
   animation: ca-blip-l 2.2s linear infinite;
 }
-.m-full .bl-r,
-.m-subtle .card-on .bl-r {
+.m-full .bl-r {
   animation: ca-blip-r 2.2s linear infinite;
 }
 /* Inactive cards: same motion, slower. */
@@ -1833,9 +1614,6 @@ button.kc:focus-visible {
 .orbit {
   width: 292px;
   height: 292px;
-}
-.sysl {
-  bottom: 2px;
 }
 /* KPI block: number + recent-vs-average comparison on a shared scale */
 .kpi {
@@ -2442,20 +2220,6 @@ button.kc:focus-visible {
 .src:last-of-type {
   border-bottom: 0;
 }
-.ro {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 6px;
-  min-height: 20px;
-  border: 1px solid rgba(60, 184, 255, 0.6);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #3cb8ff;
-  white-space: nowrap;
-}
 /* Footer status bar */
 .keys {
   gap: 0;
@@ -2483,9 +2247,6 @@ button.kc:focus-visible {
   width: 8px;
   height: 8px;
 }
-.sb-gap {
-  margin-left: auto;
-}
 .ld-bar {
   position: relative;
   overflow: hidden;
@@ -2505,12 +2266,6 @@ button.kc:focus-visible {
   to {
     left: 100%;
   }
-}
-.m-off .ld-run {
-  animation: none;
-  left: 0;
-  width: 100%;
-  opacity: 0.5;
 }
 
 /* Responsive layout (G1v2). Breakpoints: 1280 laptop, 900 tablet, 600 phone. */
@@ -2748,7 +2503,6 @@ label.seg {
   cursor: not-allowed;
 }
 .btn:focus-visible,
-.btn2:focus-visible,
 .link:focus-visible,
 .card:focus-visible,
 .winb:focus-visible,
