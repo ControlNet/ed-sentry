@@ -7,6 +7,7 @@ import {
   formatTrend,
   missionEtaLabel,
   noKillsProgress,
+  rateAxisLabels,
   rateDisplay,
   rateScaleMax,
   readinessSummary,
@@ -180,19 +181,15 @@ function RateBlock({
           <span className="rv">{averageText}</span>
           <span />
           <span className="axis">
-            <span>0</span>
-            {warn === null || warnLeft === null ? (
-              <span className="ax-c" style={{ left: "50%" }}>
-                {max / 2}
+            {rateAxisLabels(max, warn).map((mark) => (
+              <span
+                key={mark.text}
+                className={clsx(axisAlignClass[mark.align], mark.warn && "rd")}
+                style={{ left: `${mark.left}%` }}
+              >
+                {mark.text}
               </span>
-            ) : (
-              <span className="ax-c rd" style={{ left: warnLeft }}>
-                {warn}
-              </span>
-            )}
-            <span className="ax-r" style={{ left: "100%" }}>
-              {max}/h
-            </span>
+            ))}
           </span>
           <span />
         </div>
@@ -200,6 +197,8 @@ function RateBlock({
     </div>
   )
 }
+
+const axisAlignClass = { start: undefined, center: "ax-c", end: "ax-r" } as const
 
 function ShipPanel({ snapshot }: { readonly snapshot: AppSnapshot }): React.JSX.Element {
   const session = snapshot.session
@@ -269,7 +268,7 @@ function ChecklistItem({ row }: { readonly row: ChecklistRow }): React.JSX.Eleme
     <li className="row" data-testid="afk-checklist-row" data-state={row.state}>
       <span style={{ minWidth: 0 }} title={row.detail}>
         <span className="nm">{row.label}</span>
-        <span className="dt">{row.source}</span>
+        {row.source === "unknown" ? null : <span className="dt">{row.source}</span>}
       </span>
       <Ind tone={checklistTone(row.state)}>{checklistStateLabel(row.state)}</Ind>
     </li>

@@ -22,6 +22,39 @@ export function rateScaleMax(values: readonly number[], base: number): number {
   return Math.ceil(largest / step) * step
 }
 
+export type RateAxisLabel = {
+  readonly text: string
+  /** Position on the scale in percent. */
+  readonly left: number
+  readonly align: "start" | "center" | "end"
+  /** True for the warning-threshold label. */
+  readonly warn: boolean
+}
+
+/** A threshold label closer than this to either end replaces that end's label. */
+const AXIS_EDGE_PERCENT = 12
+
+/**
+ * Labels under a rate bar: 0, the warning threshold (or half scale when the
+ * warning is off) and the maximum. A threshold close to either end replaces
+ * that end's label so the two never overlap.
+ */
+export function rateAxisLabels(max: number, warn: number | null): readonly RateAxisLabel[] {
+  const zero: RateAxisLabel = { text: "0", left: 0, align: "start", warn: false }
+  const top: RateAxisLabel = { text: `${max}/h`, left: 100, align: "end", warn: false }
+  if (warn === null) {
+    return [zero, { text: `${max / 2}`, left: 50, align: "center", warn: false }, top]
+  }
+  const left = scalePercent(warn, max)
+  if (left < AXIS_EDGE_PERCENT) {
+    return [{ text: `${warn}`, left, align: "start", warn: true }, top]
+  }
+  if (left > 100 - AXIS_EDGE_PERCENT) {
+    return [zero, { text: `${warn}/h`, left, align: "end", warn: true }]
+  }
+  return [zero, { text: `${warn}`, left, align: "center", warn: true }, top]
+}
+
 /** Hourly rate text; "-/h" before the first event, matching the CLI status line. */
 export function rateDisplay(eventCount: number, perHour: number): string {
   return eventCount === 0 ? "-/h" : formatRate(perHour)

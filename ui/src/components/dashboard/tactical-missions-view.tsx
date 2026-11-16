@@ -9,7 +9,7 @@ import {
   utcHourMinute,
 } from "@/lib/format"
 import { missionEtaLabel, missionEtaMinutes, sharedKillProgress } from "@/lib/telemetry"
-import { missionTimeline } from "@/lib/timeline"
+import { type LabelSide, markerLabelLayout, missionTimeline } from "@/lib/timeline"
 import { Bar, Ind, Panel } from "./g1-ui"
 import {
   destinationLabel,
@@ -346,6 +346,7 @@ function MissionTimelinePanel({
       : null
   const etaMs = etaMinutes === null ? null : nowMs + etaMinutes * 60_000
   const timeline = missionTimeline(items, nowMs, etaMs)
+  const labels = markerLabelLayout(timeline.nowLeft, timeline.etaLeft)
   if (timeline.rows.length === 0) {
     return null
   }
@@ -407,18 +408,14 @@ function MissionTimelinePanel({
             ))}
             <span
               className="mk cy"
-              style={{
-                left: `${timeline.nowLeft}%`,
-                transform: "translateX(-100%)",
-                marginLeft: -6,
-              }}
+              style={{ left: `${timeline.nowLeft}%`, ...markerLabelStyle(labels.nowSide) }}
             >
               Now {utcHourMinute(nowMs)}
             </span>
             {etaMs === null || timeline.etaLeft === null ? null : (
               <span
-                className="mk or"
-                style={{ left: `${timeline.etaLeft}%`, transform: "none", marginLeft: 6 }}
+                className={clsx("mk or", labels.etaLow && "mk-low")}
+                style={{ left: `${timeline.etaLeft}%`, ...markerLabelStyle(labels.etaSide) }}
               >
                 ETA {utcHourMinute(etaMs)}
               </span>
@@ -449,4 +446,11 @@ function MissionTimelinePanel({
       </div>
     </Panel>
   )
+}
+
+/** Draws an axis marker label before ("left") or after ("right") its marker. */
+function markerLabelStyle(side: LabelSide): React.CSSProperties {
+  return side === "left"
+    ? { transform: "translateX(-100%)", marginLeft: -6 }
+    : { transform: "none", marginLeft: 6 }
 }

@@ -2205,6 +2205,12 @@ button.kc:focus-visible {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.tl-axis > span.mk.mk-low {
+  top: 34px;
+}
+.tl-axis:has(> .mk-low) {
+  height: 52px;
+}
 .tl-legend {
   display: flex;
   flex-wrap: wrap;

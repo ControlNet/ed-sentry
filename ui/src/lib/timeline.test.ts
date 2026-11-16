@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { mockDashboardSnapshot } from "@/adapters/mock-data"
-import { missionTimeline, sessionTimelineMarks } from "./timeline"
+import { markerLabelLayout, missionTimeline, sessionTimelineMarks } from "./timeline"
 
 const at = (h: number, m: number, s = 0): number => Date.UTC(2026, 5, 20, h, m, s)
 
@@ -54,15 +54,50 @@ describe("missionTimeline", () => {
     expect(result.etaLeft).toBeNull()
   })
 
-  it("uses a wider hour step for long spans", () => {
+  it("uses a wider whole-hour step aligned to UTC for long spans", () => {
     const [mission] = mockDashboardSnapshot.missions.items
     if (mission === undefined) {
       throw new Error("mock mission missing")
     }
     const long = { ...mission, expiry: "2026-06-21T13:20:00Z" }
     const result = missionTimeline([long], now, null)
+    expect(result.hours.map((hour) => hour.label)).toEqual([
+      "15:00",
+      "18:00",
+      "21:00",
+      "21 Jun",
+      "03:00",
+      "06:00",
+      "09:00",
+      "12:00",
+    ])
+  })
+
+  it("labels days for missions that run for several days", () => {
+    const [mission] = mockDashboardSnapshot.missions.items
+    if (mission === undefined) {
+      throw new Error("mock mission missing")
+    }
+    const multiDay = { ...mission, expiry: "2026-06-26T13:20:00Z" }
+    const result = missionTimeline([multiDay], now, null)
+    expect(result.hours.map((hour) => hour.label)).toEqual([
+      "21 Jun",
+      "22 Jun",
+      "23 Jun",
+      "24 Jun",
+      "25 Jun",
+      "26 Jun",
+    ])
+  })
+
+  it("keeps the label count bounded for very long spans", () => {
+    const [mission] = mockDashboardSnapshot.missions.items
+    if (mission === undefined) {
+      throw new Error("mock mission missing")
+    }
+    const result = missionTimeline([{ ...mission, expiry: "2035-01-04T12:32:00Z" }], now, null)
+    expect(result.hours.length).toBeGreaterThan(1)
     expect(result.hours.length).toBeLessThanOrEqual(9)
-    expect(result.hours[1]?.label).toBe("16:00")
   })
 })
 
@@ -77,5 +112,49 @@ describe("sessionTimelineMarks", () => {
   it("drops quarter-hour labels too close to either edge", () => {
     const marks = sessionTimelineMarks(at(13, 44), at(14, 2))
     expect(marks.map((mark) => mark.label)).toEqual(["13:44", "14:02:00"])
+  })
+
+  it("keeps long AFK sessions to a few evenly spaced labels", () => {
+    const marks = sessionTimelineMarks(at(8, 10), at(16, 25))
+    expect(marks.map((mark) => mark.label)).toEqual([
+      "08:10",
+      "10:00",
+      "12:00",
+      "14:00",
+      "16:25:00",
+    ])
+  })
+
+  it("stays bounded for spans of many days", () => {
+    const marks = sessionTimelineMarks(at(8, 10), Date.UTC(2035, 0, 3, 10, 3))
+    expect(marks.length).toBeLessThanOrEqual(8)
+  })
+})
+
+describe("markerLabelLayout", () => {
+  it("puts the now label before its marker and the ETA label after its marker", () => {
+    expect(markerLabelLayout(40, 70)).toEqual({ nowSide: "left", etaSide: "right", etaLow: false })
+  })
+
+  it("keeps labels inside the axis when a marker sits near an edge", () => {
+    expect(markerLabelLayout(0.2, 60)).toEqual({
+      nowSide: "right",
+      etaSide: "right",
+      etaLow: false,
+    })
+    expect(markerLabelLayout(50, 99)).toEqual({ nowSide: "left", etaSide: "left", etaLow: false })
+  })
+
+  it("moves the ETA label to a second line when the two labels would overlap", () => {
+    expect(markerLabelLayout(1, 8)).toEqual({ nowSide: "right", etaSide: "right", etaLow: true })
+    expect(markerLabelLayout(90, 95)).toEqual({ nowSide: "left", etaSide: "left", etaLow: true })
+  })
+
+  it("leaves the ETA label alone when there is no ETA", () => {
+    expect(markerLabelLayout(5, null)).toEqual({
+      nowSide: "right",
+      etaSide: "right",
+      etaLow: false,
+    })
   })
 })

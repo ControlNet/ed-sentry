@@ -7,6 +7,7 @@ import {
   missionEtaLabel,
   missionEtaMinutes,
   noKillsProgress,
+  rateAxisLabels,
   rateDisplay,
   rateScaleMax,
   readinessSummary,
@@ -201,5 +202,36 @@ describe("liveNowMs", () => {
   it("never moves before the snapshot time", () => {
     const generated = Date.UTC(2026, 5, 20, 14, 18, 0)
     expect(liveNowMs(generated, 1_000_000, 999_000)).toBe(generated)
+  })
+})
+
+describe("rateAxisLabels", () => {
+  it("labels zero, half scale and the maximum without a warning threshold", () => {
+    expect(rateAxisLabels(40, null)).toEqual([
+      { text: "0", left: 0, align: "start", warn: false },
+      { text: "20", left: 50, align: "center", warn: false },
+      { text: "40/h", left: 100, align: "end", warn: false },
+    ])
+  })
+
+  it("labels the warning threshold at its position on the scale", () => {
+    expect(rateAxisLabels(40, 20)).toEqual([
+      { text: "0", left: 0, align: "start", warn: false },
+      { text: "20", left: 50, align: "center", warn: true },
+      { text: "40/h", left: 100, align: "end", warn: false },
+    ])
+  })
+
+  it("replaces the zero label when the threshold sits next to it", () => {
+    const labels = rateAxisLabels(7200, 20)
+    expect(labels.map((label) => label.text)).toEqual(["20", "7200/h"])
+    expect(labels[0]).toMatchObject({ align: "start", warn: true })
+  })
+
+  it("replaces the maximum label when the threshold sits next to it", () => {
+    expect(rateAxisLabels(40, 40)).toEqual([
+      { text: "0", left: 0, align: "start", warn: false },
+      { text: "40/h", left: 100, align: "end", warn: true },
+    ])
   })
 })
