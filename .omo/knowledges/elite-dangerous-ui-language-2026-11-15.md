@@ -229,3 +229,9 @@ The user approved **G1 v2** (`G1v2.dc.html`, plus the `G1v2Tablet` / `G1v2Phone`
 - **Focus affordance.** The QA gate requires a focused control to have a non-`none` outline or box-shadow. A border-colour change alone fails, so `.inp:focus-visible` adds a 1 px box-shadow ring.
 - **Playwright browsers.** `@playwright/test` 1.61 needs `chromium_headless_shell-1228`. Another tool's playwright-core install can garbage-collect it, which makes every e2e test fail at launch. Restore it with `pnpm --dir ui test:e2e:install`.
 - **Shell-scripting pitfall.** `pkill -f "<pattern>"` also matches the invoking shell when the pattern is part of its command line, which kills the shell (exit 144). Keep the background PID (`$!`) and use `kill` on that PID instead.
+- **Live-update cues (ported from the design's demo feed onto real snapshots).**
+  - A changed value flashes: the KPI kill and scan counts, the mission-kills ring and the header "Last event" clock. `useChangeFlash` returns `""` on mount and then alternates `fx-a` / `fx-b` on each change. The two classes use identical keyframes, so each change restarts the animation.
+  - A newly arrived event row glows once (`.ev.fresh::before`, 1 s). `useFreshEventIds` diffs event ids whenever the feed signature changes. The feed present at mount is never marked fresh, and a periodic snapshot with the same feed keeps the same set, so tab switches and polling never replay the cue.
+  - Both cues live in the motion layer, so `.m-off` and `prefers-reduced-motion` disable them.
+  - Mock `?mock_state=live_feed` adds one kill event on the second load, and the e2e test `@live-updates` covers it.
+- **Mock fixtures must stay internally consistent.** The `empty` scenario now clears `last_kill_*` / `last_scan_*`; before this it showed a since-last-kill timer with zero kills.

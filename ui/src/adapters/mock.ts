@@ -13,6 +13,7 @@ import {
   webUrlMockDashboardSnapshot,
 } from "@/adapters/mock-scenarios"
 import {
+  type AppSnapshot,
   type DashboardAdapter,
   DashboardAdapterError,
   type EditableConfigUpdate,
@@ -28,6 +29,7 @@ const mockScenarioValues = [
   "loading",
   "long_feed",
   "live_rates",
+  "live_feed",
   "private_path",
   "service_statuses",
   "tunnel_auth_required",
@@ -61,6 +63,8 @@ export const mockDashboardAdapter: DashboardAdapter = {
         return longFeedMockDashboardSnapshot
       case "live_rates":
         return liveRatesMockDashboardSnapshot()
+      case "live_feed":
+        return liveFeedMockDashboardSnapshot()
       case "private_path":
         return privatePathMockDashboardSnapshot
       case "service_statuses":
@@ -158,6 +162,40 @@ function liveRatesMockDashboardSnapshot() {
         display: `${scanRate.toFixed(1)}/h`,
       },
     },
+  }
+}
+
+let liveFeedLoadCount = 0
+
+/** First load: the default snapshot. Later loads: one new kill has arrived. */
+function liveFeedMockDashboardSnapshot(): AppSnapshot {
+  liveFeedLoadCount += 1
+  if (liveFeedLoadCount === 1) {
+    return mockDashboardSnapshot
+  }
+  const timestamp = "2026-06-20T14:18:02Z"
+  const session = mockDashboardSnapshot.session
+  return {
+    ...mockDashboardSnapshot,
+    generated_at: timestamp,
+    session: {
+      ...session,
+      kills: session.kills + 1,
+      last_kill_at: timestamp,
+      last_kill_display: timestamp,
+    },
+    event_feed: [
+      {
+        id: "mock-event-live-kill",
+        source: "notification",
+        event_type: "kill",
+        level: 1,
+        summary: "Bounty voucher recorded; counters updated",
+        timestamp,
+        timestamp_display: "14:18:02",
+      },
+      ...mockDashboardSnapshot.event_feed,
+    ],
   }
 }
 

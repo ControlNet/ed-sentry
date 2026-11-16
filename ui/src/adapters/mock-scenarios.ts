@@ -7,6 +7,10 @@ export const emptyMockDashboardSnapshot = {
     ...mockDashboardSnapshot.session,
     kills: 0,
     scans: 0,
+    last_kill_at: null,
+    last_kill_display: null,
+    last_scan_at: null,
+    last_scan_display: null,
     kill_total_rate_per_hour: {
       value: 0,
       display: "0.0/h",

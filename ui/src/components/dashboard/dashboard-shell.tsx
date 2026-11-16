@@ -10,6 +10,7 @@ import { TacticalMissionsView } from "./tactical-missions-view"
 import { TacticalSystemsView } from "./tactical-systems-view"
 import { TacticalTelemetryView } from "./tactical-telemetry-view"
 import { useLiveNow } from "./use-live-now"
+import { useChangeFlash } from "./use-live-updates"
 
 type DashboardShellProps = {
   readonly snapshot: AppSnapshot
@@ -44,6 +45,7 @@ export function DashboardShell({
   const tauriDragRegion = showTauriChrome ? "" : undefined
   const system = snapshot.session.system ?? null
   const lastEventMs = parseTimestamp(snapshot.event_feed[0]?.timestamp)
+  const lastEventFlash = useChangeFlash(lastEventMs ?? "")
 
   const selectTab = (tab: WorkspaceTab): void => {
     setActiveTab(tab)
@@ -112,7 +114,7 @@ export function DashboardShell({
           </span>
           <div className="clock" data-tauri-drag-region={tauriDragRegion}>
             <span className="lab">Last event</span>
-            <b>{lastEventMs === null ? "—" : utcClock(lastEventMs)}</b>
+            <b className={lastEventFlash}>{lastEventMs === null ? "—" : utcClock(lastEventMs)}</b>
           </div>
         </div>
         {showTauriChrome ? <WindowControls /> : null}

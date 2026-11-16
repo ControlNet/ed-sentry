@@ -3,8 +3,9 @@
    Tailwind) so class names stay identical to the reference markup.
    Colour roles: orange = values, selection, primary actions, title rules;
    cyan = on / pass / current; red = fail or over threshold.
-   Motion: looping ambient motion only, no entry animations; .m-off and
-   prefers-reduced-motion disable all animation. */
+   Motion: looping ambient motion plus two short cues when live data changes
+   (a changed value flashes, a newly arrived event row glows once); no entry
+   animations; .m-off and prefers-reduced-motion disable all animation. */
 body {
   margin: 0;
   background: #04060b;
@@ -1087,6 +1088,25 @@ button.kc:focus-visible {
 .m-subtle .live {
   animation: breathe 2s ease-in-out infinite;
 }
+/* A changed value flashes; fx-a and fx-b alternate so each change restarts it. */
+@keyframes flash-a {
+  from {
+    color: #ffd9b3;
+  }
+}
+@keyframes flash-b {
+  from {
+    color: #ffd9b3;
+  }
+}
+.m-full .fx-a,
+.m-subtle .fx-a {
+  animation: flash-a 0.7s ease-out;
+}
+.m-full .fx-b,
+.m-subtle .fx-b {
+  animation: flash-b 0.7s ease-out;
+}
 
 /* 5. Progress bars */
 @keyframes sheen {
@@ -1264,6 +1284,37 @@ button.kc:focus-visible {
 .m-full .cur {
   display: inline-block;
   animation: cursor 1s steps(1, end) infinite both;
+}
+/* 9. Event lists: a newly arrived event glows once with a fading orange edge */
+@keyframes glow-out {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.ev {
+  position: relative;
+  z-index: 0;
+}
+.ev::before {
+  content: "";
+  position: absolute;
+  inset: 0 -6px;
+  z-index: -1;
+  background: rgba(255, 122, 0, 0.16);
+  border-left: 2px solid #ff7a00;
+  opacity: 0;
+  pointer-events: none;
+}
+.entry.ev::before {
+  background: none;
+  inset: 0;
+}
+.m-full .ev.fresh::before,
+.m-subtle .ev.fresh::before {
+  animation: glow-out 1s ease-out;
 }
 /* 8. Tunnel start button */
 @keyframes seg-run {

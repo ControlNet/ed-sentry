@@ -14,6 +14,7 @@ import { parseTimestamp, utcClock } from "@/lib/format"
 import { sessionTimelineMarks } from "@/lib/timeline"
 import { lineSafeText } from "./dashboard-helpers"
 import { Ind, Panel } from "./g1-ui"
+import { useFreshEventIds } from "./use-live-updates"
 
 type Filter = "all" | EventCategory
 
@@ -26,6 +27,7 @@ export function TacticalEventsView({
 }): React.JSX.Element {
   const [filter, setFilter] = useState<Filter>("all")
   const events = snapshot.event_feed
+  const freshIds = useFreshEventIds(events)
   const categories = presentEventCategories(events)
   const counts = eventCategoryCounts(events)
   const activeFilter: Filter = filter === "all" || categories.includes(filter) ? filter : "all"
@@ -56,7 +58,12 @@ export function TacticalEventsView({
         ) : (
           <div className="list">
             {shown.map((item, index) => (
-              <EventEntry key={item.id} item={item} newest={index === 0} />
+              <EventEntry
+                key={item.id}
+                item={item}
+                newest={index === 0}
+                fresh={freshIds.has(item.id)}
+              />
             ))}
           </div>
         )}
@@ -202,13 +209,15 @@ function LaneRow({
 function EventEntry({
   item,
   newest,
+  fresh,
 }: {
   readonly item: EventFeedItem
   readonly newest: boolean
+  readonly fresh: boolean
 }): React.JSX.Element {
   const atMs = parseTimestamp(item.timestamp)
   return (
-    <article className="entry ev" data-testid="event-log-entry">
+    <article className={clsx("entry ev", fresh && "fresh")} data-testid="event-log-entry">
       <div>
         <p style={{ margin: 0, fontSize: 16, fontWeight: 500 }}>
           {atMs === null ? item.timestamp_display : utcClock(atMs)}

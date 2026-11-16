@@ -27,6 +27,7 @@ test("@combat-analytics displays CLI idle rate marker when no events exist", asy
   await expect(page.getByTestId("combat-scans")).toContainText("-/h")
   await expect(combat).not.toContainText("0.0/h")
   await expect(combat.locator(".chip")).toHaveCount(0)
+  await expect(page.getByTestId("since-last-kill")).toHaveText("—")
 })
 
 test("@combat-analytics refreshes session rates while the dashboard is open", async ({ page }) => {
@@ -48,4 +49,23 @@ test("@combat-analytics marks the configured kill-rate warning on the rate scale
   const kills = page.getByTestId("combat-kills")
   await expect(kills.locator(".wt")).toHaveCount(2)
   await expect(kills.locator(".axis .rd")).toHaveText("20")
+})
+
+test("@live-updates flashes changed values and highlights a newly arrived event", async ({
+  page,
+}) => {
+  await page.goto("/?mock_state=live_feed")
+
+  const eventRows = page.getByTestId("telemetry-event-row")
+  const killCount = page.getByTestId("combat-kills").locator(".v")
+  await expect(killCount).toHaveText("19")
+  await expect(killCount).toHaveClass(/fx-a/u)
+  await expect(eventRows.first()).toHaveClass(/fresh/u)
+  await expect(page.locator(".ev.fresh")).toHaveCount(1)
+  await expect(page.getByTestId("telemetry-mission-kill-progress")).not.toHaveClass(/fx-/u)
+
+  // A remounted view starts without highlights, so switching tabs never replays them.
+  await page.getByRole("button", { name: "Events", exact: true }).click()
+  await expect(page.getByTestId("event-log-entry").first()).toContainText("14:18:02")
+  await expect(page.locator(".ev.fresh")).toHaveCount(0)
 })

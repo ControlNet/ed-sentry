@@ -20,6 +20,7 @@ import { handleExternalLinkClick } from "./external-link"
 import { Bar, Ind, iconPaths, Panel, Segs, StrokeIcon, serviceTone, type Tone } from "./g1-ui"
 import { missionProgressCurrent, missionProgressTotal } from "./tactical-mission-utils"
 import { TunnelServiceLine } from "./tunnel-service-line"
+import { useChangeFlash, useFreshEventIds } from "./use-live-updates"
 
 type ChecklistRow = AppSnapshot["afk_checklist"]["rows"][number]
 
@@ -144,6 +145,7 @@ function RateBlock({
   const averageText = rateDisplay(count, average)
   const warnLeft = warn === null ? null : `${scalePercent(warn, max)}%`
   const chipClass = trendUpIsGood && trend !== null && trend >= 0 ? "chip-up" : "chip-dn"
+  const countFlash = useChangeFlash(count)
   return (
     <div className="cell kpi" data-testid={testId}>
       <div className="kpi-h">
@@ -156,7 +158,7 @@ function RateBlock({
       </div>
       <div className="kpi-b">
         <div>
-          <p className="v">{count}</p>
+          <p className={clsx("v", countFlash)}>{count}</p>
           <p className="u">Last {lastMs === null ? "—" : utcClock(lastMs)}</p>
         </div>
         <div
@@ -284,6 +286,7 @@ function MissionRing({
   readonly eta: string
 }): React.JSX.Element {
   const lit = total > 0 ? Math.round((completed / total) * RING_SEGMENTS) : 0
+  const killFlash = useChangeFlash(completed)
   return (
     <section aria-label="Mission kills" className="map" data-testid="telemetry-mission-ring">
       <div className="orb orbit" aria-hidden="true">
@@ -317,7 +320,7 @@ function MissionRing({
       <div className="core">
         <span className="sweep" aria-hidden="true" />
         <span className="lab">Mission kills</span>
-        <b data-testid="telemetry-mission-kill-progress">
+        <b className={killFlash} data-testid="telemetry-mission-kill-progress">
           {total > 0 ? (
             <>
               {completed}
@@ -548,6 +551,7 @@ function RecentEventsPanel({
   readonly snapshot: AppSnapshot
   readonly onOpenEvents: () => void
 }): React.JSX.Element {
+  const freshIds = useFreshEventIds(snapshot.event_feed)
   const events = snapshot.event_feed.slice(0, RECENT_EVENT_COUNT)
   return (
     <Panel
@@ -570,7 +574,7 @@ function RecentEventsPanel({
           return (
             <div
               key={event.id}
-              className="row ev"
+              className={clsx("row ev", freshIds.has(event.id) && "fresh")}
               style={{ alignItems: "flex-start", justifyContent: "flex-start" }}
               data-testid="telemetry-event-row"
             >
