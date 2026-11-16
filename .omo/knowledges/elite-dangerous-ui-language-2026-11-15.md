@@ -232,6 +232,22 @@ The user approved **G1 v2** (`G1v2.dc.html`, plus the `G1v2Tablet` / `G1v2Phone`
 - **Live-update cues (ported from the design's demo feed onto real snapshots).**
   - A changed value flashes: the KPI kill and scan counts, the mission-kills ring and the header "Last event" clock. `useChangeFlash` returns `""` on mount and then alternates `fx-a` / `fx-b` on each change. The two classes use identical keyframes, so each change restarts the animation.
   - A newly arrived event row glows once (`.ev.fresh::before`, 1 s). `useFreshEventIds` diffs event ids whenever the feed signature changes. The feed present at mount is never marked fresh, and a periodic snapshot with the same feed keeps the same set, so tab switches and polling never replay the cue.
-  - Both cues live in the motion layer, so `.m-off` and `prefers-reduced-motion` disable them.
+  - Both cues live in the motion layer, so `prefers-reduced-motion` disables them.
   - Mock `?mock_state=live_feed` adds one kill event on the second load, and the e2e test `@live-updates` covers it.
 - **Mock fixtures must stay internally consistent.** The `empty` scenario now clears `last_kill_*` / `last_scan_*`; before this it showed a since-last-kill timer with zero kills.
+
+## Axis labels on real data (2026-11-16)
+A real backend run with the repo's Journal fixtures exposed label problems that the mock data hid.
+- **Timeline ticks use "nice" steps** (`ui/src/lib/timeline.ts`). The mission timeline picks 1/2/3/4/6/12/24 h steps (at most 9 labels); the session timeline picks 15 m / 30 m / 1 h … 24 h (at most 6 inner labels); longer spans fall back to whole days. Ticks align to whole steps, and a tick on UTC midnight shows the date ("21 Jun"). The old fixed quarter-hour loop produced dozens of overlapping labels on an 8-hour session.
+- **Now/ETA labels flip at the edges.** `markerLabelLayout(nowLeft, etaLeft)` anchors a label inward when its marker is within 15% of an end, and moves the ETA label to a second row (`.mk-low`) when the two labels would overlap.
+- **Rate-axis warn label.** `rateAxisLabels(max, warn)` (`ui/src/lib/telemetry.ts`) replaces the end label it would cover: a warn mark near 0 replaces "0"; one near the max becomes the end-aligned max label.
+- Checklist rows hide the source when it is `unknown`, because the state already says so.
+- **Real-backend smoke test.** Build `ui/dist`, copy it to `target/debug/webui`, run `target/debug/ed-sentry-core` with a config containing `[web] enabled = true` and a free port, and pass `--journal <dir> --set-file <file>`; the file name must exist exactly as given. Fixture timestamps are in 2035, so rates, session length and timeline spans look odd; that is fixture skew, not a UI bug.
+
+## Dead-code cleanup (2026-11-16)
+- Removed the pre-G1 dashboard components that nothing imported any more (`warning-rail`, `event-feed`, `metric-grid`, `health-panel`, … , `tactical-ui`, `components/ui/{badge,button,card}`), their helper functions, the `cn()` helper (`lib/utils.ts`), and the CSS classes only they used. The `lucide-react`, `class-variance-authority`, `@radix-ui/react-slot` and `tailwind-merge` dependencies went with them. Tailwind itself stays: the tunnel QR popover and `sr-only` still use utilities.
+- `g1.css` also lost the design-board classes that the app never rendered (`.btn2`, `.filt`, `.kc`, `.nv`, `.side-h`, `.sysl`, …) and the unused `.m-subtle` / `.m-off` motion modes. The app always renders `.app.m-full`; `prefers-reduced-motion` is the only way motion is turned off.
+- Tailwind v4 emits a theme variable only when something references it, so removing the `.tactical-*` rules also dropped `--font-mono` from the built CSS.
+- How the CSS removal was checked: `postcss` removed only selectors naming a dead class (rules keep their formatting), then a script compared screenshots and a hash of every element's computed style (incl. `::before`/`::after`) for 5 tabs × 3 mock states × 2 widths before and after, with the clock frozen (`page.clock.setFixedTime`) and `reducedMotion: 'reduce'`.
+- Pitfall: `vite preview` does not pick up a rebuilt `dist/` with new hashed asset names; restart it after each build.
+- CI (`ci.yml`, `release.yml`) now runs `pnpm --dir ui test`, and `ci.yml` also runs `pnpm --dir ui lint` on Linux only, because Windows runners check files out with CRLF and Biome would flag every file.
