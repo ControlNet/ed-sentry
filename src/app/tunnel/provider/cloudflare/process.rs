@@ -13,6 +13,8 @@ use super::parser::cloudflare_trycloudflare_url;
 
 const CHILD_EXIT_POLL: Duration = Duration::from_millis(25);
 const CHILD_STOP_TIMEOUT: Duration = Duration::from_secs(1);
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 pub(super) async fn spawn_cloudflared(
     executable: &Path,
@@ -25,6 +27,7 @@ pub(super) async fn spawn_cloudflared(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
+    configure_cloudflared_command(&mut command);
     let mut child = command.spawn().map_err(|error| {
         format!(
             "cloudflared failed to start: {}",
@@ -68,6 +71,14 @@ pub(super) async fn terminate_child(mut child: Child) {
     let _ = child.start_kill();
     let _ = tokio::time::timeout(CHILD_STOP_TIMEOUT, child.wait()).await;
 }
+
+#[cfg(windows)]
+fn configure_cloudflared_command(command: &mut Command) {
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn configure_cloudflared_command(_command: &mut Command) {}
 
 pub(super) fn abort_tasks(tasks: Vec<JoinHandle<()>>) {
     for task in tasks {
