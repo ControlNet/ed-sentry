@@ -1,6 +1,8 @@
 use super::{empty_snapshot, timestamp};
 use crate::app::runtime::{ConfiguredJournalSelector, MonitorRuntime};
-use crate::app::{AppEventStore, AppLiveUpdate, MatrixStartupStatus, WebStartupStatus};
+use crate::app::{
+    AppEventStore, AppLiveUpdate, EventFeedItem, MatrixStartupStatus, WebStartupStatus,
+};
 use crate::config::{AppConfig, CliConfigOverrides};
 use crate::notifier::{AlertLevel, Notification};
 use chrono::Duration;
@@ -134,6 +136,65 @@ pub(super) fn event_buffer_applies_line_safe_to_frontend_text() {
     assert!(!event.summary.contains('\u{1b}'));
     assert!(!notification.text.contains('\n'));
     assert!(!notification.text.contains('\u{1b}'));
+}
+
+#[test]
+fn same_second_same_type_notifications_get_distinct_stable_feed_ids() {
+    let now = timestamp();
+    let first_notification = Notification::new(
+        "scan_easy",
+        1,
+        AlertLevel::Info,
+        None,
+        "Scan: Viper Mk III",
+        "Scan: Viper Mk III",
+        now,
+    );
+    let second_notification = Notification::new(
+        "scan_easy",
+        1,
+        AlertLevel::Info,
+        None,
+        "Scan: Viper Mk III",
+        "Scan: Viper Mk III",
+        now,
+    );
+
+    let direct_first = EventFeedItem::from(&first_notification);
+    let direct_second = EventFeedItem::from(&second_notification);
+    assert_ne!(direct_first.id, direct_second.id);
+
+    let store = AppEventStore::with_capacity(empty_snapshot(now), 8);
+    let subscriber = store.subscribe();
+    let stored_first = store.record_notification(&first_notification).unwrap();
+    let stored_second = store.record_notification(&second_notification).unwrap();
+
+    assert_ne!(stored_first.feed_item.id, stored_second.feed_item.id);
+
+    let live_first = match subscriber
+        .live
+        .recv_timeout(StdDuration::from_secs(1))
+        .unwrap()
+    {
+        AppLiveUpdate::Event { item } => item,
+        other => panic!("expected first live event, got {other:?}"),
+    };
+    let live_second = match subscriber
+        .live
+        .recv_timeout(StdDuration::from_secs(1))
+        .unwrap()
+    {
+        AppLiveUpdate::Event { item } => item,
+        other => panic!("expected second live event, got {other:?}"),
+    };
+    assert_eq!(live_first.id, stored_first.feed_item.id);
+    assert_eq!(live_second.id, stored_second.feed_item.id);
+
+    store.publish_snapshot(empty_snapshot(now + Duration::seconds(1)));
+    let refreshed = store.subscribe().bootstrap.snapshot.event_feed;
+    assert_eq!(refreshed.len(), 2);
+    assert_eq!(refreshed[0].id, stored_first.feed_item.id);
+    assert_eq!(refreshed[1].id, stored_second.feed_item.id);
 }
 
 #[test]

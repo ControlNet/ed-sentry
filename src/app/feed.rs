@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
@@ -7,6 +8,8 @@ use crate::notifier::{AlertLevel, Notification};
 use crate::text::line_safe;
 
 use super::display::display_timestamp;
+
+static NEXT_NOTIFICATION_FEED_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct NotificationView {
@@ -58,8 +61,12 @@ impl From<&Notification> for EventFeedItem {
     fn from(notification: &Notification) -> Self {
         let event_type = line_safe(&notification.event_type);
         let timestamp_display = display_timestamp(notification.timestamp);
+        let sequence = NEXT_NOTIFICATION_FEED_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         Self {
-            id: format!("notification:{event_type}:{}", notification.timestamp),
+            id: format!(
+                "notification:{event_type}:{}:{sequence:012}",
+                notification.timestamp.timestamp_millis()
+            ),
             source: "notification".to_string(),
             event_type,
             level: notification.level,
