@@ -124,3 +124,132 @@ fn start_tunnel(port: u16) -> String {
         "POST /api/tunnel/start HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
     )
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn web_policy_rejects_cross_site_mutations_and_keeps_same_origin_and_headerless_requests() {
+    let _env = env_lock().await;
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dist = tempfile::tempdir().unwrap();
+    write_dist(dist.path(), "csrf policy dist");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let fake = fake_cloudflared(temp_dir.path(), FakeCloudflared::EmitUrlThenWait);
+    std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
+    let config_path = temp_dir.path().join("config.toml");
+    // Empty password ensures tunnel start never requires a password before starting.
+    write_tunnel_api_config(&config_path, temp_dir.path(), "");
+    let runtime = api_runtime(&config_path, 0, "127.0.0.1");
+    let server = start_with_state(&runtime, api_store(&runtime)).await;
+    let port = server.bound_port().unwrap();
+
+    // Cross-site / untrusted Origin requests to /api/tunnel/start must fail with 403 without starting tunnel.
+    let cross_origin_start = request(
+        port,
+        "POST /api/tunnel/start HTTP/1.1\r\nHost: 127.0.0.1\r\nOrigin: https://evil.example\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let cross_site_header_start = request(
+        port,
+        "POST /api/tunnel/start HTTP/1.1\r\nHost: 127.0.0.1\r\nSec-Fetch-Site: cross-site\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    assert!(
+        cross_origin_start.starts_with("HTTP/1.1 403 Forbidden"),
+        "{cross_origin_start}"
+    );
+    assert!(
+        cross_site_header_start.starts_with("HTTP/1.1 403 Forbidden"),
+        "{cross_site_header_start}"
+    );
+
+    // Same-origin start without any config_password succeeds.
+    let same_origin_start = request(
+        port,
+        &format!(
+            "POST /api/tunnel/start HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nOrigin: http://127.0.0.1:{port}\r\nSec-Fetch-Site: same-origin\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        ),
+    );
+    assert!(
+        same_origin_start.starts_with("HTTP/1.1 200 OK"),
+        "{same_origin_start}"
+    );
+
+    // Configure a tunnel password via CLI-style (no Origin / Sec-Fetch-Site) PUT /api/config.
+    let set_pw = format!(
+        r#"{{"tunnel":{{"provider":"cloudflare_quick","auto_start":false,"config_password_replacement":"{TUNNEL_PASSWORD}","clear_config_password":false}}}}"#
+    );
+    let cli_put = request(
+        port,
+        &format!(
+            "PUT /api/config HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{set_pw}",
+            set_pw.len()
+        ),
+    );
+    assert!(cli_put.starts_with("HTTP/1.1 200 OK"), "{cli_put}");
+
+    // Cross-site login on /api/tunnel/login is rejected with 403 even with the right password.
+    let login_body = format!(r#"{{"password":"{TUNNEL_PASSWORD}"}}"#);
+    let cross_origin_login = request(
+        port,
+        &format!(
+            "POST /api/tunnel/login HTTP/1.1\r\nHost: {FIRST_TUNNEL_HOST}\r\nOrigin: https://evil.example\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{login_body}",
+            login_body.len()
+        ),
+    );
+    let cross_site_login = request(
+        port,
+        &format!(
+            "POST /api/tunnel/login HTTP/1.1\r\nHost: {FIRST_TUNNEL_HOST}\r\nOrigin: https://{FIRST_TUNNEL_HOST}\r\nSec-Fetch-Site: cross-site\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{login_body}",
+            login_body.len()
+        ),
+    );
+    assert!(
+        cross_origin_login.starts_with("HTTP/1.1 403 Forbidden"),
+        "{cross_origin_login}"
+    );
+    assert!(
+        cross_site_login.starts_with("HTTP/1.1 403 Forbidden"),
+        "{cross_site_login}"
+    );
+
+    // Same-origin tunnel login succeeds and issues a token; cross-site PUT /api/config with valid Bearer still gets 403.
+    let same_origin_login = request(
+        port,
+        &format!(
+            "POST /api/tunnel/login HTTP/1.1\r\nHost: {FIRST_TUNNEL_HOST}\r\nOrigin: https://{FIRST_TUNNEL_HOST}\r\nSec-Fetch-Site: same-origin\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{login_body}",
+            login_body.len()
+        ),
+    );
+    assert!(
+        same_origin_login.starts_with("HTTP/1.1 200 OK"),
+        "{same_origin_login}"
+    );
+    let token = crate::support::json_body(&same_origin_login)["token"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let mutation = r#"{"monitor":{"warn_kill_rate":25}}"#;
+    let cross_site_put = request(
+        port,
+        &format!(
+            "PUT /api/config HTTP/1.1\r\nHost: {FIRST_TUNNEL_HOST}\r\nOrigin: https://evil.example\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{mutation}",
+            mutation.len()
+        ),
+    );
+    let same_origin_tunnel_put = request(
+        port,
+        &format!(
+            "PUT /api/config HTTP/1.1\r\nHost: {FIRST_TUNNEL_HOST}\r\nOrigin: https://{FIRST_TUNNEL_HOST}\r\nSec-Fetch-Site: same-origin\r\nAuthorization: Bearer {token}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{mutation}",
+            mutation.len()
+        ),
+    );
+    assert!(
+        cross_site_put.starts_with("HTTP/1.1 403 Forbidden"),
+        "{cross_site_put}"
+    );
+    assert!(
+        same_origin_tunnel_put.starts_with("HTTP/1.1 200 OK"),
+        "{same_origin_tunnel_put}"
+    );
+
+    std::env::remove_var("ED_SENTRY_CLOUDFLARED_PATH");
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}

@@ -118,6 +118,11 @@ impl EventMonitor {
         Self::new(config.monitor.clone(), config.log_levels.clone())
     }
 
+    pub fn update_config(&mut self, monitor_config: MonitorConfig, log_levels: LogLevelConfig) {
+        self.monitor_config = monitor_config;
+        self.log_levels = log_levels;
+    }
+
     pub fn process_event(&mut self, event: &JournalEvent) -> Vec<Notification> {
         let previous_state = self.state.clone();
         self.state.apply_event(event);

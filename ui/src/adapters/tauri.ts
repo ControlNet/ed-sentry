@@ -19,6 +19,7 @@ import {
 
 export type TauriDashboardTransport = {
   readonly loadSnapshot: () => Promise<unknown>
+  readonly retryStartup?: () => Promise<unknown>
   readonly loadConfig: () => Promise<unknown>
   readonly saveConfig: (update: EditableConfigUpdate) => Promise<unknown>
   readonly loadTunnelStatus?: () => Promise<unknown>
@@ -41,6 +42,7 @@ const tauriLiveUpdateSchema = z.discriminatedUnion("type", [
 export function createDefaultTauriDashboardAdapter(): DashboardAdapter {
   return createTauriDashboardAdapter({
     loadSnapshot: () => invoke("load_snapshot"),
+    retryStartup: () => invoke("retry_startup"),
     loadConfig: () => invoke("load_config"),
     saveConfig: (update) => invoke("save_config", { update }),
     loadTunnelStatus: () => invoke("load_tunnel_status"),
@@ -68,6 +70,7 @@ export function createDefaultTauriDashboardAdapter(): DashboardAdapter {
 }
 
 export function createTauriDashboardAdapter(transport: TauriDashboardTransport): DashboardAdapter {
+  const retryStartup = transport.retryStartup
   const loadTunnelStatus = transport.loadTunnelStatus
   const startTunnel = transport.startTunnel
   const adapter: DashboardAdapter = {
@@ -153,6 +156,23 @@ export function createTauriDashboardAdapter(transport: TauriDashboardTransport):
 
   return {
     ...adapter,
+    ...(retryStartup === undefined
+      ? {}
+      : {
+          async retryStartup(): Promise<AppSnapshot> {
+            try {
+              return parseAppSnapshot(await retryStartup())
+            } catch (error) {
+              if (error instanceof Error) {
+                throw formatAdapterError("tauri", error)
+              }
+              throw formatTauriCommandError(
+                error,
+                "Desktop startup retry failed with a non-Error value",
+              )
+            }
+          },
+        }),
     ...(loadTunnelStatus === undefined
       ? {}
       : {

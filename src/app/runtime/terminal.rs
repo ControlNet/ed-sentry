@@ -1,7 +1,10 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use async_trait::async_trait;
 use chrono::Utc;
+use tokio::sync::watch;
 
 use crate::app::{MatrixStartupStatus, WebStartupStatus};
 use crate::config::RuntimeConfig;
@@ -14,12 +17,25 @@ use crate::monitor::EventMonitor;
 use crate::notifier::Notification;
 use crate::terminal::TerminalNotifier;
 use crate::text::line_safe;
+use crate::web::RuntimeConfigApplier;
 
 use super::watch_runner::{self, TitleMode};
 use super::{
     build_watch_delivery, journal_basename, matrix_startup_label, selected_journal_from_choices,
-    start_webui, watch_journal_folder_display, JournalSelector, MonitorRuntime, RuntimeError,
+    start_webui_with_applier, watch_journal_folder_display, JournalSelector, MonitorRuntime,
+    RuntimeError,
 };
+
+struct WatchChannelConfigApplier {
+    sender: watch::Sender<RuntimeConfig>,
+}
+
+#[async_trait]
+impl RuntimeConfigApplier for WatchChannelConfigApplier {
+    async fn apply_runtime_config(&self, config: &RuntimeConfig) {
+        let _ = self.sender.send(config.clone());
+    }
+}
 
 pub async fn run_watch(config: &RuntimeConfig) -> Result<(), RuntimeError> {
     let program_started_at = Utc::now();
@@ -32,7 +48,14 @@ pub async fn run_watch(config: &RuntimeConfig) -> Result<(), RuntimeError> {
     )?;
     let startup = runtime.startup().clone();
     print_startup(config, &startup.journal_file, startup.commander.as_deref());
-    let web_server = start_webui(config, &mut runtime).await;
+    let (config_tx, config_rx) = watch::channel(config.clone());
+    let applier = Arc::new(WatchChannelConfigApplier { sender: config_tx });
+    let web_server = start_webui_with_applier(
+        config,
+        &mut runtime,
+        Some(applier as Arc<dyn RuntimeConfigApplier>),
+    )
+    .await;
     let _tunnel =
         super::web::start_tunnel_after_webui(config, &mut runtime, &web_server, true).await;
     let super::WatchDelivery {
@@ -59,7 +82,13 @@ pub async fn run_watch(config: &RuntimeConfig) -> Result<(), RuntimeError> {
     )
     .await?;
 
-    watch_loop::run(&mut runtime, &mut delivery, &startup.journal_file).await
+    watch_loop::run_with_config_updates(
+        &mut runtime,
+        &mut delivery,
+        &startup.journal_file,
+        Some(config_rx),
+    )
+    .await
 }
 
 pub async fn run_replay(config: &RuntimeConfig) -> Result<(), RuntimeError> {

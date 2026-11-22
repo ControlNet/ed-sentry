@@ -147,11 +147,13 @@ async fn desktop_gui_runtime_tunnel_commands_use_native_lifecycle_without_auth()
     });
     let runtime = runtime_from_config(&config);
     let event_store = runtime.lock().await.event_store();
+    let (poll_interval_tx, _poll_interval_rx) = tokio::sync::watch::channel(Duration::from_secs(1));
     let desktop = DesktopRuntime {
         runtime: Arc::clone(&runtime),
         event_store,
         _web_server: WebServer::disabled(),
         tunnel: Some(WebTunnelState::new(None).unwrap()),
+        poll_interval_tx,
         monitor_task: tokio::spawn(async { std::future::pending::<()>().await }),
     };
 
@@ -222,6 +224,78 @@ async fn desktop_watcher_polling_fallback_uses_interval_cycle() {
 
     task.abort();
     println!("desktop_watcher fallback_interval_poll=observed_output");
+}
+
+#[tokio::test]
+async fn desktop_runtime_apply_runtime_config_updates_thresholds_log_levels_and_poll_interval_live()
+{
+    let temp_dir = tempfile::tempdir().unwrap();
+    let journal_path = temp_dir.path().join("Journal.2035-01-08T140000.01.log");
+    fs::write(
+        &journal_path,
+        concat!(
+            r#"{"timestamp":"2035-01-08T14:00:00Z","event":"Commander","Name":"Cmdr Live"}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-08T14:01:00Z","event":"Location","StarSystem":"Live Config","Docked":false}"#,
+            "\n"
+        ),
+    )
+    .unwrap();
+    let initial = AppConfig::default().into_runtime(&CliConfigOverrides {
+        set_file: Some(journal_path.clone()),
+        no_status_line: true,
+        poll_interval_ms: Some(60_000),
+        ..CliConfigOverrides::default()
+    });
+    let runtime = runtime_from_config(&initial);
+    runtime
+        .lock()
+        .await
+        .process_preload(Utc.with_ymd_and_hms(2035, 1, 8, 14, 0, 0).unwrap());
+    let event_store = runtime.lock().await.event_store();
+    let buffer = SharedBuffer::default();
+    let terminal = TerminalNotifier::plain(buffer.clone(), TimeDisplayZone::Utc);
+    let delivery = Arc::new(Mutex::new(DeliveryHub::terminal_only(terminal)));
+    let (poll_interval_tx, poll_interval_rx) = tokio::sync::watch::channel(Duration::from_secs(60));
+    let monitor_task = tokio::spawn(super::run_monitor_loop_with_interval(
+        Arc::clone(&runtime),
+        Arc::clone(&delivery),
+        DesktopFileWatcher {
+            _watcher: None,
+            events: None,
+        },
+        Some(poll_interval_rx),
+    ));
+    let desktop = DesktopRuntime {
+        runtime: Arc::clone(&runtime),
+        event_store,
+        _web_server: WebServer::disabled(),
+        tunnel: None,
+        poll_interval_tx,
+        monitor_task,
+    };
+
+    let mut updated = initial.clone();
+    updated.monitor.warn_kill_rate = 33;
+    updated.monitor.warn_no_kills_minutes = 11;
+    updated.monitor.poll_interval_ms = 15;
+    updated.log_levels.scan_easy = 0;
+    desktop.apply_runtime_config(&updated).await;
+
+    let snapshot = desktop.snapshot().await;
+    assert_eq!(snapshot.thresholds.warn_kill_rate_per_hour, 33);
+    assert_eq!(snapshot.thresholds.warn_no_kills_minutes, 11);
+
+    append_line(
+        &journal_path,
+        r#"{"timestamp":"2035-01-08T14:02:00Z","event":"ShipTargeted","TargetLocked":true,"ScanStage":3,"Ship":"viper","Ship_Localised":"Muted Viper","PilotName":"Muted Pirate","PilotName_Localised":"Muted Pirate","LegalStatus":"Wanted"}"#,
+    );
+    append_line(
+        &journal_path,
+        r#"{"timestamp":"2035-01-08T14:02:01Z","event":"ShipTargeted","TargetLocked":true,"ScanStage":3,"Ship":"anaconda","Ship_Localised":"Loud Anaconda","PilotName":"Hard Pirate","PilotName_Localised":"Hard Pirate","LegalStatus":"Wanted"}"#,
+    );
+    wait_for_output(&buffer, "Scan: Loud Anaconda").await;
+    assert!(!buffer.contains("Muted Viper"));
 }
 
 #[derive(Clone, Default)]

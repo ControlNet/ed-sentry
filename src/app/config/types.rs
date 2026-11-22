@@ -5,6 +5,10 @@ pub struct ConfigApiView {
     pub version: u8,
     pub config: EditableConfigView,
     pub policy: ConfigEndpointPolicy,
+    #[serde(default)]
+    pub restart_required: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restart_required_sections: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

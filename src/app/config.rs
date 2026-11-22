@@ -25,6 +25,27 @@ impl EditableConfigView {
     }
 }
 
+pub fn restart_required_sections(
+    running: &RuntimeConfig,
+    updated: &RuntimeConfig,
+    tunnel_running: bool,
+) -> Vec<String> {
+    let mut sections = Vec::new();
+    if running.journal.folder != updated.journal.folder {
+        sections.push("Journal".to_string());
+    }
+    if running.matrix != updated.matrix {
+        sections.push("Matrix".to_string());
+    }
+    if running.web != updated.web {
+        sections.push("Web UI".to_string());
+    }
+    if tunnel_running && running.tunnel.provider != updated.tunnel.provider {
+        sections.push("Tunnel".to_string());
+    }
+    sections
+}
+
 impl From<&JournalConfig> for JournalConfigView {
     fn from(config: &JournalConfig) -> Self {
         Self {

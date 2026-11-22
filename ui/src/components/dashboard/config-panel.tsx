@@ -1,7 +1,13 @@
 import clsx from "clsx"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ConfigApiView, DashboardAdapter } from "@/adapters/dashboard"
-import { type ConfigSectionId, configSectionIds, configSectionStatus } from "@/lib/config-status"
+import {
+  type ConfigSectionId,
+  configSectionIds,
+  configSectionStatus,
+  restartNoticeFromConfigView,
+} from "@/lib/config-status"
+import { useDashboardStore } from "@/store/dashboard-store"
 import {
   JournalConfigSection,
   MatrixConfigSection,
@@ -45,6 +51,7 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
   const [state, setState] = useState<ConfigLoadState>({ status: "loading" })
   const [saveState, setSaveState] = useState<SaveState>("idle")
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  const [restartNotice, setRestartNotice] = useState<string | null>(null)
   const [loadRevision, setLoadRevision] = useState(0)
   const formRevisionRef = useRef(0)
   const saveAttemptRef = useRef(0)
@@ -67,6 +74,7 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
         }
         const form = formFromConfig(view.config)
         setState({ status: "ready", view, form, savedForm: form })
+        setRestartNotice(restartNoticeFromConfigView(view))
         setSaveState(loadRevision > 0 ? "saved" : "idle")
         setSaveMessage(loadRevision > 0 ? "Tunnel access unlocked" : null)
       })
@@ -119,6 +127,8 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
         if (saveAttempt !== saveAttemptRef.current) {
           return
         }
+        const nextNotice = restartNoticeFromConfigView(nextView)
+        setRestartNotice(nextNotice)
         const changedDuringSave = revision !== formRevisionRef.current
         setState((current) => {
           if (current.status !== "ready") {
@@ -130,7 +140,17 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
           return { status: "ready", view: nextView, form: nextForm, savedForm: nextForm }
         })
         setSaveState(changedDuringSave ? "pending" : "saved")
-        setSaveMessage(changedDuringSave ? "Autosave pending" : "All changes saved")
+        setSaveMessage(
+          changedDuringSave
+            ? "Autosave pending"
+            : nextNotice === null
+              ? "All changes saved"
+              : "Saved · restart required",
+        )
+        const storeState = useDashboardStore.getState()
+        if (storeState.snapshot !== null && storeState.adapter === adapter) {
+          void storeState.refresh()
+        }
       } catch (error) {
         if (saveAttempt !== saveAttemptRef.current) {
           return
@@ -213,6 +233,11 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
         replacement or clear request is ready.
       </FieldMessage>
     ) : null,
+    restartNotice === null ? null : (
+      <FieldMessage key="restart" tone="warning">
+        {restartNotice}
+      </FieldMessage>
+    ),
   ].filter((message) => message !== null)
 
   return (
@@ -244,6 +269,7 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
           <div style={{ marginTop: 14 }} data-testid="config-save-state">
             <SaveIndicator
               protectedChange={protectedChange}
+              restartRequired={restartNotice !== null}
               saveState={saveState}
               saveMessage={saveMessage}
             />
@@ -294,10 +320,12 @@ const sectionTitles: Readonly<Record<ConfigSectionId, string>> = {
 
 function SaveIndicator({
   protectedChange,
+  restartRequired,
   saveState,
   saveMessage,
 }: {
   readonly protectedChange: boolean
+  readonly restartRequired: boolean
   readonly saveState: SaveState
   readonly saveMessage: string | null
 }): React.JSX.Element {
@@ -311,7 +339,11 @@ function SaveIndicator({
     case "saving":
       return <Ind tone="warn">{saveMessage ?? "Autosave pending"}</Ind>
     case "saved":
-      return <Ind tone="ok">{saveMessage ?? "All changes saved"}</Ind>
+      return (
+        <Ind tone={restartRequired ? "warn" : "ok"}>
+          {saveMessage ?? (restartRequired ? "Saved · restart required" : "All changes saved")}
+        </Ind>
+      )
     case "error":
       return <Ind tone="bad">{saveMessage ?? "Config save failed"}</Ind>
     default:

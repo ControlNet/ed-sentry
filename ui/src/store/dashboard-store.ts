@@ -26,6 +26,7 @@ type DashboardState = {
   readonly unsubscribe: DashboardAdapterUnsubscribe | null
   readonly start: () => Promise<void>
   readonly refresh: () => Promise<void>
+  readonly retry: () => Promise<void>
   readonly refreshTunnelStatus: () => Promise<void>
   readonly startTunnel: () => Promise<void>
   readonly loginTunnel: (password: string) => Promise<TunnelLoginResult>
@@ -40,88 +41,106 @@ const initialConnection: DashboardConnectionState = {
   checkedAtDisplay: null,
 }
 
-export const useDashboardStore = create<DashboardState>((set, get) => ({
-  adapter: createDashboardAdapter(),
-  snapshot: null,
-  status: "idle",
-  connection: initialConnection,
-  errorMessage: null,
-  unsubscribe: null,
-  async start() {
-    const { adapter, unsubscribe } = get()
-    if (unsubscribe === null && adapter.subscribe !== undefined) {
-      const adapterUnsubscribe = adapter.subscribe((event) => applyAdapterEvent(event, set, get))
-      const refreshUnsubscribe = startLiveSnapshotRefresh(adapter, set, get)
-      const nextUnsubscribe = () => {
-        adapterUnsubscribe()
-        refreshUnsubscribe()
+export function createDashboardStore(adapterOverride?: DashboardAdapter) {
+  return create<DashboardState>((set, get) => ({
+    adapter: adapterOverride ?? createDashboardAdapter(),
+    snapshot: null,
+    status: "idle",
+    connection: initialConnection,
+    errorMessage: null,
+    unsubscribe: null,
+    async start() {
+      const { adapter, unsubscribe } = get()
+      if (unsubscribe === null && adapter.subscribe !== undefined) {
+        const adapterUnsubscribe = adapter.subscribe((event) => applyAdapterEvent(event, set, get))
+        const refreshUnsubscribe = startLiveSnapshotRefresh(adapter, set, get)
+        const nextUnsubscribe = () => {
+          adapterUnsubscribe()
+          refreshUnsubscribe()
+        }
+        set({ unsubscribe: nextUnsubscribe })
       }
-      set({ unsubscribe: nextUnsubscribe })
-    }
-    await get().refresh()
-  },
-  async refresh() {
-    const adapter = get().adapter
-    set({
-      status: "loading",
-      errorMessage: null,
-      connection: {
-        status: "loading",
-        label: adapter.label,
-        detail: "Loading dashboard snapshot",
-        checkedAtDisplay: null,
-      },
-    })
-    try {
-      const snapshot = await loadNormalizedSnapshot(adapter)
-      setSnapshotFromRefresh(snapshot, adapter, set)
-    } catch (error) {
-      if (error instanceof Error) {
-        set({
-          status: "error",
-          errorMessage: error.message,
-          connection: {
-            status: "error",
-            label: adapter.label,
-            detail: error.message,
-            checkedAtDisplay: null,
-          },
-        })
+      await get().refresh()
+    },
+    async refresh() {
+      await loadIntoStore(get().adapter, "load", set)
+    },
+    async retry() {
+      await loadIntoStore(get().adapter, "retry", set)
+    },
+    async refreshTunnelStatus() {
+      const loadTunnelStatus = get().adapter.loadTunnelStatus
+      if (loadTunnelStatus === undefined) {
         return
       }
-      throw error
-    }
-  },
-  async refreshTunnelStatus() {
-    const loadTunnelStatus = get().adapter.loadTunnelStatus
-    if (loadTunnelStatus === undefined) {
-      return
-    }
-    setSnapshotTunnel(await loadTunnelStatus(), set, get)
-  },
-  async startTunnel() {
-    const startTunnel = get().adapter.startTunnel
-    if (startTunnel === undefined) {
-      return
-    }
-    setSnapshotTunnel(await startTunnel(), set, get)
-  },
-  async loginTunnel(password: string) {
-    const loginTunnel = get().adapter.loginTunnel
-    if (loginTunnel === undefined) {
-      return {
-        ok: false,
-        code: "tunnel_login_unsupported",
-        message: "Tunnel login is not available in this adapter",
+      setSnapshotTunnel(await loadTunnelStatus(), set, get)
+    },
+    async startTunnel() {
+      const startTunnel = get().adapter.startTunnel
+      if (startTunnel === undefined) {
+        return
       }
+      setSnapshotTunnel(await startTunnel(), set, get)
+    },
+    async loginTunnel(password: string) {
+      const loginTunnel = get().adapter.loginTunnel
+      if (loginTunnel === undefined) {
+        return {
+          ok: false,
+          code: "tunnel_login_unsupported",
+          message: "Tunnel login is not available in this adapter",
+        }
+      }
+      const result = await loginTunnel(password)
+      if (result.ok) {
+        await get().refreshTunnelStatus()
+      }
+      return result
+    },
+  }))
+}
+
+export const useDashboardStore = createDashboardStore()
+
+async function loadIntoStore(
+  adapter: DashboardAdapter,
+  mode: "load" | "retry",
+  set: (state: Partial<DashboardState>) => void,
+): Promise<void> {
+  set({
+    status: "loading",
+    errorMessage: null,
+    connection: {
+      status: "loading",
+      label: adapter.label,
+      detail: mode === "retry" ? "Retrying dashboard startup" : "Loading dashboard snapshot",
+      checkedAtDisplay: null,
+    },
+  })
+  try {
+    const raw =
+      mode === "retry" && adapter.retryStartup !== undefined
+        ? await adapter.retryStartup()
+        : await adapter.loadSnapshot()
+    const snapshot = normalizeSnapshot(raw)
+    setSnapshotFromRefresh(snapshot, adapter, set)
+  } catch (error) {
+    if (error instanceof Error) {
+      set({
+        status: "error",
+        errorMessage: error.message,
+        connection: {
+          status: "error",
+          label: adapter.label,
+          detail: error.message,
+          checkedAtDisplay: null,
+        },
+      })
+      return
     }
-    const result = await loginTunnel(password)
-    if (result.ok) {
-      await get().refreshTunnelStatus()
-    }
-    return result
-  },
-}))
+    throw error
+  }
+}
 
 function startLiveSnapshotRefresh(
   adapter: DashboardAdapter,
@@ -130,7 +149,7 @@ function startLiveSnapshotRefresh(
 ): DashboardAdapterUnsubscribe {
   let refreshInFlight = false
   const refresh = () => {
-    if (refreshInFlight) {
+    if (refreshInFlight || get().snapshot === null) {
       return
     }
     refreshInFlight = true

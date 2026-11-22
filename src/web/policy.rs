@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use axum::extract::{Request, State};
-use axum::http::header::HOST;
+use axum::http::header::{HOST, ORIGIN};
 use axum::http::{HeaderMap, Method, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -41,16 +42,23 @@ impl WebEndpointPolicy {
     }
 }
 
+#[async_trait]
+pub trait RuntimeConfigApplier: Send + Sync {
+    async fn apply_runtime_config(&self, config: &RuntimeConfig);
+}
+
 #[derive(Clone)]
 pub struct WebApiState {
     asset_root: PathBuf,
     bind_host: String,
     policy: WebEndpointPolicy,
     events: AppEventStore,
+    startup_config: Arc<RuntimeConfig>,
     config: Arc<RwLock<RuntimeConfig>>,
     config_source: Arc<RwLock<ConfigSource>>,
     web_status: WebStartupStatus,
     tunnel: WebTunnelState,
+    runtime_applier: Option<Arc<dyn RuntimeConfigApplier>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -75,16 +83,55 @@ impl WebApiState {
     ) -> Self {
         let remote_bind = !is_loopback_host(&bind_host);
         let config_source = runtime_config.config_source.clone();
+        let startup_config = Arc::new(runtime_config.clone());
         Self {
             asset_root,
             bind_host,
             policy: WebEndpointPolicy::new(remote_bind),
             events,
+            startup_config,
             config: Arc::new(RwLock::new(runtime_config)),
             config_source: Arc::new(RwLock::new(config_source)),
             web_status,
             tunnel,
+            runtime_applier: None,
         }
+    }
+
+    pub fn with_runtime_applier(mut self, applier: Option<Arc<dyn RuntimeConfigApplier>>) -> Self {
+        self.runtime_applier = applier;
+        self
+    }
+
+    pub(crate) async fn sync_saved_config(
+        &self,
+        runtime: RuntimeConfig,
+        source: ConfigSource,
+    ) -> Vec<String> {
+        {
+            let mut config = self.config.write().await;
+            *config = runtime.clone();
+        }
+        {
+            let mut config_source = self.config_source.write().await;
+            *config_source = source;
+        }
+        self.events.update_thresholds(&runtime.monitor);
+        self.tunnel.configure_provider(&runtime).await;
+        if let Some(applier) = &self.runtime_applier {
+            applier.apply_runtime_config(&runtime).await;
+        }
+        let tunnel_running = self.tunnel.active_tunnel(Utc::now()).await.is_some();
+        crate::app::restart_required_sections(&self.startup_config, &runtime, tunnel_running)
+    }
+
+    pub(crate) async fn sync_external_config(
+        &self,
+        runtime: &RuntimeConfig,
+        source: &ConfigSource,
+    ) {
+        *self.config.write().await = runtime.clone();
+        *self.config_source.write().await = source.clone();
     }
 }
 
@@ -168,11 +215,38 @@ async fn web_policy(
     Ok(Json(state.policy))
 }
 
-async fn authorize_state_change(
+pub(super) async fn authorize_state_change(
     state: &WebApiState,
     headers: &HeaderMap,
 ) -> Result<(), WebErrorResponse> {
-    validate_host(state, headers).await?;
+    let surface = validate_host(state, headers).await?;
+    if let Some(fetch_site) = headers.get("sec-fetch-site") {
+        let Ok(fetch_site) = fetch_site.to_str() else {
+            return Err(forbidden(
+                "csrf_rejected",
+                "Cross-site state-changing requests are not allowed",
+            ));
+        };
+        if fetch_site.trim().eq_ignore_ascii_case("cross-site") {
+            return Err(forbidden(
+                "csrf_rejected",
+                "Cross-site state-changing requests are not allowed",
+            ));
+        }
+    }
+    if let Some(origin) = headers.get(ORIGIN) {
+        let Ok(origin) = origin.to_str() else {
+            return Err(forbidden("origin_rejected", "Origin header is not trusted"));
+        };
+        let request_host = headers
+            .get(HOST)
+            .and_then(|value| value.to_str().ok())
+            .map(host_without_port)
+            .unwrap_or_default();
+        if !is_trusted_state_change_origin(origin, request_host, surface) {
+            return Err(forbidden("origin_rejected", "Origin header is not trusted"));
+        }
+    }
     Ok(())
 }
 
@@ -240,6 +314,27 @@ fn is_trusted_origin(origin: &str) -> bool {
     origin.starts_with("http://127.0.0.1:")
         || origin.starts_with("http://localhost:")
         || origin.starts_with("http://[::1]:")
+}
+
+fn is_trusted_state_change_origin(origin: &str, request_host: &str, surface: RequestHost) -> bool {
+    let trimmed = origin.trim();
+    if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("null") {
+        return false;
+    }
+    if surface != RequestHost::Tunnel && is_trusted_origin(trimmed) {
+        return true;
+    }
+    let Ok(parsed) = url::Url::parse(trimmed) else {
+        return false;
+    };
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return false;
+    }
+    let Some(origin_host) = parsed.host_str() else {
+        return false;
+    };
+    let origin_host = host_without_port(origin_host);
+    !request_host.is_empty() && origin_host.eq_ignore_ascii_case(request_host)
 }
 
 fn is_loopback_host(host: &str) -> bool {

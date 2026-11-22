@@ -26,4 +26,6 @@ pub use types::{
     ConfiguredJournalSelector, JournalSelector, MonitorStartup, RuntimeBatch, RuntimeError,
     RuntimeNotification, RuntimeNotificationDelivery, RuntimeStatusSnapshot,
 };
-pub use web::{start_webui, start_webui_silent};
+pub use web::{
+    start_webui, start_webui_silent, start_webui_silent_with_applier, start_webui_with_applier,
+};

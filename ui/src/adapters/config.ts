@@ -120,6 +120,8 @@ export const configApiViewSchema = z.object({
     state_changing_reason: z.string(),
     remote_bind: z.boolean(),
   }),
+  restart_required: z.boolean().optional(),
+  restart_required_sections: z.array(z.string()).optional(),
 })
 
 export type LogLevelKey = (typeof logLevelKeys)[number]

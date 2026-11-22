@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest"
 import { logLevelKeys } from "@/adapters/config"
 import { loadMockConfigView } from "@/adapters/mock-config"
 import { formFromConfig } from "@/components/dashboard/config-form-model"
-import { configSectionStatus, routingGroups, routingSummary } from "./config-status"
+import {
+  configSectionStatus,
+  restartNoticeFromConfigView,
+  routingGroups,
+  routingSummary,
+} from "./config-status"
 
 const form = formFromConfig(loadMockConfigView("default").config)
 
@@ -54,5 +59,22 @@ describe("configSectionStatus", () => {
     expect(status.matrix).toEqual({ text: "Enabled", on: true })
     expect(status.tunnel.text).toBe("Cloudflare · auto start")
     expect(status.web).toEqual({ text: "0.0.0.0:9000 · disabled", on: false })
+  })
+})
+
+describe("restartNoticeFromConfigView", () => {
+  it("returns null when saved changes apply live", () => {
+    expect(restartNoticeFromConfigView(loadMockConfigView("default"))).toBeNull()
+  })
+
+  it("formats a clear restart notice when restart-only sections changed", () => {
+    const view = {
+      ...loadMockConfigView("default"),
+      restart_required: true,
+      restart_required_sections: ["Journal", "Web UI"],
+    }
+    expect(restartNoticeFromConfigView(view)).toBe(
+      "Saved to config. Restart ED Sentry to apply Journal, Web UI changes.",
+    )
   })
 })

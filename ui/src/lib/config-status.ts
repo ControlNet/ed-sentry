@@ -1,4 +1,4 @@
-import type { LogLevelKey } from "@/adapters/config"
+import type { ConfigApiView, LogLevelKey } from "@/adapters/config"
 import type { ConfigFormState } from "@/components/dashboard/config-form-model"
 
 export type RoutingGroup = {
@@ -91,4 +91,15 @@ export function configSectionStatus(
 
 function tunnelProviderShortName(provider: string): string {
   return provider === "cloudflare_quick" ? "Cloudflare" : provider
+}
+
+export function restartNoticeFromConfigView(view: ConfigApiView): string | null {
+  const sections = view.restart_required_sections ?? []
+  if (view.restart_required !== true && sections.length === 0) {
+    return null
+  }
+  if (sections.length > 0) {
+    return `Saved to config. Restart ED Sentry to apply ${sections.join(", ")} changes.`
+  }
+  return "Saved to config. Restart ED Sentry to apply changes that cannot reload live."
 }

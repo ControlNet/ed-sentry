@@ -1,22 +1,40 @@
+use std::sync::Arc;
+
 use chrono::Utc;
 
 use crate::app::{ServiceStatusKind, TunnelProvider, TunnelStatus, WebStartupStatus};
 use crate::config::RuntimeConfig;
 use crate::text::line_safe;
 use crate::web::tunnel_state::WebTunnelState;
-use crate::web::WebServer;
+use crate::web::{RuntimeConfigApplier, WebServer};
 
 use super::MonitorRuntime;
 
 pub async fn start_webui(config: &RuntimeConfig, runtime: &mut MonitorRuntime) -> WebServer {
-    let web_server = start_webui_silent(config, runtime).await;
+    start_webui_with_applier(config, runtime, None).await
+}
+
+pub async fn start_webui_with_applier(
+    config: &RuntimeConfig,
+    runtime: &mut MonitorRuntime,
+    applier: Option<Arc<dyn RuntimeConfigApplier>>,
+) -> WebServer {
+    let web_server = start_webui_silent_with_applier(config, runtime, applier).await;
     print_web_startup_status(&web_server.startup_status());
     print_web_warnings(web_server.warnings());
     web_server
 }
 
 pub async fn start_webui_silent(config: &RuntimeConfig, runtime: &mut MonitorRuntime) -> WebServer {
-    let web_server = crate::web::start_with_state(config, runtime.event_store()).await;
+    start_webui_silent_with_applier(config, runtime, None).await
+}
+
+pub async fn start_webui_silent_with_applier(
+    config: &RuntimeConfig,
+    runtime: &mut MonitorRuntime,
+    applier: Option<Arc<dyn RuntimeConfigApplier>>,
+) -> WebServer {
+    let web_server = crate::web::start_with_applier(config, runtime.event_store(), applier).await;
     runtime.web_status = web_server.startup_status();
     web_server
 }

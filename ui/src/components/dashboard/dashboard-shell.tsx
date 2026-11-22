@@ -2,6 +2,7 @@ import clsx from "clsx"
 import { useRef, useState } from "react"
 import type { AppSnapshot, DashboardAdapter, DashboardConnectionState } from "@/adapters/dashboard"
 import { formatMinutes, parseTimestamp, utcClock } from "@/lib/format"
+import { FieldMessage } from "./config-form-fields"
 import { AppFrame, Ind, type Tone } from "./g1-ui"
 import { NavCardArt } from "./nav-card-art"
 import { TacticalAboutView } from "./tactical-about-view"
@@ -13,11 +14,13 @@ import { useLiveNow } from "./use-live-now"
 import { useChangeFlash } from "./use-live-updates"
 
 type DashboardShellProps = {
-  readonly snapshot: AppSnapshot
+  readonly snapshot: AppSnapshot | null
+  readonly errorMessage?: string | null
   readonly adapter: DashboardAdapter
   readonly connection: DashboardConnectionState
   readonly isRefreshing: boolean
   readonly onRefresh: () => void
+  readonly initialTab?: WorkspaceTab
 }
 
 type WorkspaceTab = "dashboard" | "missions" | "events" | "config" | "about"
@@ -32,19 +35,22 @@ const workspaceTabs = [
 
 export function DashboardShell({
   snapshot,
+  errorMessage,
   adapter,
   connection,
+  onRefresh,
+  initialTab = "dashboard",
 }: DashboardShellProps): React.JSX.Element {
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("dashboard")
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(initialTab)
   const scrollRef = useRef<HTMLElement | null>(null)
-  const nowMs = useLiveNow(snapshot.generated_at)
+  const nowMs = useLiveNow(snapshot?.generated_at ?? "1970-01-01T00:00:00Z")
   const titlebarDragDebugEnabled = readTitlebarDragDebugFlag()
   const activeDefinition = workspaceTabs.find((tab) => tab.id === activeTab) ?? workspaceTabs[0]
   const isTauri = adapter.mode === "tauri"
   const showTauriChrome = isTauri || titlebarDragDebugEnabled
   const tauriDragRegion = showTauriChrome ? "" : undefined
-  const system = snapshot.session.system ?? null
-  const lastEventMs = parseTimestamp(snapshot.event_feed[0]?.timestamp)
+  const system = snapshot?.session.system ?? null
+  const lastEventMs = parseTimestamp(snapshot?.event_feed[0]?.timestamp)
   const lastEventFlash = useChangeFlash(lastEventMs ?? "")
 
   const selectTab = (tab: WorkspaceTab): void => {
@@ -142,13 +148,24 @@ export function DashboardShell({
 
         <div className="main">
           <main className="scroll" ref={scrollRef}>
-            {renderWorkspace(activeTab, snapshot, adapter, nowMs, () => selectTab("events"))}
+            {renderWorkspace(
+              activeTab,
+              snapshot,
+              errorMessage,
+              adapter,
+              nowMs,
+              onRefresh,
+              selectTab,
+            )}
           </main>
           <footer className="keys">
             <span className="sb">
-              Session <span className="wh">{sessionElapsed(snapshot, nowMs)}</span>
+              Session{" "}
+              <span className="wh">
+                {snapshot === null ? "—" : sessionElapsed(snapshot, nowMs)}
+              </span>
             </span>
-            <CommanderLine session={snapshot.session} />
+            {snapshot === null ? null : <CommanderLine session={snapshot.session} />}
           </footer>
         </div>
       </div>
@@ -324,22 +341,79 @@ function readTitlebarDragDebugFlag(): boolean {
 
 function renderWorkspace(
   activeTab: WorkspaceTab,
-  snapshot: AppSnapshot,
+  snapshot: AppSnapshot | null,
+  errorMessage: string | null | undefined,
   adapter: DashboardAdapter,
   nowMs: number,
-  openEvents: () => void,
+  onRetry: () => void,
+  selectTab: (tab: WorkspaceTab) => void,
 ): React.JSX.Element {
+  if (activeTab === "config") {
+    return snapshot === null ? (
+      <div>
+        <div className="sys-msgs">
+          <FieldMessage tone="error">
+            {errorMessage ?? "The active adapter did not return a dashboard snapshot."}
+          </FieldMessage>
+          <div style={{ marginTop: 10 }}>
+            <button type="button" className="btn" onClick={onRetry}>
+              Retry
+            </button>
+          </div>
+        </div>
+        <TacticalSystemsView adapter={adapter} />
+      </div>
+    ) : (
+      <TacticalSystemsView adapter={adapter} />
+    )
+  }
+  if (activeTab === "about") {
+    return <TacticalAboutView />
+  }
+  if (snapshot === null) {
+    return (
+      <div className="err-wrap">
+        <section
+          className="pnl"
+          aria-label="Dashboard unavailable"
+          style={{ width: "min(100%, 560px)" }}
+        >
+          <h2 className="pt">
+            <span>Dashboard unavailable</span>
+          </h2>
+          <p className="sec2" style={{ margin: "0 0 16px" }}>
+            {errorMessage ?? "The active adapter did not return a dashboard snapshot."}
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button type="button" className="btn" onClick={onRetry}>
+              Retry
+            </button>
+            <button
+              type="button"
+              className="seg seg-on seg-0"
+              style={{ minHeight: 36, padding: "0 16px" }}
+              onClick={() => selectTab("config")}
+            >
+              Open Systems
+            </button>
+          </div>
+        </section>
+      </div>
+    )
+  }
   switch (activeTab) {
     case "dashboard":
-      return <TacticalTelemetryView snapshot={snapshot} nowMs={nowMs} onOpenEvents={openEvents} />
+      return (
+        <TacticalTelemetryView
+          snapshot={snapshot}
+          nowMs={nowMs}
+          onOpenEvents={() => selectTab("events")}
+        />
+      )
     case "missions":
       return <TacticalMissionsView snapshot={snapshot} nowMs={nowMs} />
     case "events":
       return <TacticalEventsView snapshot={snapshot} nowMs={nowMs} />
-    case "config":
-      return <TacticalSystemsView adapter={adapter} />
-    case "about":
-      return <TacticalAboutView />
     default:
       return assertNever(activeTab)
   }

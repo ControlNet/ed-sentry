@@ -235,6 +235,7 @@ export interface DashboardAdapter {
   readonly mode: AdapterMode
   readonly label: string
   loadSnapshot(): Promise<AppSnapshot>
+  retryStartup?(): Promise<AppSnapshot>
   loadConfig(): Promise<ConfigApiView>
   saveConfig(update: EditableConfigUpdate): Promise<ConfigApiView>
   loadTunnelStatus?(): Promise<TunnelStatusView>

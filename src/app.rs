@@ -15,10 +15,10 @@ pub use afk_checklist::{
     AfkChecklistRowView, AfkChecklistState, AfkChecklistView, ChecklistRowSource, ChecklistRowState,
 };
 pub use config::{
-    ConfigApiView, ConfigEndpointPolicy, EditableConfigUpdate, EditableConfigView,
-    JournalConfigEdit, JournalConfigView, LogLevelConfigEdit, LogLevelConfigView, MatrixConfigEdit,
-    MatrixConfigView, MonitorConfigEdit, MonitorConfigView, TunnelConfigEdit, TunnelConfigView,
-    WebConfigEdit, WebConfigView,
+    restart_required_sections, ConfigApiView, ConfigEndpointPolicy, EditableConfigUpdate,
+    EditableConfigView, JournalConfigEdit, JournalConfigView, LogLevelConfigEdit,
+    LogLevelConfigView, MatrixConfigEdit, MatrixConfigView, MonitorConfigEdit, MonitorConfigView,
+    TunnelConfigEdit, TunnelConfigView, WebConfigEdit, WebConfigView,
 };
 pub use display::{RateView, ValueDisplay};
 pub use events::{

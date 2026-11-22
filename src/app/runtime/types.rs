@@ -10,6 +10,7 @@ use crate::app::{AppSnapshot, EventFeedItem, NotificationView};
 #[derive(Debug)]
 pub struct RuntimeError {
     message: String,
+    journal_error: Option<JournalError>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -77,13 +78,21 @@ impl RuntimeError {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+            journal_error: None,
         }
+    }
+
+    pub fn journal_error(&self) -> Option<&JournalError> {
+        self.journal_error.as_ref()
     }
 }
 
 impl From<JournalError> for RuntimeError {
     fn from(error: JournalError) -> Self {
-        Self::new(error.to_string())
+        Self {
+            message: error.to_string(),
+            journal_error: Some(error),
+        }
     }
 }
 

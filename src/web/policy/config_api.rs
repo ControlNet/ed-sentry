@@ -22,6 +22,8 @@ pub(super) async fn config_view(
         version: 1,
         config: EditableConfigView::from_runtime_config(&config),
         policy: state.policy.clone(),
+        restart_required: false,
+        restart_required_sections: Vec::new(),
     }))
 }
 
@@ -37,15 +39,15 @@ pub(super) async fn update_config(
     let runtime = outcome
         .config
         .into_runtime_with_source(outcome.source.clone(), &Default::default());
-    {
-        let mut config = state.config.write().await;
-        *config = runtime;
-    }
-    {
-        let mut config_source = state.config_source.write().await;
-        *config_source = outcome.source;
-    }
-    config_view(State(state), headers).await
+    let restart_required_sections = state.sync_saved_config(runtime, outcome.source).await;
+    let config = state.config.read().await;
+    Ok(Json(ConfigApiView {
+        version: 1,
+        config: EditableConfigView::from_runtime_config(&config),
+        policy: state.policy.clone(),
+        restart_required: !restart_required_sections.is_empty(),
+        restart_required_sections,
+    }))
 }
 
 async fn authorize_config_access(

@@ -134,7 +134,8 @@ impl TunnelAuth {
         &self,
         request: TunnelAuthIssue<'_>,
     ) -> Result<Option<TunnelAuthToken>, TunnelAuthError> {
-        if request.config_password.is_empty() || request.password_attempt != request.config_password
+        if request.config_password.is_empty()
+            || !constant_time_eq(request.password_attempt, request.config_password)
         {
             return Ok(None);
         }
@@ -253,4 +254,36 @@ fn validate_claims(
         return Err(TunnelAuthError::StaleSession);
     }
     Ok(())
+}
+
+fn constant_time_eq(left: &str, right: &str) -> bool {
+    let left = left.as_bytes();
+    let right = right.as_bytes();
+    if left.len() != right.len() {
+        return false;
+    }
+    let mut diff = 0_u8;
+    for (&lhs, &rhs) in left.iter().zip(right.iter()) {
+        diff |= std::hint::black_box(lhs ^ rhs);
+    }
+    std::hint::black_box(diff) == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::constant_time_eq;
+
+    #[test]
+    fn constant_time_password_comparison_checks_length_and_all_bytes() {
+        assert!(constant_time_eq("fixture-password", "fixture-password"));
+        assert!(constant_time_eq("", ""));
+        assert!(!constant_time_eq("fixture-password", "Xixture-password"));
+        assert!(!constant_time_eq("fixture-password", "fixture-Xassword"));
+        assert!(!constant_time_eq("fixture-password", "fixture-passworX"));
+        assert!(!constant_time_eq(
+            "fixture-password",
+            "fixture-password-extra"
+        ));
+        assert!(!constant_time_eq("fixture", "fixture-password"));
+    }
 }

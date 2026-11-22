@@ -1,10 +1,17 @@
-use ed_sentry::config::{AppConfig, ConfigPath, ConfigSource};
-use ed_sentry::web::start_with_state;
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use chrono::Utc;
+use ed_sentry::app::runtime::{ConfiguredJournalSelector, MonitorRuntime};
+use ed_sentry::app::{MatrixStartupStatus, WebStartupStatus};
+use ed_sentry::config::{AppConfig, ConfigPath, ConfigSource, RuntimeConfig};
+use ed_sentry::web::{start_with_applier, start_with_state, RuntimeConfigApplier};
 use serde_json::Value;
+use tokio::sync::Mutex;
 
 use crate::support::{
-    api_runtime, api_runtime_for_source, api_store, env_lock, json_body, put_config,
-    write_api_config, write_dist,
+    api_runtime, api_runtime_for_source, api_store, env_lock, json_body, put_config, request,
+    write_api_config, write_dist, write_journal_fixture,
 };
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -80,7 +87,7 @@ async fn webui_api_config_update_clears_matrix_token_only_when_explicit() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn webui_api_config_writes_ignore_origin_but_keep_host_validation() {
+async fn webui_api_config_writes_reject_untrusted_origin_and_keep_same_origin_and_cli() {
     let _env = env_lock().await;
     let temp_dir = tempfile::tempdir().unwrap();
     let dist = tempfile::tempdir().unwrap();
@@ -90,18 +97,15 @@ async fn webui_api_config_writes_ignore_origin_but_keep_host_validation() {
     write_api_config(&config_path, temp_dir.path());
     let loopback = api_runtime(&config_path, 0, "127.0.0.1");
     let loopback_server = start_with_state(&loopback, api_store(&loopback)).await;
+    let loopback_port = loopback_server.bound_port().unwrap();
     let body = r#"{"web":{"enabled":true,"host":"0.0.0.0","port":8765,"open_browser":false}}"#;
-    let bad_host = put_config(
-        loopback_server.bound_port().unwrap(),
-        body,
-        "evil.invalid",
-        "",
-    );
-    let remote_origin = put_config(
-        loopback_server.bound_port().unwrap(),
+    let bad_host = put_config(loopback_port, body, "evil.invalid", "");
+    let remote_origin = put_config(loopback_port, body, "127.0.0.1", "http://evil.invalid");
+    let same_origin = put_config(
+        loopback_port,
         body,
         "127.0.0.1",
-        "http://evil.invalid",
+        &format!("http://127.0.0.1:{loopback_port}"),
     );
     let remote = api_runtime(&config_path, 0, "0.0.0.0");
     let remote_server = start_with_state(&remote, api_store(&remote)).await;
@@ -109,12 +113,103 @@ async fn webui_api_config_writes_ignore_origin_but_keep_host_validation() {
 
     assert!(bad_host.starts_with("HTTP/1.1 403 Forbidden"), "{bad_host}");
     assert!(
-        remote_origin.starts_with("HTTP/1.1 200 OK"),
+        remote_origin.starts_with("HTTP/1.1 403 Forbidden"),
         "{remote_origin}"
     );
+    assert!(same_origin.starts_with("HTTP/1.1 200 OK"), "{same_origin}");
     assert!(
         remote_response.starts_with("HTTP/1.1 200 OK"),
         "{remote_response}"
+    );
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}
+
+struct TestMonitorConfigApplier {
+    monitor: Arc<Mutex<MonitorRuntime>>,
+}
+
+#[async_trait]
+impl RuntimeConfigApplier for TestMonitorConfigApplier {
+    async fn apply_runtime_config(&self, config: &RuntimeConfig) {
+        self.monitor
+            .lock()
+            .await
+            .apply_runtime_config(config, Utc::now());
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn webui_api_config_update_applies_live_monitor_settings_and_flags_restart_only_changes() {
+    let _env = env_lock().await;
+    let temp_dir = tempfile::tempdir().unwrap();
+    let journal_dir = temp_dir.path().join("journals");
+    write_journal_fixture(&journal_dir);
+    let dist = tempfile::tempdir().unwrap();
+    write_dist(dist.path(), "api live dist");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let config_path = temp_dir.path().join("config.toml");
+    write_api_config(&config_path, &journal_dir);
+    let runtime = api_runtime(&config_path, 0, "127.0.0.1");
+    let mut monitor = MonitorRuntime::start(
+        &runtime,
+        &mut ConfiguredJournalSelector,
+        MatrixStartupStatus::from_runtime_config(&runtime),
+        WebStartupStatus::from_current_runtime_config(&runtime),
+    )
+    .unwrap();
+    monitor.process_preload(Utc::now());
+    let events = monitor.event_store();
+    let monitor = Arc::new(Mutex::new(monitor));
+    let applier = Arc::new(TestMonitorConfigApplier {
+        monitor: Arc::clone(&monitor),
+    });
+    let server = start_with_applier(
+        &runtime,
+        events,
+        Some(applier as Arc<dyn RuntimeConfigApplier>),
+    )
+    .await;
+    let port = server.bound_port().unwrap();
+
+    let live_update = r#"{"monitor":{"warn_kill_rate":37,"warn_no_kills_minutes":14,"poll_interval_ms":350},"log_levels":{"scan_easy":0}}"#;
+    let live_response = put_config(port, live_update, "127.0.0.1", "http://127.0.0.1:3000");
+    let live_json = json_body(&live_response);
+    assert!(
+        live_response.starts_with("HTTP/1.1 200 OK"),
+        "{live_response}"
+    );
+    assert_eq!(live_json["restart_required"], Value::Bool(false));
+    assert_eq!(
+        monitor.lock().await.poll_interval(),
+        std::time::Duration::from_millis(350)
+    );
+
+    let snapshot_response = request(
+        port,
+        "GET /api/snapshot HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    );
+    let snapshot_json = json_body(&snapshot_response);
+    assert_eq!(
+        snapshot_json["thresholds"]["warn_kill_rate_per_hour"],
+        Value::from(37)
+    );
+    assert_eq!(
+        snapshot_json["thresholds"]["warn_no_kills_minutes"],
+        Value::from(14)
+    );
+
+    let restart_update =
+        r#"{"web":{"enabled":true,"host":"127.0.0.1","port":9876,"open_browser":false}}"#;
+    let restart_response = put_config(port, restart_update, "127.0.0.1", "http://127.0.0.1:3000");
+    let restart_json = json_body(&restart_response);
+    assert!(
+        restart_response.starts_with("HTTP/1.1 200 OK"),
+        "{restart_response}"
+    );
+    assert_eq!(restart_json["restart_required"], Value::Bool(true));
+    assert_eq!(
+        restart_json["restart_required_sections"],
+        serde_json::json!(["Web UI"])
     );
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }

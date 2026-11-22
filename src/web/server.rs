@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use chrono::Utc;
 use tokio::net::TcpListener;
@@ -7,13 +8,13 @@ use tokio::task::JoinHandle;
 use crate::app::{
     AppEventStore, AppSnapshot, MatrixStartupStatus, WebStartupStatus, WebStatusView,
 };
-use crate::config::{RuntimeConfig, WebConfig};
+use crate::config::{ConfigSource, RuntimeConfig, WebConfig};
 use crate::mission::MissionTracker;
 use crate::state::SessionState;
 use crate::text::line_safe;
 
 use super::assets::resolve_assets;
-use super::policy::{default_runtime_for_web_config, router, WebApiState};
+use super::policy::{default_runtime_for_web_config, router, RuntimeConfigApplier, WebApiState};
 use super::tunnel_state::WebTunnelState;
 
 pub struct WebServer {
@@ -22,6 +23,7 @@ pub struct WebServer {
     warnings: Vec<String>,
     handle: Option<JoinHandle<()>>,
     tunnel: Option<WebTunnelState>,
+    api_state: Option<WebApiState>,
 }
 
 impl WebServer {
@@ -32,6 +34,7 @@ impl WebServer {
             warnings: Vec::new(),
             handle: None,
             tunnel: None,
+            api_state: None,
         }
     }
 
@@ -53,6 +56,12 @@ impl WebServer {
 
     pub(crate) fn tunnel(&self) -> Option<WebTunnelState> {
         self.tunnel.clone()
+    }
+
+    pub(crate) async fn sync_external_config(&self, config: &RuntimeConfig, source: &ConfigSource) {
+        if let Some(api_state) = &self.api_state {
+            api_state.sync_external_config(config, source).await;
+        }
     }
 }
 
@@ -78,6 +87,14 @@ pub async fn start(config: &WebConfig) -> WebServer {
 }
 
 pub async fn start_with_state(config: &RuntimeConfig, events: AppEventStore) -> WebServer {
+    start_with_applier(config, events, None).await
+}
+
+pub async fn start_with_applier(
+    config: &RuntimeConfig,
+    events: AppEventStore,
+    applier: Option<Arc<dyn RuntimeConfigApplier>>,
+) -> WebServer {
     if !config.web.enabled {
         return WebServer::disabled();
     }
@@ -115,14 +132,16 @@ pub async fn start_with_state(config: &RuntimeConfig, events: AppEventStore) -> 
         Ok(tunnel) => tunnel,
         Err(_error) => return warning_server("WebUI tunnel auth could not be initialized"),
     };
-    let app = router(WebApiState::new(
+    let api_state = WebApiState::new(
         asset_root,
         config.web.host.clone(),
         config.clone(),
         events,
         status.clone(),
         tunnel.clone(),
-    ));
+    )
+    .with_runtime_applier(applier);
+    let app = router(api_state.clone());
     let handle = tokio::spawn(async move {
         if let Err(error) = axum::serve(
             listener,
@@ -143,6 +162,7 @@ pub async fn start_with_state(config: &RuntimeConfig, events: AppEventStore) -> 
         warnings: std::mem::take(&mut warnings),
         handle: Some(handle),
         tunnel: Some(tunnel),
+        api_state: Some(api_state),
     }
 }
 
@@ -164,6 +184,7 @@ fn warning_server(message: impl Into<String>) -> WebServer {
         warnings: vec![message],
         handle: None,
         tunnel: None,
+        api_state: None,
     }
 }
 

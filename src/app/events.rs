@@ -105,6 +105,15 @@ impl AppEventStore {
         });
     }
 
+    pub fn update_thresholds(&self, monitor: &crate::config::MonitorConfig) {
+        let mut state = self.lock_state();
+        state.snapshot = state.snapshot.clone().with_thresholds(monitor);
+        let snapshot = state.snapshot.clone();
+        state.broadcast(AppLiveUpdate::Snapshot {
+            snapshot: Box::new(snapshot),
+        });
+    }
+
     pub fn snapshot_with_history(&self, snapshot: AppSnapshot) -> AppSnapshot {
         self.lock_state().snapshot_with_history(snapshot)
     }

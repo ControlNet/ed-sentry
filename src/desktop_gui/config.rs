@@ -1,9 +1,12 @@
 use std::path::{Path, PathBuf};
 
+use crate::app::runtime::RuntimeError;
 use crate::app::{ConfigApiView, ConfigEndpointPolicy, EditableConfigView};
 use crate::config::{
     AppConfig, CliConfigOverrides, ConfigError, ConfigSource, ConfigWriteError, RuntimeConfig,
 };
+use crate::journal::JournalError;
+use crate::text::line_safe;
 
 pub(crate) struct DesktopStartup {
     pub(crate) config: RuntimeConfig,
@@ -75,6 +78,8 @@ pub(crate) fn config_api_view(config: &RuntimeConfig) -> ConfigApiView {
             state_changing_reason: "enabled for desktop config file".to_string(),
             remote_bind: false,
         },
+        restart_required: false,
+        restart_required_sections: Vec::new(),
     }
 }
 
@@ -125,6 +130,104 @@ fn safe_io_error(error: &std::io::Error) -> &'static str {
     }
 }
 
+fn safe_journal_io_error(error: &std::io::Error) -> &'static str {
+    match error.kind() {
+        std::io::ErrorKind::NotFound => "not found",
+        std::io::ErrorKind::PermissionDenied => "permission denied",
+        _ => "I/O error",
+    }
+}
+
+pub(crate) fn frontend_safe_runtime_startup_error(
+    error: &RuntimeError,
+    config: &RuntimeConfig,
+) -> String {
+    if let Some(journal_error) = error.journal_error() {
+        return match journal_error {
+            JournalError::DefaultPathUnavailable => {
+                "Desktop monitor startup failed: Journal folder is not configured and the default Saved Games folder is unavailable".to_string()
+            }
+            JournalError::NoJournalFiles { .. } => {
+                "Desktop monitor startup failed: no Journal.*.log files were found in the configured Journal folder".to_string()
+            }
+            JournalError::DirectoryRead { source, .. } => format!(
+                "Desktop monitor startup failed: configured Journal folder could not be read: {}",
+                safe_journal_io_error(source)
+            ),
+            JournalError::MetadataRead { source, .. } => format!(
+                "Desktop monitor startup failed: Journal metadata could not be read: {}",
+                safe_journal_io_error(source)
+            ),
+            JournalError::FileOpen { source, .. } => format!(
+                "Desktop monitor startup failed: Journal file could not be opened: {}",
+                safe_journal_io_error(source)
+            ),
+            JournalError::FileRead { source, .. } => format!(
+                "Desktop monitor startup failed: Journal file could not be read: {}",
+                safe_journal_io_error(source)
+            ),
+            JournalError::Callback { .. } => {
+                "Desktop monitor startup failed: Journal stream callback failed".to_string()
+            }
+        };
+    }
+
+    let sanitized = sanitize_runtime_error_detail(&error.to_string(), config);
+    if sanitized.is_empty() {
+        "Desktop monitor startup failed".to_string()
+    } else {
+        format!("Desktop monitor startup failed: {sanitized}")
+    }
+}
+
+fn sanitize_runtime_error_detail(message: &str, config: &RuntimeConfig) -> String {
+    let mut sanitized = line_safe(message);
+    if let Some(token) = config
+        .matrix
+        .as_ref()
+        .and_then(|matrix| matrix.access_token.as_deref())
+        .filter(|token| !token.is_empty())
+    {
+        sanitized = sanitized.replace(token, "[redacted]");
+    }
+    if !config.tunnel.config_password.is_empty() {
+        sanitized = sanitized.replace(&config.tunnel.config_password, "[redacted]");
+    }
+    if !config.journal.folder.is_empty() {
+        sanitized = sanitized.replace(&config.journal.folder, "[redacted path]");
+    }
+    if let Some(set_file) = &config.set_file {
+        let set_file_display = set_file.to_string_lossy();
+        if !set_file_display.is_empty() {
+            sanitized = sanitized.replace(set_file_display.as_ref(), "[redacted path]");
+        }
+    }
+    sanitized
+        .split_whitespace()
+        .map(|token| {
+            if looks_like_absolute_path(token) {
+                "[redacted path]"
+            } else {
+                token
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn looks_like_absolute_path(token: &str) -> bool {
+    let trimmed =
+        token.trim_matches(|ch: char| matches!(ch, '"' | '\'' | '(' | ')' | ',' | ':' | ';'));
+    if trimmed.starts_with('/') && trimmed.len() > 1 {
+        return true;
+    }
+    let bytes = trimmed.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -173,5 +276,56 @@ mod tests {
             "Config save failed: config file could not be written: permission denied"
         );
         assert!(!save_message.contains(CONFIG_PATH) && !save_message.contains("config.toml"));
+    }
+
+    #[test]
+    fn runtime_startup_errors_report_reason_without_paths_or_secrets() {
+        let private_dir = PathBuf::from("/var/tmp/ed-sentry-private-journals");
+        let missing_error = super::frontend_safe_runtime_startup_error(
+            &crate::app::runtime::RuntimeError::from(
+                crate::journal::JournalError::NoJournalFiles {
+                    folder: private_dir.clone(),
+                },
+            ),
+            &crate::config::RuntimeConfig::default(),
+        );
+        assert_eq!(
+            missing_error,
+            "Desktop monitor startup failed: no Journal.*.log files were found in the configured Journal folder"
+        );
+        assert!(!missing_error.contains("/var/tmp"));
+
+        let unreadable_error = super::frontend_safe_runtime_startup_error(
+            &crate::app::runtime::RuntimeError::from(crate::journal::JournalError::DirectoryRead {
+                path: private_dir,
+                source: std::io::Error::new(std::io::ErrorKind::NotFound, "missing"),
+            }),
+            &crate::config::RuntimeConfig::default(),
+        );
+        assert_eq!(
+            unreadable_error,
+            "Desktop monitor startup failed: configured Journal folder could not be read: not found"
+        );
+        assert!(!unreadable_error.contains("/var/tmp"));
+
+        let mut config = crate::config::RuntimeConfig::default();
+        config.matrix = Some(crate::config::MatrixConfig {
+            enabled: true,
+            homeserver: Some("https://matrix.invalid".to_string()),
+            room_id: Some("!room:matrix.invalid".to_string()),
+            access_token: Some("fixture-secret-matrix-token".to_string()),
+            mention_user_id: None,
+            status_update_interval_seconds: 60,
+        });
+        config.tunnel.config_password = "fixture-tunnel-secret".to_string();
+        let generic_error = super::frontend_safe_runtime_startup_error(
+            &crate::app::runtime::RuntimeError::new(
+                "auth failed with fixture-secret-matrix-token and fixture-tunnel-secret at C:\\Users\\Cmdr\\Saved Games\\Journal.log",
+            ),
+            &config,
+        );
+        assert!(!generic_error.contains("fixture-secret-matrix-token"));
+        assert!(!generic_error.contains("fixture-tunnel-secret"));
+        assert!(!generic_error.contains("C:\\Users\\Cmdr"));
     }
 }

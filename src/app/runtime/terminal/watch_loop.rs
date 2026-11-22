@@ -1,11 +1,12 @@
 use std::io::Write;
 use std::path::Path;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use chrono::Utc;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 use tokio::time::Interval;
 
+use crate::config::RuntimeConfig;
 use crate::delivery::DeliveryHub;
 use crate::text::line_safe;
 
@@ -22,12 +23,14 @@ enum TerminalLoopWake {
     Events(Vec<AfkWatcherEvent>),
     WatcherClosed,
     Interval,
+    ConfigUpdated(Box<RuntimeConfig>),
 }
 
 enum TerminalRawWake {
     Watcher(Option<AfkWatcherEvent>),
     Debounce,
     Interval,
+    ConfigUpdated(Box<RuntimeConfig>),
 }
 
 impl TerminalFileWatcher {
@@ -48,26 +51,43 @@ impl TerminalFileWatcher {
     }
 }
 
-pub(super) async fn run<W: Write>(
+pub(super) async fn run_with_config_updates<W: Write>(
     runtime: &mut MonitorRuntime,
     delivery: &mut DeliveryHub<W>,
     selected_file: &Path,
+    config_rx: Option<watch::Receiver<RuntimeConfig>>,
 ) -> Result<(), RuntimeError> {
     let file_watcher = TerminalFileWatcher::start(selected_file);
-    run_loop(runtime, delivery, file_watcher).await
+    run_loop_with_config_updates(runtime, delivery, file_watcher, config_rx).await
 }
 
+#[cfg(test)]
 pub(super) async fn run_loop<W: Write>(
     runtime: &mut MonitorRuntime,
     delivery: &mut DeliveryHub<W>,
+    file_watcher: TerminalFileWatcher,
+) -> Result<(), RuntimeError> {
+    run_loop_with_config_updates(runtime, delivery, file_watcher, None).await
+}
+
+pub(super) async fn run_loop_with_config_updates<W: Write>(
+    runtime: &mut MonitorRuntime,
+    delivery: &mut DeliveryHub<W>,
     mut file_watcher: TerminalFileWatcher,
+    mut config_rx: Option<watch::Receiver<RuntimeConfig>>,
 ) -> Result<(), RuntimeError> {
     let mut interval = tokio::time::interval(runtime.poll_interval());
     let mut event_buffer = WatcherEventBuffer::new();
     interval.tick().await;
 
     loop {
-        let wake = next_loop_wake(&mut file_watcher, &mut interval, &mut event_buffer).await;
+        let wake = next_loop_wake(
+            &mut file_watcher,
+            &mut interval,
+            &mut event_buffer,
+            &mut config_rx,
+        )
+        .await;
 
         match wake {
             TerminalLoopWake::Events(events) => {
@@ -82,6 +102,11 @@ pub(super) async fn run_loop<W: Write>(
                 watch_runner::poll_and_deliver(runtime, delivery, TitleMode::PlatformWindow)
                     .await?;
             }
+            TerminalLoopWake::ConfigUpdated(config) => {
+                runtime.apply_runtime_config(&config, Utc::now());
+                interval = tokio::time::interval(runtime.poll_interval());
+                interval.tick().await;
+            }
         }
     }
 }
@@ -90,9 +115,48 @@ async fn next_loop_wake(
     file_watcher: &mut TerminalFileWatcher,
     interval: &mut Interval,
     event_buffer: &mut WatcherEventBuffer,
+    config_rx: &mut Option<watch::Receiver<RuntimeConfig>>,
 ) -> TerminalLoopWake {
     let delay = event_buffer.next_delay(Instant::now());
-    let raw_wake = match (file_watcher.events.as_mut(), delay) {
+    let raw_wake = tokio::select! {
+        updated = wait_for_config_update(config_rx) => match updated {
+            Some(config) => TerminalRawWake::ConfigUpdated(Box::new(config)),
+            None => TerminalRawWake::Interval,
+        },
+        wake = next_terminal_file_or_timer_wake(file_watcher, interval, delay) => wake,
+    };
+    match raw_wake {
+        TerminalRawWake::Watcher(Some(event)) => {
+            TerminalLoopWake::Events(event_buffer.accept(event, Instant::now()))
+        }
+        TerminalRawWake::Watcher(None) => TerminalLoopWake::WatcherClosed,
+        TerminalRawWake::Debounce => {
+            TerminalLoopWake::Events(event_buffer.drain_ready(Instant::now()))
+        }
+        TerminalRawWake::Interval => TerminalLoopWake::Interval,
+        TerminalRawWake::ConfigUpdated(config) => TerminalLoopWake::ConfigUpdated(config),
+    }
+}
+
+async fn wait_for_config_update(
+    config_rx: &mut Option<watch::Receiver<RuntimeConfig>>,
+) -> Option<RuntimeConfig> {
+    let Some(rx) = config_rx.as_mut() else {
+        return std::future::pending().await;
+    };
+    if rx.changed().await.is_err() {
+        *config_rx = None;
+        return std::future::pending().await;
+    }
+    Some(rx.borrow_and_update().clone())
+}
+
+async fn next_terminal_file_or_timer_wake(
+    file_watcher: &mut TerminalFileWatcher,
+    interval: &mut Interval,
+    delay: Option<Duration>,
+) -> TerminalRawWake {
+    match (file_watcher.events.as_mut(), delay) {
         (Some(events), Some(delay)) => {
             tokio::select! {
                 event = events.recv() => TerminalRawWake::Watcher(event),
@@ -116,16 +180,6 @@ async fn next_loop_wake(
             interval.tick().await;
             TerminalRawWake::Interval
         }
-    };
-    match raw_wake {
-        TerminalRawWake::Watcher(Some(event)) => {
-            TerminalLoopWake::Events(event_buffer.accept(event, Instant::now()))
-        }
-        TerminalRawWake::Watcher(None) => TerminalLoopWake::WatcherClosed,
-        TerminalRawWake::Debounce => {
-            TerminalLoopWake::Events(event_buffer.drain_ready(Instant::now()))
-        }
-        TerminalRawWake::Interval => TerminalLoopWake::Interval,
     }
 }
 

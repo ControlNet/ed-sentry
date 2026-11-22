@@ -66,6 +66,10 @@ impl WebTunnelState {
         self.manager.lock().await.refresh(now)
     }
 
+    pub(crate) async fn configure_provider(&self, config: &RuntimeConfig) {
+        self.manager.lock().await.configure_provider(config);
+    }
+
     pub(crate) async fn start(&self, now: DateTime<Utc>) -> TunnelStatus {
         self.manager.lock().await.manual_start(now).await
     }

@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::app::TunnelStatusView;
 
-use super::{forbidden, validate_host, WebApiState, WebError, WebErrorBody, WebErrorResponse};
+use super::{
+    authorize_state_change, forbidden, validate_host, WebApiState, WebError, WebErrorBody,
+    WebErrorResponse,
+};
 
 #[derive(Debug, Deserialize)]
 pub(super) struct TunnelLoginRequest {
@@ -30,7 +33,7 @@ pub(super) async fn start(
     State(state): State<WebApiState>,
     headers: HeaderMap,
 ) -> Result<Json<TunnelStatusView>, WebErrorResponse> {
-    validate_host(&state, &headers).await?;
+    authorize_state_change(&state, &headers).await?;
     let status = state.tunnel.start(Utc::now()).await;
     let snapshot = state
         .events
@@ -47,7 +50,7 @@ pub(super) async fn login(
     headers: HeaderMap,
     Json(request): Json<TunnelLoginRequest>,
 ) -> Result<Json<TunnelLoginResponse>, WebErrorResponse> {
-    validate_host(&state, &headers).await?;
+    authorize_state_change(&state, &headers).await?;
     let config = state.config.read().await;
     let password = config.tunnel.config_password.clone();
     drop(config);

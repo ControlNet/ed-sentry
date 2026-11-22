@@ -2,6 +2,7 @@ mod config;
 mod runtime;
 mod state;
 
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use tauri::{Manager, State};
@@ -10,23 +11,25 @@ use tauri_plugin_opener::OpenerExt;
 use crate::app::{AppSnapshot, ConfigApiView, EditableConfigUpdate, TunnelStatusView};
 
 use self::config::{config_api_view, load_desktop_startup};
-use self::runtime::spawn_desktop_runtime;
+use self::runtime::{prepare_retry_state, spawn_desktop_runtime, wait_for_desktop_runtime};
 use self::state::DesktopState;
 
 #[tauri::command]
 async fn load_snapshot(state: State<'_, Arc<DesktopState>>) -> Result<AppSnapshot, String> {
-    let mut startup_signal = state.startup_signal.subscribe();
-    loop {
-        if let Some(runtime) = state.runtime.read().await.clone() {
-            return Ok(runtime.snapshot().await);
-        }
-        if let Some(message) = state.startup_error.read().await.clone() {
-            return Err(message);
-        }
-        if startup_signal.changed().await.is_err() {
-            return Err("Desktop monitor startup channel closed".to_string());
-        }
+    let runtime = wait_for_desktop_runtime(&state).await?;
+    Ok(runtime.snapshot().await)
+}
+
+#[tauri::command]
+async fn retry_startup(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<DesktopState>>,
+) -> Result<AppSnapshot, String> {
+    if prepare_retry_state(&state).await? {
+        spawn_desktop_runtime(app, Arc::clone(&state));
     }
+    let runtime = wait_for_desktop_runtime(&state).await?;
+    Ok(runtime.snapshot().await)
 }
 
 #[tauri::command]
@@ -54,6 +57,13 @@ async fn save_config(
     state: State<'_, Arc<DesktopState>>,
     update: EditableConfigUpdate,
 ) -> Result<ConfigApiView, String> {
+    save_desktop_config(&state, update).await
+}
+
+pub(crate) async fn save_desktop_config(
+    state: &DesktopState,
+    update: EditableConfigUpdate,
+) -> Result<ConfigApiView, String> {
     let source = state.config_source.read().await.clone();
     let outcome = crate::config::AppConfig::write_update_to_source(&source, &update)
         .map_err(config::frontend_safe_config_write_error)?;
@@ -63,13 +73,29 @@ async fn save_config(
     );
     {
         let mut config = state.config.write().await;
-        *config = runtime_config;
+        *config = runtime_config.clone();
     }
     {
         let mut config_source = state.config_source.write().await;
         *config_source = outcome.source;
     }
-    load_config(state).await
+    state.config_load_failed.store(false, Ordering::Release);
+    let restart_required_sections = if let Some(runtime) = state.runtime.read().await.clone() {
+        runtime.apply_runtime_config(&runtime_config).await;
+        let tunnel_running = runtime.tunnel_is_running().await;
+        match state.running_config.read().await.as_ref() {
+            Some(running) => {
+                crate::app::restart_required_sections(running, &runtime_config, tunnel_running)
+            }
+            None => Vec::new(),
+        }
+    } else {
+        Vec::new()
+    };
+    let mut view = config_api_view(&runtime_config);
+    view.restart_required = !restart_required_sections.is_empty();
+    view.restart_required_sections = restart_required_sections;
+    Ok(view)
 }
 
 #[tauri::command]
@@ -88,18 +114,7 @@ fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
 async fn desktop_runtime(
     state: State<'_, Arc<DesktopState>>,
 ) -> Result<Arc<crate::app::runtime::DesktopRuntime>, String> {
-    let mut startup_signal = state.startup_signal.subscribe();
-    loop {
-        if let Some(runtime) = state.runtime.read().await.clone() {
-            return Ok(runtime);
-        }
-        if let Some(message) = state.startup_error.read().await.clone() {
-            return Err(message);
-        }
-        if startup_signal.changed().await.is_err() {
-            return Err("Desktop monitor startup channel closed".to_string());
-        }
-    }
+    wait_for_desktop_runtime(&state).await
 }
 
 pub fn run() -> tauri::Result<()> {
@@ -113,9 +128,11 @@ pub fn run() -> tauri::Result<()> {
             let startup = load_desktop_startup(&config_path);
             let should_start_runtime = startup.startup_error.is_none();
             let state = Arc::new(DesktopState::new(
+                Some(config_path),
                 startup.config,
                 startup.config_source,
                 startup.startup_error,
+                should_start_runtime,
             ));
             app.manage(Arc::clone(&state));
             if should_start_runtime {
@@ -125,6 +142,7 @@ pub fn run() -> tauri::Result<()> {
         })
         .invoke_handler(tauri::generate_handler![
             load_snapshot,
+            retry_startup,
             load_config,
             load_tunnel_status,
             start_tunnel,
