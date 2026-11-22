@@ -635,11 +635,26 @@ fn sort_journal_files_newest_first(files: &mut [JournalFile]) {
     files.sort_by(compare_journal_files_newest_first);
 }
 
+fn parse_journal_filename_part(path: &Path) -> Option<u32> {
+    let file_name = path.file_name()?.to_str()?;
+    let rest = file_name.strip_prefix("Journal.")?.strip_suffix(".log")?;
+    let mut parts = rest.split('.');
+    let _timestamp = parts.next()?;
+    let part = parts.next()?;
+    if parts.next().is_some() {
+        return None;
+    }
+    part.parse::<u32>().ok()
+}
+
 fn compare_journal_files_newest_first(left: &JournalFile, right: &JournalFile) -> Ordering {
     right
         .effective_timestamp()
         .cmp(&left.effective_timestamp())
         .then_with(|| right.filename_timestamp.cmp(&left.filename_timestamp))
+        .then_with(|| {
+            parse_journal_filename_part(&right.path).cmp(&parse_journal_filename_part(&left.path))
+        })
         .then_with(|| left.path.cmp(&right.path))
 }
 

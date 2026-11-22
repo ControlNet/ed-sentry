@@ -24,6 +24,29 @@ fn journal_discovery_newest_by_filename() {
 }
 
 #[test]
+fn journal_discovery_prefers_higher_part_number_when_timestamps_tie() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    write_file(temp_dir.path(), "Journal.2026-06-09T140000.01.log", "{}\n");
+    write_file(temp_dir.path(), "Journal.2026-06-09T140000.02.log", "{}\n");
+
+    let newest = select_newest_journal_file(temp_dir.path()).unwrap();
+    let choices = recent_journal_file_choices(temp_dir.path(), 2).unwrap();
+    let choice_names = choices
+        .iter()
+        .map(|choice| (choice.number, file_name(&choice.file.path)))
+        .collect::<Vec<_>>();
+
+    assert_eq!(file_name(&newest.path), "Journal.2026-06-09T140000.02.log");
+    assert_eq!(
+        choice_names,
+        [
+            (1, "Journal.2026-06-09T140000.02.log"),
+            (2, "Journal.2026-06-09T140000.01.log"),
+        ]
+    );
+}
+
+#[test]
 fn journal_discovery_empty_dir_error() {
     let temp_dir = tempfile::tempdir().unwrap();
 
