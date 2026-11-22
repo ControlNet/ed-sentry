@@ -15,4 +15,23 @@ describe("shouldApplySnapshotUpdate", () => {
     }
     expect(shouldApplySnapshotUpdate(mockDashboardSnapshot, next)).toBe(true)
   })
+
+  it("applies a snapshot that differs only in event_feed", () => {
+    const next = {
+      ...mockDashboardSnapshot,
+      event_feed: [
+        {
+          id: "warning:runtime_warning:1781965140000:000000000001",
+          source: "warning",
+          event_type: "runtime_warning",
+          level: 2,
+          summary: "Malformed journal line 9: invalid timestamp",
+          timestamp: "2026-06-20T14:19:00Z",
+          timestamp_display: "2026-06-20T14:19:00Z",
+        },
+        ...mockDashboardSnapshot.event_feed,
+      ],
+    }
+    expect(shouldApplySnapshotUpdate(mockDashboardSnapshot, next)).toBe(true)
+  })
 })

@@ -129,8 +129,26 @@ function eventsFromWebSocketMessage(
   message: z.infer<typeof webSocketMessageSchema>,
 ): readonly DashboardAdapterEvent[] {
   switch (message.type) {
-    case "hello":
-      return [{ type: "snapshot", snapshot: message.snapshot }]
+    case "hello": {
+      const mergedFeed =
+        message.event_feed.length === 0
+          ? message.snapshot.event_feed
+          : [
+              ...message.event_feed,
+              ...message.snapshot.event_feed.filter(
+                (existing) => !message.event_feed.some((item) => item.id === existing.id),
+              ),
+            ]
+      return [
+        {
+          type: "snapshot",
+          snapshot: {
+            ...message.snapshot,
+            event_feed: mergedFeed,
+          },
+        },
+      ]
+    }
     case "snapshot":
       return [{ type: "snapshot", snapshot: message.snapshot }]
     case "event":

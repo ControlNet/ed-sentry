@@ -33,6 +33,7 @@ function stableSnapshotKey(snapshot: AppSnapshot): string {
     web: snapshot.web,
     tunnel: snapshot.tunnel,
     thresholds: snapshot.thresholds,
+    event_feed: snapshot.event_feed.map((item) => item.id),
   })
 }
 
