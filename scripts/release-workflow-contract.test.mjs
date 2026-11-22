@@ -11,9 +11,10 @@ test("CI workflow runs for branches and pull requests, not tag pushes", async ()
   assert.doesNotMatch(workflow, /\n\s+target\/\n/u)
 })
 
-test("CI and release workflows run the frontend lint and unit tests", async () => {
+test("CI and release workflows run the frontend lint, unit tests, and release contract tests", async () => {
   for (const path of [".github/workflows/ci.yml", ".github/workflows/release.yml"]) {
     const workflow = await readFile(path, "utf8")
+    assert.match(workflow, /run: node --test scripts\/\*\.test\.mjs\n/u, path)
     assert.match(workflow, /run: pnpm --dir ui lint\n/u, path)
     assert.match(workflow, /run: pnpm --dir ui test\n/u, path)
   }

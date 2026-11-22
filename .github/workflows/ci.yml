@@ -63,6 +63,10 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --dir ui install --frozen-lockfile
 
+      - name: Run release contract tests
+        if: runner.os == 'Linux'
+        run: node --test scripts/*.test.mjs
+
       - name: Run frontend lint
         if: runner.os == 'Linux'
         run: pnpm --dir ui lint
