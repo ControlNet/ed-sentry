@@ -189,7 +189,7 @@ impl AppEventStore {
         let event_type = line_safe(event_type);
         EventFeedItem {
             id: format!(
-                "{}:{}:{}:{}",
+                "{}:{}:{}:{:012}",
                 source,
                 event_type,
                 timestamp.timestamp_millis(),

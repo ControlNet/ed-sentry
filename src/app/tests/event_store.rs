@@ -285,3 +285,23 @@ fn runtime_malformed_preload_warning_does_not_expose_raw_private_line() {
     assert!(!serialized.contains("seed-token"));
     assert!(!serialized.contains("/home/private"));
 }
+
+#[test]
+fn system_event_sequence_is_zero_padded_for_lexicographic_order() {
+    let now = timestamp();
+    let store = AppEventStore::with_capacity(empty_snapshot(now), 16);
+    for index in 1..=11 {
+        store.record_warning(format!("warning {index}"), now);
+    }
+
+    let events = store.subscribe().bootstrap.recent_events;
+    let ninth_id = &events[9].id;
+    let tenth_id = &events[10].id;
+
+    assert!(ninth_id.ends_with(":000000000009"), "{ninth_id}");
+    assert!(tenth_id.ends_with(":000000000010"), "{tenth_id}");
+    assert!(
+        ninth_id < tenth_id,
+        "{ninth_id} should sort before {tenth_id}"
+    );
+}
