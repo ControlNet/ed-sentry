@@ -1,5 +1,6 @@
 use std::{fs, path::Path, path::PathBuf};
 
+use super::super::file_watcher::normalize_path;
 use crate::app::AfkChecklistState;
 
 const STATUS_FILE: &str = "Status.json";
@@ -19,10 +20,13 @@ pub(super) struct CompanionPaths {
 
 impl CompanionPaths {
     pub(super) fn from_journal_file(journal_file: &Path) -> Option<Self> {
-        let companion_dir = journal_file.parent()?;
+        let companion_dir = journal_file
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
         Some(Self {
-            status: companion_dir.join(STATUS_FILE),
-            cargo: companion_dir.join(CARGO_FILE),
+            status: normalize_path(&companion_dir.join(STATUS_FILE)),
+            cargo: normalize_path(&companion_dir.join(CARGO_FILE)),
         })
     }
 
@@ -58,10 +62,11 @@ impl CompanionPaths {
     }
 
     fn classify(&self, path: &Path) -> Option<CompanionFile> {
-        if path == self.status {
+        let normalized = normalize_path(path);
+        if normalized == self.status {
             return Some(CompanionFile::Status);
         }
-        if path == self.cargo {
+        if normalized == self.cargo {
             return Some(CompanionFile::Cargo);
         }
         None

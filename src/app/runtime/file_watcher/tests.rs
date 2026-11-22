@@ -176,3 +176,33 @@ fn afk_companion_update_retries_partial_json_then_publishes_valid_state() {
         value["Flags"]
     );
 }
+
+#[test]
+fn afk_watcher_bare_selected_filename_matches_companion_events() {
+    let paths = WatchedFileSet::new(Path::new("Journal.2035-01-04T120000.01.log"));
+
+    assert_eq!(
+        paths.classify_path(Path::new("Status.json")),
+        Some(AfkWatcherEvent::StatusJson {
+            path: PathBuf::from("Status.json"),
+        })
+    );
+    assert_eq!(
+        paths.classify_path(Path::new("./Status.json")),
+        Some(AfkWatcherEvent::StatusJson {
+            path: PathBuf::from("Status.json"),
+        })
+    );
+    assert_eq!(
+        paths.classify_path(Path::new("Cargo.json")),
+        Some(AfkWatcherEvent::CargoJson {
+            path: PathBuf::from("Cargo.json"),
+        })
+    );
+    assert_eq!(
+        paths.classify_path(Path::new("./Cargo.json")),
+        Some(AfkWatcherEvent::CargoJson {
+            path: PathBuf::from("Cargo.json"),
+        })
+    );
+}

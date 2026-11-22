@@ -179,3 +179,37 @@ fn cli_config_file_select_chooses_recent_journal_from_stdin() {
     assert!(stdout.contains("Scan: Old Selected Viper"), "{stdout}");
     assert!(!stdout.contains("Scan: Newest Cobra"), "{stdout}");
 }
+
+#[test]
+fn cli_config_watch_starts_with_bare_set_file_name() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    journal::write_named_journal(
+        temp_dir.path(),
+        "Journal.2035-01-03T100000.01.log",
+        "Bare Path Viper",
+    );
+    std::fs::write(
+        temp_dir.path().join("Status.json"),
+        r#"{"Flags":64,"Pips":[4,0,8]}"#,
+    )
+    .unwrap();
+    std::fs::write(temp_dir.path().join("Cargo.json"), r#"{"Inventory":[]}"#).unwrap();
+
+    let mut command = command::binary_command();
+    command
+        .current_dir(temp_dir.path())
+        .arg("--set-file")
+        .arg("Journal.2035-01-03T100000.01.log")
+        .arg("--no-status-line");
+    let output = capture_output::capture_watch_output_until(
+        command,
+        &["Scan: Bare Path Viper"],
+        &[],
+        WATCH_READINESS_DEADLINE,
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+
+    assert!(stderr.is_empty(), "{stderr}");
+    assert!(stdout.contains("Scan: Bare Path Viper"), "{stdout}");
+}

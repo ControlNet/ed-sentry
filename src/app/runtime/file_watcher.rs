@@ -130,8 +130,8 @@ impl WatchedFileSet {
             .map(Path::to_path_buf)
             .unwrap_or_else(|| PathBuf::from("."));
         Self {
-            status_file: watch_dir.join(STATUS_FILE),
-            cargo_file: watch_dir.join(CARGO_FILE),
+            status_file: normalize_path(&watch_dir.join(STATUS_FILE)),
+            cargo_file: normalize_path(&watch_dir.join(CARGO_FILE)),
             selected_file,
             watch_dir,
         }
@@ -185,7 +185,7 @@ fn dispatch_notify_result(
     }
 }
 
-fn normalize_path(path: &Path) -> PathBuf {
+pub(super) fn normalize_path(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
     for component in path.components() {
         match component {

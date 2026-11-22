@@ -53,9 +53,10 @@ fn discover_history_candidates(
     selected_file: &Path,
 ) -> Result<Vec<JournalFile>, RuntimeError> {
     if config.set_file.is_some() {
-        let Some(parent) = selected_file.parent() else {
-            return Ok(Vec::new());
-        };
+        let parent = selected_file
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
         return match discover_journal_files(parent) {
             Ok(files) => Ok(files),
             Err(JournalError::NoJournalFiles { .. }) => Ok(Vec::new()),
