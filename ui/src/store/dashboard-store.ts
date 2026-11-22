@@ -51,11 +51,13 @@ export function createDashboardStore(adapterOverride?: DashboardAdapter) {
     unsubscribe: null,
     async start() {
       const { adapter, unsubscribe } = get()
-      if (unsubscribe === null && adapter.subscribe !== undefined) {
-        const adapterUnsubscribe = adapter.subscribe((event) => applyAdapterEvent(event, set, get))
+      if (unsubscribe === null) {
+        const adapterUnsubscribe = adapter.subscribe?.((event) =>
+          applyAdapterEvent(event, set, get),
+        )
         const refreshUnsubscribe = startLiveSnapshotRefresh(adapter, set, get)
         const nextUnsubscribe = () => {
-          adapterUnsubscribe()
+          adapterUnsubscribe?.()
           refreshUnsubscribe()
         }
         set({ unsubscribe: nextUnsubscribe })
@@ -147,22 +149,55 @@ function startLiveSnapshotRefresh(
   set: (state: Partial<DashboardState>) => void,
   get: () => DashboardState,
 ): DashboardAdapterUnsubscribe {
+  let active = true
   let refreshInFlight = false
   const refresh = () => {
-    if (refreshInFlight || get().snapshot === null) {
+    const state = get()
+    const shouldRecoverWebStartup =
+      adapter.mode === "web" && state.snapshot === null && state.status === "error"
+    if (!active || refreshInFlight || state.status === "loading") {
+      return
+    }
+    if (state.snapshot === null && !shouldRecoverWebStartup) {
       return
     }
     refreshInFlight = true
     void loadNormalizedSnapshot(adapter)
-      .then((snapshot) => setNormalizedSnapshot(snapshot, set, get))
+      .then((snapshot) => {
+        if (!active) {
+          return
+        }
+        if (get().snapshot === null) {
+          setSnapshotFromRefresh(snapshot, adapter, set)
+          return
+        }
+        setNormalizedSnapshot(snapshot, adapter, set, get)
+      })
       .catch((error: unknown) => {
+        if (!active) {
+          return
+        }
         if (error instanceof Error) {
+          const currentSnapshot = get().snapshot
+          if (currentSnapshot === null) {
+            set({
+              status: "error",
+              errorMessage: error.message,
+              connection: {
+                status: "error",
+                label: adapter.label,
+                detail: error.message,
+                checkedAtDisplay: null,
+              },
+            })
+            return
+          }
           set({
             connection: {
               status: "degraded",
               label: adapter.label,
               detail: error.message,
-              checkedAtDisplay: get().snapshot?.generated_at_display ?? null,
+              checkedAtDisplay: currentSnapshot.generated_at_display,
             },
           })
           return
@@ -174,7 +209,10 @@ function startLiveSnapshotRefresh(
       })
   }
   const interval = globalThis.setInterval(refresh, liveSnapshotRefreshMs)
-  return () => globalThis.clearInterval(interval)
+  return () => {
+    active = false
+    globalThis.clearInterval(interval)
+  }
 }
 
 async function loadNormalizedSnapshot(adapter: DashboardAdapter): Promise<AppSnapshot> {
@@ -189,6 +227,7 @@ function setSnapshotFromRefresh(
   set({
     snapshot,
     status: "ready",
+    errorMessage: null,
     connection: {
       status: "connected",
       label: adapter.label,
@@ -208,7 +247,7 @@ function applyAdapterEvent(
       set({ connection: event.connection })
       return
     case "snapshot":
-      setNormalizedSnapshot(event.snapshot, set, get)
+      setNormalizedSnapshot(event.snapshot, get().adapter, set, get)
       return
     case "event": {
       const currentSnapshot = get().snapshot
@@ -230,16 +269,29 @@ function applyAdapterEvent(
 
 function setNormalizedSnapshot(
   snapshot: AppSnapshot,
+  adapter: DashboardAdapter,
   set: (state: Partial<DashboardState>) => void,
   get: () => DashboardState,
 ): void {
-  const currentSnapshot = get().snapshot
+  const state = get()
+  const currentSnapshot = state.snapshot
   const normalizedSnapshot = normalizeSnapshot(snapshot)
+  const recoveredConnection =
+    state.connection.status === "error" || state.connection.status === "degraded"
+      ? {
+          connection: {
+            status: "connected" as const,
+            label: adapter.label,
+            detail: normalizedSnapshot.web.message ?? normalizedSnapshot.web.status_label,
+            checkedAtDisplay: normalizedSnapshot.generated_at_display,
+          },
+        }
+      : {}
   if (currentSnapshot !== null && !shouldApplySnapshotUpdate(currentSnapshot, normalizedSnapshot)) {
-    set({ status: "ready" })
+    set({ status: "ready", errorMessage: null, ...recoveredConnection })
     return
   }
-  set({ snapshot: normalizedSnapshot, status: "ready" })
+  set({ snapshot: normalizedSnapshot, status: "ready", errorMessage: null, ...recoveredConnection })
 }
 
 function setSnapshotTunnel(
