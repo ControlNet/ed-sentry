@@ -26,11 +26,17 @@ pub struct TerminalNotifier<W> {
     writer: W,
     zone: TimeDisplayZone,
     mode: TerminalMode,
+    can_use_tty_status: bool,
 }
 
 impl<W: Write> TerminalNotifier<W> {
     pub fn new(writer: W, zone: TimeDisplayZone, mode: TerminalMode) -> Self {
-        Self { writer, zone, mode }
+        Self {
+            writer,
+            zone,
+            mode,
+            can_use_tty_status: matches!(mode, TerminalMode::Tty),
+        }
     }
 
     pub fn plain(writer: W, zone: TimeDisplayZone) -> Self {
@@ -39,6 +45,27 @@ impl<W: Write> TerminalNotifier<W> {
 
     pub fn tty(writer: W, zone: TimeDisplayZone) -> Self {
         Self::new(writer, zone, TerminalMode::Tty)
+    }
+
+    pub const fn zone(&self) -> TimeDisplayZone {
+        self.zone
+    }
+
+    pub fn update_monitor_config(&mut self, config: &MonitorConfig) {
+        self.zone = if config.use_utc {
+            TimeDisplayZone::Utc
+        } else {
+            TimeDisplayZone::Local
+        };
+        let next_mode = if config.live_status && self.can_use_tty_status {
+            TerminalMode::Tty
+        } else {
+            TerminalMode::Plain
+        };
+        if self.mode == TerminalMode::Tty && next_mode == TerminalMode::Plain {
+            let _ = execute!(self.writer, MoveToColumn(0), Clear(ClearType::CurrentLine));
+        }
+        self.mode = next_mode;
     }
 
     pub fn render_status(&mut self, status_line: &str) -> anyhow::Result<()> {
@@ -86,7 +113,8 @@ impl<W: Write> TerminalNotifier<W> {
 impl TerminalNotifier<io::Stdout> {
     pub fn stdout(config: &MonitorConfig) -> Self {
         let stdout = io::stdout();
-        let mode = if config.live_status && stdout.is_terminal() {
+        let can_use_tty_status = stdout.is_terminal();
+        let mode = if config.live_status && can_use_tty_status {
             TerminalMode::Tty
         } else {
             TerminalMode::Plain
@@ -96,7 +124,12 @@ impl TerminalNotifier<io::Stdout> {
         } else {
             TimeDisplayZone::Local
         };
-        Self::new(stdout, zone, mode)
+        Self {
+            writer: stdout,
+            zone,
+            mode,
+            can_use_tty_status,
+        }
     }
 }
 

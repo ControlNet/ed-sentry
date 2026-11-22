@@ -31,7 +31,7 @@ pub fn restart_required_sections(
     tunnel_running: bool,
 ) -> Vec<String> {
     let mut sections = Vec::new();
-    if running.journal.folder != updated.journal.folder {
+    if running.journal != updated.journal {
         sections.push("Journal".to_string());
     }
     if running.matrix != updated.matrix {
@@ -40,7 +40,9 @@ pub fn restart_required_sections(
     if running.web != updated.web {
         sections.push("Web UI".to_string());
     }
-    if tunnel_running && running.tunnel.provider != updated.tunnel.provider {
+    if running.tunnel.auto_start != updated.tunnel.auto_start
+        || (tunnel_running && running.tunnel.provider != updated.tunnel.provider)
+    {
         sections.push("Tunnel".to_string());
     }
     sections
@@ -182,5 +184,40 @@ mod tests {
         assert!(json.contains("config_password_present"), "{json}");
         assert!(!json.contains("fixture-tunnel-password"), "{json}");
         assert!(!json.contains("config_password_replacement"), "{json}");
+    }
+
+    #[test]
+    fn restart_required_sections_distinguishes_live_and_restart_only_fields() {
+        let running = RuntimeConfig::default();
+
+        let mut live_updated = running.clone();
+        live_updated.monitor.use_utc = !running.monitor.use_utc;
+        live_updated.monitor.live_status = !running.monitor.live_status;
+        live_updated.monitor.dynamic_title = !running.monitor.dynamic_title;
+        live_updated.monitor.warn_kill_rate = 40;
+        live_updated.monitor.poll_interval_ms = 200;
+        live_updated.log_levels.scan_easy = 0;
+        live_updated.tunnel.config_password = "updated-password".to_string();
+        live_updated.tunnel.provider = "ssh".to_string();
+        assert!(super::restart_required_sections(&running, &live_updated, false).is_empty());
+
+        assert_eq!(
+            super::restart_required_sections(&running, &live_updated, true),
+            vec!["Tunnel"]
+        );
+
+        let mut recent_files_updated = running.clone();
+        recent_files_updated.journal.recent_files = running.journal.recent_files + 5;
+        assert_eq!(
+            super::restart_required_sections(&running, &recent_files_updated, false),
+            vec!["Journal"]
+        );
+
+        let mut auto_start_updated = running.clone();
+        auto_start_updated.tunnel.auto_start = !running.tunnel.auto_start;
+        assert_eq!(
+            super::restart_required_sections(&running, &auto_start_updated, false),
+            vec!["Tunnel"]
+        );
     }
 }

@@ -11,7 +11,7 @@ use crate::delivery::DeliveryHub;
 use crate::text::line_safe;
 
 use super::super::file_watcher::{AfkFileWatcher, AfkFileWatcherStart, AfkWatcherEvent};
-use super::super::watch_runner::{self, TitleMode, WatcherEventBuffer};
+use super::super::watch_runner::{self, TitleMode, WatcherEventBuffer, WindowTitleTracker};
 use super::super::{MonitorRuntime, RuntimeError};
 
 pub(super) struct TerminalFileWatcher {
@@ -73,8 +73,49 @@ pub(super) async fn run_loop<W: Write>(
 pub(super) async fn run_loop_with_config_updates<W: Write>(
     runtime: &mut MonitorRuntime,
     delivery: &mut DeliveryHub<W>,
+    file_watcher: TerminalFileWatcher,
+    config_rx: Option<watch::Receiver<RuntimeConfig>>,
+) -> Result<(), RuntimeError> {
+    let mut title_tracker = WindowTitleTracker::new(
+        TitleMode::PlatformWindow,
+        runtime.monitor_config().dynamic_title,
+    );
+    run_loop_with_tracker(
+        runtime,
+        delivery,
+        file_watcher,
+        config_rx,
+        &mut title_tracker,
+    )
+    .await
+}
+
+#[cfg(test)]
+pub(super) async fn run_loop_with_config_updates_and_titles<W: Write>(
+    runtime: &mut MonitorRuntime,
+    delivery: &mut DeliveryHub<W>,
+    file_watcher: TerminalFileWatcher,
+    config_rx: Option<watch::Receiver<RuntimeConfig>>,
+    titles: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+) -> Result<(), RuntimeError> {
+    let mut title_tracker =
+        WindowTitleTracker::recording(runtime.monitor_config().dynamic_title, titles);
+    run_loop_with_tracker(
+        runtime,
+        delivery,
+        file_watcher,
+        config_rx,
+        &mut title_tracker,
+    )
+    .await
+}
+
+async fn run_loop_with_tracker<W: Write>(
+    runtime: &mut MonitorRuntime,
+    delivery: &mut DeliveryHub<W>,
     mut file_watcher: TerminalFileWatcher,
     mut config_rx: Option<watch::Receiver<RuntimeConfig>>,
+    title_tracker: &mut WindowTitleTracker,
 ) -> Result<(), RuntimeError> {
     let mut interval = tokio::time::interval(runtime.poll_interval());
     let mut event_buffer = WatcherEventBuffer::new();
@@ -92,18 +133,27 @@ pub(super) async fn run_loop_with_config_updates<W: Write>(
         match wake {
             TerminalLoopWake::Events(events) => {
                 for event in events {
-                    deliver_event(runtime, delivery, event).await?;
+                    deliver_event_with_tracker(runtime, delivery, event, title_tracker).await?;
                 }
             }
             TerminalLoopWake::WatcherClosed => {
                 file_watcher.events = None;
             }
             TerminalLoopWake::Interval => {
-                watch_runner::poll_and_deliver(runtime, delivery, TitleMode::PlatformWindow)
+                watch_runner::poll_and_deliver_with_tracker(runtime, delivery, title_tracker)
                     .await?;
             }
             TerminalLoopWake::ConfigUpdated(config) => {
-                runtime.apply_runtime_config(&config, Utc::now());
+                let now = Utc::now();
+                runtime.apply_runtime_config(&config, now);
+                delivery.update_monitor_config(runtime.monitor_config());
+                let status = runtime.status_snapshot(now, false);
+                watch_runner::publish_runtime_status_snapshot_with_tracker(
+                    delivery,
+                    &status,
+                    title_tracker,
+                )
+                .await?;
                 interval = tokio::time::interval(runtime.poll_interval());
                 interval.tick().await;
             }
@@ -183,12 +233,26 @@ async fn next_terminal_file_or_timer_wake(
     }
 }
 
+#[cfg(test)]
 pub(super) async fn deliver_event<W: Write>(
     runtime: &mut MonitorRuntime,
     delivery: &mut DeliveryHub<W>,
     event: AfkWatcherEvent,
 ) -> Result<(), RuntimeError> {
+    let mut tracker = WindowTitleTracker::new(
+        TitleMode::PlatformWindow,
+        runtime.monitor_config().dynamic_title,
+    );
+    deliver_event_with_tracker(runtime, delivery, event, &mut tracker).await
+}
+
+async fn deliver_event_with_tracker<W: Write>(
+    runtime: &mut MonitorRuntime,
+    delivery: &mut DeliveryHub<W>,
+    event: AfkWatcherEvent,
+    title_tracker: &mut WindowTitleTracker,
+) -> Result<(), RuntimeError> {
     watch_runner::settle_watcher_event(&event).await;
     let cycle = watch_runner::watcher_event_cycle(runtime, event, Utc::now())?;
-    watch_runner::deliver_watch_cycle(delivery, &cycle, TitleMode::PlatformWindow).await
+    watch_runner::deliver_watch_cycle_with_tracker(delivery, &cycle, title_tracker).await
 }

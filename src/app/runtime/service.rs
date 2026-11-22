@@ -105,12 +105,15 @@ impl MonitorRuntime {
     pub fn apply_runtime_config(&mut self, config: &RuntimeConfig, now: DateTime<Utc>) {
         self.config.monitor = config.monitor.clone();
         self.config.log_levels = config.log_levels.clone();
-        self.config.journal.recent_files = config.journal.recent_files;
         self.config.tunnel = config.tunnel.clone();
         self.monitor
             .update_config(config.monitor.clone(), config.log_levels.clone());
         let snapshot = self.snapshot(now);
         self.events.publish_snapshot(snapshot);
+    }
+
+    pub fn monitor_config(&self) -> &crate::config::MonitorConfig {
+        &self.config.monitor
     }
 
     pub fn event_store(&self) -> AppEventStore {

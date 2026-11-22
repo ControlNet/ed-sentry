@@ -148,8 +148,13 @@ async fn desktop_gui_runtime_tunnel_commands_use_native_lifecycle_without_auth()
     let runtime = runtime_from_config(&config);
     let event_store = runtime.lock().await.event_store();
     let (poll_interval_tx, _poll_interval_rx) = tokio::sync::watch::channel(Duration::from_secs(1));
+    let delivery: Arc<Mutex<dyn super::DesktopDeliveryControl>> =
+        Arc::new(Mutex::new(DeliveryHub::terminal_only(
+            TerminalNotifier::plain(std::io::sink(), TimeDisplayZone::Utc),
+        )));
     let desktop = DesktopRuntime {
         runtime: Arc::clone(&runtime),
+        delivery,
         event_store,
         _web_server: WebServer::disabled(),
         tunnel: Some(WebTunnelState::new(None).unwrap()),
@@ -241,12 +246,13 @@ async fn desktop_runtime_apply_runtime_config_updates_thresholds_log_levels_and_
         ),
     )
     .unwrap();
-    let initial = AppConfig::default().into_runtime(&CliConfigOverrides {
+    let mut initial = AppConfig::default().into_runtime(&CliConfigOverrides {
         set_file: Some(journal_path.clone()),
         no_status_line: true,
         poll_interval_ms: Some(60_000),
         ..CliConfigOverrides::default()
     });
+    initial.monitor.use_utc = false;
     let runtime = runtime_from_config(&initial);
     runtime
         .lock()
@@ -254,8 +260,11 @@ async fn desktop_runtime_apply_runtime_config_updates_thresholds_log_levels_and_
         .process_preload(Utc.with_ymd_and_hms(2035, 1, 8, 14, 0, 0).unwrap());
     let event_store = runtime.lock().await.event_store();
     let buffer = SharedBuffer::default();
-    let terminal = TerminalNotifier::plain(buffer.clone(), TimeDisplayZone::Utc);
+    let plus_two = chrono::FixedOffset::east_opt(2 * 3600).unwrap();
+    let terminal = TerminalNotifier::plain(buffer.clone(), TimeDisplayZone::FixedOffset(plus_two));
     let delivery = Arc::new(Mutex::new(DeliveryHub::terminal_only(terminal)));
+    let delivery_control: Arc<Mutex<dyn super::DesktopDeliveryControl>> =
+        Arc::clone(&delivery) as _;
     let (poll_interval_tx, poll_interval_rx) = tokio::sync::watch::channel(Duration::from_secs(60));
     let monitor_task = tokio::spawn(super::run_monitor_loop_with_interval(
         Arc::clone(&runtime),
@@ -268,6 +277,7 @@ async fn desktop_runtime_apply_runtime_config_updates_thresholds_log_levels_and_
     ));
     let desktop = DesktopRuntime {
         runtime: Arc::clone(&runtime),
+        delivery: delivery_control,
         event_store,
         _web_server: WebServer::disabled(),
         tunnel: None,
@@ -276,6 +286,7 @@ async fn desktop_runtime_apply_runtime_config_updates_thresholds_log_levels_and_
     };
 
     let mut updated = initial.clone();
+    updated.monitor.use_utc = true;
     updated.monitor.warn_kill_rate = 33;
     updated.monitor.warn_no_kills_minutes = 11;
     updated.monitor.poll_interval_ms = 15;
@@ -294,7 +305,9 @@ async fn desktop_runtime_apply_runtime_config_updates_thresholds_log_levels_and_
         &journal_path,
         r#"{"timestamp":"2035-01-08T14:02:01Z","event":"ShipTargeted","TargetLocked":true,"ScanStage":3,"Ship":"anaconda","Ship_Localised":"Loud Anaconda","PilotName":"Hard Pirate","PilotName_Localised":"Hard Pirate","LegalStatus":"Wanted"}"#,
     );
+    wait_for_output(&buffer, "[14:02:01]").await;
     wait_for_output(&buffer, "Scan: Loud Anaconda").await;
+    assert!(!buffer.contains("[16:02:01]"));
     assert!(!buffer.contains("Muted Viper"));
 }
 

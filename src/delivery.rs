@@ -97,6 +97,10 @@ impl<W: Write> DeliveryHub<W> {
         self.terminal.supports_status_line()
     }
 
+    pub fn update_monitor_config(&mut self, config: &crate::config::MonitorConfig) {
+        self.terminal.update_monitor_config(config);
+    }
+
     pub fn into_terminal(self) -> TerminalNotifier<W> {
         self.terminal
     }

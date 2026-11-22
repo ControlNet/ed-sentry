@@ -29,6 +29,60 @@ pub(super) enum TitleMode {
     PlatformWindow,
 }
 
+pub(super) struct WindowTitleTracker {
+    mode: TitleMode,
+    dynamic_active: bool,
+    #[cfg(test)]
+    sink: Option<std::sync::Arc<std::sync::Mutex<Vec<String>>>>,
+}
+
+impl WindowTitleTracker {
+    pub(super) fn new(mode: TitleMode, initial_dynamic_active: bool) -> Self {
+        Self {
+            mode,
+            dynamic_active: initial_dynamic_active,
+            #[cfg(test)]
+            sink: None,
+        }
+    }
+
+    #[cfg(test)]
+    pub(super) fn recording(
+        initial_dynamic_active: bool,
+        sink: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    ) -> Self {
+        Self {
+            mode: TitleMode::PlatformWindow,
+            dynamic_active: initial_dynamic_active,
+            sink: Some(sink),
+        }
+    }
+
+    fn apply(&mut self, dynamic_title: Option<&str>) {
+        if !matches!(self.mode, TitleMode::PlatformWindow) {
+            return;
+        }
+        let next_title = match dynamic_title {
+            Some(title) => {
+                self.dynamic_active = true;
+                Some(title.to_string())
+            }
+            None if self.dynamic_active => {
+                self.dynamic_active = false;
+                Some(crate::build_info::app_title())
+            }
+            None => None,
+        };
+        if let Some(title) = next_title {
+            #[cfg(test)]
+            if let Some(sink) = &self.sink {
+                sink.lock().unwrap().push(title.clone());
+            }
+            set_platform_window_title(&title);
+        }
+    }
+}
+
 pub(super) struct WatchCycle {
     batch: RuntimeBatch,
     status: RuntimeStatusSnapshot,
@@ -174,13 +228,13 @@ fn watcher_warning_cycle(
     WatchCycle { batch, status }
 }
 
-pub(super) async fn poll_and_deliver<W: Write>(
+pub(super) async fn poll_and_deliver_with_tracker<W: Write>(
     runtime: &mut MonitorRuntime,
     delivery: &mut DeliveryHub<W>,
-    title_mode: TitleMode,
+    title_tracker: &mut WindowTitleTracker,
 ) -> Result<(), RuntimeError> {
     let cycle = poll_runtime_once(runtime, Utc::now())?;
-    deliver_watch_cycle(delivery, &cycle, title_mode).await
+    deliver_watch_cycle_with_tracker(delivery, &cycle, title_tracker).await
 }
 
 pub(super) async fn deliver_watch_cycle<W: Write>(
@@ -188,8 +242,17 @@ pub(super) async fn deliver_watch_cycle<W: Write>(
     cycle: &WatchCycle,
     title_mode: TitleMode,
 ) -> Result<(), RuntimeError> {
+    let mut tracker = WindowTitleTracker::new(title_mode, false);
+    deliver_watch_cycle_with_tracker(delivery, cycle, &mut tracker).await
+}
+
+pub(super) async fn deliver_watch_cycle_with_tracker<W: Write>(
+    delivery: &mut DeliveryHub<W>,
+    cycle: &WatchCycle,
+    title_tracker: &mut WindowTitleTracker,
+) -> Result<(), RuntimeError> {
     deliver_runtime_batch(delivery, &cycle.batch).await?;
-    publish_runtime_status_snapshot(delivery, &cycle.status, title_mode).await
+    publish_runtime_status_snapshot_with_tracker(delivery, &cycle.status, title_tracker).await
 }
 
 async fn deliver_runtime_batch<W: Write>(
@@ -212,11 +275,16 @@ async fn publish_runtime_status_snapshot<W: Write>(
     status: &RuntimeStatusSnapshot,
     title_mode: TitleMode,
 ) -> Result<(), RuntimeError> {
-    if matches!(title_mode, TitleMode::PlatformWindow) {
-        if let Some(title) = status.dynamic_title.as_deref() {
-            set_platform_window_title(title);
-        }
-    }
+    let mut tracker = WindowTitleTracker::new(title_mode, false);
+    publish_runtime_status_snapshot_with_tracker(delivery, status, &mut tracker).await
+}
+
+pub(super) async fn publish_runtime_status_snapshot_with_tracker<W: Write>(
+    delivery: &mut DeliveryHub<W>,
+    status: &RuntimeStatusSnapshot,
+    title_tracker: &mut WindowTitleTracker,
+) -> Result<(), RuntimeError> {
+    title_tracker.apply(status.dynamic_title.as_deref());
     let warnings = publish_status(delivery, status).await?;
     print_delivery_warnings(warnings);
     Ok(())

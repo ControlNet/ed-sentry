@@ -47,8 +47,19 @@ enum DesktopRawWake {
     PollIntervalChanged(Duration),
 }
 
+pub(super) trait DesktopDeliveryControl: Send {
+    fn update_monitor_config(&mut self, config: &crate::config::MonitorConfig);
+}
+
+impl<W: Write + Send> DesktopDeliveryControl for DeliveryHub<W> {
+    fn update_monitor_config(&mut self, config: &crate::config::MonitorConfig) {
+        DeliveryHub::update_monitor_config(self, config);
+    }
+}
+
 struct DesktopConfigApplier {
     runtime: OnceLock<Arc<Mutex<MonitorRuntime>>>,
+    delivery: OnceLock<Arc<Mutex<dyn DesktopDeliveryControl>>>,
     poll_interval_tx: watch::Sender<Duration>,
 }
 
@@ -58,17 +69,21 @@ impl RuntimeConfigApplier for DesktopConfigApplier {
         let Some(runtime) = self.runtime.get() else {
             return;
         };
-        let poll_interval = {
+        let (monitor_config, poll_interval) = {
             let mut runtime = runtime.lock().await;
             runtime.apply_runtime_config(config, Utc::now());
-            runtime.poll_interval()
+            (runtime.monitor_config().clone(), runtime.poll_interval())
         };
+        if let Some(delivery) = self.delivery.get() {
+            delivery.lock().await.update_monitor_config(&monitor_config);
+        }
         let _ = self.poll_interval_tx.send(poll_interval);
     }
 }
 
 pub struct DesktopRuntime {
     runtime: Arc<Mutex<MonitorRuntime>>,
+    delivery: Arc<Mutex<dyn DesktopDeliveryControl>>,
     event_store: AppEventStore,
     _web_server: WebServer,
     tunnel: Option<WebTunnelState>,
@@ -89,6 +104,7 @@ impl DesktopRuntime {
         let (poll_interval_tx, poll_interval_rx) = watch::channel(runtime.poll_interval());
         let applier = Arc::new(DesktopConfigApplier {
             runtime: OnceLock::new(),
+            delivery: OnceLock::new(),
             poll_interval_tx: poll_interval_tx.clone(),
         });
         let web_server = start_webui_silent_with_applier(
@@ -122,6 +138,8 @@ impl DesktopRuntime {
         let runtime = Arc::new(Mutex::new(runtime));
         let _ = applier.runtime.set(Arc::clone(&runtime));
         let delivery = Arc::new(Mutex::new(delivery));
+        let delivery_control: Arc<Mutex<dyn DesktopDeliveryControl>> = Arc::clone(&delivery) as _;
+        let _ = applier.delivery.set(Arc::clone(&delivery_control));
         let monitor_task = tokio::spawn(run_monitor_loop_with_interval(
             Arc::clone(&runtime),
             Arc::clone(&delivery),
@@ -131,6 +149,7 @@ impl DesktopRuntime {
 
         Ok(Self {
             runtime,
+            delivery: delivery_control,
             event_store,
             _web_server: web_server,
             tunnel,
@@ -148,11 +167,15 @@ impl DesktopRuntime {
     }
 
     pub async fn apply_runtime_config(&self, config: &RuntimeConfig) {
-        let poll_interval = {
+        let (monitor_config, poll_interval) = {
             let mut runtime = self.runtime.lock().await;
             runtime.apply_runtime_config(config, Utc::now());
-            runtime.poll_interval()
+            (runtime.monitor_config().clone(), runtime.poll_interval())
         };
+        self.delivery
+            .lock()
+            .await
+            .update_monitor_config(&monitor_config);
         let _ = self.poll_interval_tx.send(poll_interval);
         if let Some(tunnel) = &self.tunnel {
             tunnel.configure_provider(config).await;
