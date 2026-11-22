@@ -4,8 +4,9 @@ use chrono::{DateTime, Duration, Utc};
 
 use crate::event::{
     BountyEvent, FactionKillBondEvent, HullDamageEvent, JournalEvent, LocationEvent, MissionEvent,
-    MusicEvent, SupercruiseDestinationDropEvent,
+    MissionsEvent, MusicEvent, SupercruiseDestinationDropEvent,
 };
+use crate::mission::{MissionKind, MissionState, MissionTracker};
 
 pub const RECENT_RATE_WINDOW: Duration = Duration::minutes(10);
 
@@ -82,6 +83,8 @@ pub struct SessionState {
     pub mission_completed: u64,
     pub last_kill_at: Option<DateTime<Utc>>,
     pub last_scan_at: Option<DateTime<Utc>>,
+    redirected_massacre_mission_ids: BTreeSet<u64>,
+    missions_snapshot_loaded: bool,
     ship_key: Option<String>,
     ship_display_name: Option<String>,
     ship_model: Option<String>,
@@ -92,6 +95,31 @@ pub struct SessionState {
 impl SessionState {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn seed_from_mission_tracker(&mut self, tracker: &MissionTracker) {
+        self.active_massacre_mission_ids = tracker
+            .missions()
+            .values()
+            .filter(|mission| {
+                mission.kind == MissionKind::Massacre
+                    && matches!(
+                        mission.state,
+                        MissionState::Active | MissionState::Redirected
+                    )
+            })
+            .map(|mission| mission.mission_id)
+            .collect();
+        self.redirected_massacre_mission_ids = tracker
+            .missions()
+            .values()
+            .filter(|mission| {
+                mission.kind == MissionKind::Massacre && mission.state == MissionState::Redirected
+            })
+            .map(|mission| mission.mission_id)
+            .collect();
+        self.mission_total = self.active_massacre_mission_ids.len() as u64;
+        self.mission_completed = self.redirected_massacre_mission_ids.len() as u64;
     }
 
     pub fn apply_event(&mut self, event: &JournalEvent) {
@@ -125,6 +153,7 @@ impl SessionState {
             JournalEvent::MissionCompleted(event)
             | JournalEvent::MissionFailed(event)
             | JournalEvent::MissionAbandoned(event) => self.remove_active_massacre(event),
+            JournalEvent::Missions(event) => self.apply_missions(event),
             JournalEvent::ShieldState(event) => self.shields_up = event.shields_up,
             JournalEvent::HullDamage(event) => self.apply_hull_damage(event),
             JournalEvent::FighterDestroyed(_) => {
@@ -150,7 +179,6 @@ impl SessionState {
             | JournalEvent::SystemsShutdown(_)
             | JournalEvent::RebootRepair(_)
             | JournalEvent::SelfDestruct(_)
-            | JournalEvent::Missions(_)
             | JournalEvent::LaunchFighter(_)
             | JournalEvent::StartJump(_)
             | JournalEvent::PowerplayMerits(_)
@@ -245,14 +273,37 @@ impl SessionState {
         );
     }
 
+    fn apply_missions(&mut self, event: &MissionsEvent) {
+        if self.missions_snapshot_loaded || !event.active_present {
+            return;
+        }
+        self.missions_snapshot_loaded = true;
+        self.active_massacre_mission_ids = event
+            .active
+            .iter()
+            .filter(|mission| {
+                mission.expires.unwrap_or(0) > 0
+                    && text_contains_any(mission.name.as_deref(), &["mission_massacre"])
+            })
+            .filter_map(|mission| mission.mission_id)
+            .collect();
+        self.redirected_massacre_mission_ids
+            .retain(|mission_id| self.active_massacre_mission_ids.contains(mission_id));
+        self.mission_total = self.active_massacre_mission_ids.len() as u64;
+        self.mission_completed = self.redirected_massacre_mission_ids.len() as u64;
+    }
+
     fn apply_mission_accepted(&mut self, event: &MissionEvent) {
         if !mission_is_massacre(event) {
             return;
         }
 
-        self.mission_total += 1;
         if let Some(mission_id) = event.mission_id {
-            self.active_massacre_mission_ids.insert(mission_id);
+            if self.active_massacre_mission_ids.insert(mission_id) {
+                self.mission_total += 1;
+            }
+        } else {
+            self.mission_total += 1;
         }
     }
 
@@ -261,14 +312,21 @@ impl SessionState {
             return;
         };
 
-        if self.active_massacre_mission_ids.contains(&mission_id) || mission_is_massacre(event) {
+        if (self.active_massacre_mission_ids.contains(&mission_id) || mission_is_massacre(event))
+            && self.redirected_massacre_mission_ids.insert(mission_id)
+        {
             self.mission_completed += 1;
         }
     }
 
     fn remove_active_massacre(&mut self, event: &MissionEvent) {
         if let Some(mission_id) = event.mission_id {
-            self.active_massacre_mission_ids.remove(&mission_id);
+            if self.active_massacre_mission_ids.remove(&mission_id) {
+                self.mission_total = self.mission_total.saturating_sub(1);
+            }
+            if self.redirected_massacre_mission_ids.remove(&mission_id) {
+                self.mission_completed = self.mission_completed.saturating_sub(1);
+            }
         }
     }
 

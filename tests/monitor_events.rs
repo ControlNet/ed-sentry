@@ -427,6 +427,33 @@ fn monitor_events_upstream_missions_snapshot_and_redirect_semantics() {
 }
 
 #[test]
+fn monitor_events_abandoning_or_failing_unfinished_massacre_keeps_completed_count() {
+    let events = [
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:00:00Z","event":"Missions","Active":[{"MissionID":10,"Name":"Mission_Massacre_name","Expires":100},{"MissionID":20,"Name":"Mission_Massacre_name","Expires":100}]}"#,
+        )
+        .unwrap(),
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:01:00Z","event":"MissionRedirected","MissionID":10,"Name":"Mission_Massacre_name"}"#,
+        )
+        .unwrap(),
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:02:00Z","event":"MissionAbandoned","MissionID":20,"Name":"Mission_Massacre_name"}"#,
+        )
+        .unwrap(),
+    ];
+
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let now = DateTime::parse_from_rfc3339("2035-01-09T10:03:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+
+    assert!(run.monitor.render_status_line(now).contains("🎯 1/1"));
+    assert_eq!(run.monitor.state().mission_completed, 1);
+    assert_eq!(run.monitor.state().mission_total, 1);
+}
+
+#[test]
 fn monitor_events_upstream_summary_scans_faction_and_merits() {
     let log_levels = LogLevelConfig {
         summary_scans: 1,

@@ -404,6 +404,47 @@ fn session_state_missions_not_kills() {
 }
 
 #[test]
+fn session_state_missions_snapshot_and_abandon_unfinished_preserve_counts() {
+    let mut tracker = ed_sentry::mission::MissionTracker::new();
+    let accepted_1 = ed_sentry::event::parse_journal_line(
+        r#"{"timestamp":"2035-01-09T09:00:00Z","event":"MissionAccepted","MissionID":10,"Name":"Mission_Massacre_name","KillCount":20}"#,
+    )
+    .unwrap();
+    let accepted_2 = ed_sentry::event::parse_journal_line(
+        r#"{"timestamp":"2035-01-09T09:01:00Z","event":"MissionAccepted","MissionID":20,"Name":"Mission_Massacre_name","KillCount":20}"#,
+    )
+    .unwrap();
+    let redirected_1 = ed_sentry::event::parse_journal_line(
+        r#"{"timestamp":"2035-01-09T09:30:00Z","event":"MissionRedirected","MissionID":10,"Name":"Mission_Massacre_name"}"#,
+    )
+    .unwrap();
+    tracker.apply_event(&accepted_1);
+    tracker.apply_event(&accepted_2);
+    tracker.apply_event(&redirected_1);
+
+    let mut state = SessionState::new();
+    state.seed_from_mission_tracker(&tracker);
+    let snapshot = ed_sentry::event::parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:00:00Z","event":"Missions","Active":[{"MissionID":10,"Name":"Mission_Massacre_name","Expires":1000},{"MissionID":20,"Name":"Mission_Massacre_name","Expires":1000}]}"#,
+    )
+    .unwrap();
+    state.apply_event(&snapshot);
+
+    assert_eq!(state.mission_total, 2);
+    assert_eq!(state.mission_completed, 1);
+
+    state.apply_event(&JournalEvent::MissionAbandoned(mission(
+        "MissionAbandoned",
+        5,
+        20,
+        "Mission_Massacre_name",
+    )));
+
+    assert_eq!(state.mission_total, 1);
+    assert_eq!(state.mission_completed, 1);
+}
+
+#[test]
 fn session_state_massacre_matching_uses_localised_name_and_case_insensitive_text() {
     let mut state = SessionState::new();
     let mut localised_massacre = mission("MissionAccepted", 0, 90, "Mission_Delivery_name");

@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeSet, VecDeque};
 
 use chrono::{DateTime, Duration, Utc};
 use serde_json::Value;
@@ -8,6 +8,7 @@ use crate::event::{
     BountyEvent, FactionKillBondEvent, JournalEvent, MissionEvent, ReservoirReplenishedEvent,
     ShipTargetedEvent,
 };
+use crate::mission::{MissionKind, MissionState, MissionTracker};
 use crate::notifier::{AlertLevel, Notification};
 use crate::state::SessionState;
 use crate::terminal::{render_dynamic_title, render_monitor_status_line};
@@ -29,7 +30,7 @@ pub struct EventMonitor {
     last_fuel_main: Option<f64>,
     mission_tracking_loaded: bool,
     active_massacre_missions: Vec<u64>,
-    mission_redirects: u64,
+    redirected_massacre_missions: BTreeSet<u64>,
     last_event_name: Option<String>,
 }
 
@@ -109,13 +110,37 @@ impl EventMonitor {
             last_fuel_main: None,
             mission_tracking_loaded: false,
             active_massacre_missions: Vec::new(),
-            mission_redirects: 0,
+            redirected_massacre_missions: BTreeSet::new(),
             last_event_name: None,
         }
     }
 
     pub fn from_runtime_config(config: &RuntimeConfig) -> Self {
         Self::new(config.monitor.clone(), config.log_levels.clone())
+    }
+
+    pub fn seed_from_mission_tracker(&mut self, tracker: &MissionTracker) {
+        self.state.seed_from_mission_tracker(tracker);
+        self.active_massacre_missions = tracker
+            .missions()
+            .values()
+            .filter(|mission| {
+                mission.kind == MissionKind::Massacre
+                    && matches!(
+                        mission.state,
+                        MissionState::Active | MissionState::Redirected
+                    )
+            })
+            .map(|mission| mission.mission_id)
+            .collect();
+        self.redirected_massacre_missions = tracker
+            .missions()
+            .values()
+            .filter(|mission| {
+                mission.kind == MissionKind::Massacre && mission.state == MissionState::Redirected
+            })
+            .map(|mission| mission.mission_id)
+            .collect();
     }
 
     pub fn update_config(&mut self, monitor_config: MonitorConfig, log_levels: LogLevelConfig) {
@@ -197,7 +222,7 @@ impl EventMonitor {
             &self.state,
             &self.monitor_config,
             now,
-            self.mission_redirects,
+            self.redirected_massacre_missions.len() as u64,
             self.active_massacre_missions.len(),
         )
     }
@@ -207,7 +232,7 @@ impl EventMonitor {
             &self.state,
             &self.monitor_config,
             now,
-            self.mission_redirects,
+            self.redirected_massacre_missions.len() as u64,
             self.active_massacre_missions.len(),
         )
     }
@@ -415,7 +440,9 @@ impl EventMonitor {
                     )
                 {
                     if let Some(mission_id) = mission.mission_id {
-                        self.active_massacre_missions.push(mission_id);
+                        if !self.active_massacre_missions.contains(&mission_id) {
+                            self.active_massacre_missions.push(mission_id);
+                        }
                     }
                     notifications.push(self.notification(
                         "mission_accepted",
@@ -431,31 +458,26 @@ impl EventMonitor {
             JournalEvent::MissionCompleted(mission)
             | JournalEvent::MissionFailed(mission)
             | JournalEvent::MissionAbandoned(mission) => {
-                if self
-                    .active_massacre_missions
-                    .contains(&mission.mission_id.unwrap_or(0))
-                {
-                    if let Some(mission_id) = mission.mission_id {
+                if let Some(mission_id) = mission.mission_id {
+                    if self.active_massacre_missions.contains(&mission_id) {
                         self.active_massacre_missions
                             .retain(|active| *active != mission_id);
+                        self.redirected_massacre_missions.remove(&mission_id);
+                        let event = mission
+                            .event
+                            .strip_prefix("Mission")
+                            .unwrap_or(&mission.event)
+                            .to_ascii_lowercase();
+                        notifications.push(self.notification(
+                            "mission_status",
+                            self.log_levels.missions,
+                            format!(
+                                "Massacre mission {event} (active: {})",
+                                self.active_massacre_missions.len()
+                            ),
+                            mission.timestamp,
+                        ));
                     }
-                    if self.mission_redirects > 0 {
-                        self.mission_redirects -= 1;
-                    }
-                    let event = mission
-                        .event
-                        .strip_prefix("Mission")
-                        .unwrap_or(&mission.event)
-                        .to_ascii_lowercase();
-                    notifications.push(self.notification(
-                        "mission_status",
-                        self.log_levels.missions,
-                        format!(
-                            "Massacre mission {event} (active: {})",
-                            self.active_massacre_missions.len()
-                        ),
-                        mission.timestamp,
-                    ));
                 }
             }
             JournalEvent::Missions(event) => {
@@ -463,7 +485,6 @@ impl EventMonitor {
                     return notifications;
                 }
                 self.mission_tracking_loaded = true;
-                self.mission_redirects = 0;
                 self.active_massacre_missions = event
                     .active
                     .iter()
@@ -473,6 +494,8 @@ impl EventMonitor {
                     })
                     .filter_map(|mission| mission.mission_id)
                     .collect();
+                self.redirected_massacre_missions
+                    .retain(|mission_id| self.active_massacre_missions.contains(mission_id));
                 notifications.push(self.notification(
                     "missions_snapshot",
                     self.log_levels.missions,
@@ -828,24 +851,19 @@ impl EventMonitor {
     }
 
     fn mission_redirect_notification(&mut self, mission: &MissionEvent) -> Notification {
-        self.mission_redirects += 1;
-        let (text, level) = if self.active_massacre_missions.len() as u64 == self.mission_redirects
-        {
+        if let Some(mission_id) = mission.mission_id {
+            self.redirected_massacre_missions.insert(mission_id);
+        }
+        let completed = self.redirected_massacre_missions.len();
+        let active = self.active_massacre_missions.len();
+        let (text, level) = if active > 0 && completed == active {
             (
-                format!(
-                    "Completed kills for all missions! ({}/{})",
-                    self.mission_redirects,
-                    self.active_massacre_missions.len()
-                ),
+                format!("Completed kills for all missions! ({completed}/{active})"),
                 self.log_levels.missions_all,
             )
         } else {
             (
-                format!(
-                    "Completed kills for a mission ({}/{})",
-                    self.mission_redirects,
-                    self.active_massacre_missions.len()
-                ),
+                format!("Completed kills for a mission ({completed}/{active})"),
                 self.log_levels.missions,
             )
         };
@@ -1052,7 +1070,7 @@ impl EventMonitor {
         } else {
             format!(
                 " [{}/{}]",
-                self.mission_redirects,
+                self.redirected_massacre_missions.len(),
                 self.active_massacre_missions.len()
             )
         };

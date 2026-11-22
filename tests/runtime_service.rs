@@ -279,3 +279,67 @@ fn runtime_service_snapshot_carries_configured_warning_thresholds() {
     assert_eq!(json["thresholds"]["warn_kill_rate_per_hour"], 17);
     assert_eq!(json["thresholds"]["warn_no_kills_minutes"], 9);
 }
+
+#[test]
+fn runtime_service_cross_journal_redirected_massacre_reaches_all_complete() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let previous_journal = temp_dir.path().join("Journal.2035-01-05T070000.01.log");
+    let current_journal = temp_dir.path().join("Journal.2035-01-05T080000.01.log");
+    std::fs::write(
+        &previous_journal,
+        concat!(
+            r#"{"timestamp":"2035-01-05T07:00:00Z","event":"Missions","Active":[]}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-05T07:01:00Z","event":"MissionAccepted","MissionID":101,"Name":"Mission_Massacre_name","KillCount":20}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-05T07:02:00Z","event":"MissionAccepted","MissionID":102,"Name":"Mission_Massacre_name","KillCount":20}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-05T07:30:00Z","event":"MissionRedirected","MissionID":101,"Name":"Mission_Massacre_name"}"#,
+            "\n",
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        &current_journal,
+        concat!(
+            r#"{"timestamp":"2035-01-05T08:00:00Z","event":"Missions","Active":[{"MissionID":101,"Name":"Mission_Massacre_name","Expires":3600},{"MissionID":102,"Name":"Mission_Massacre_name","Expires":3600}]}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-05T08:10:00Z","event":"MissionRedirected","MissionID":102,"Name":"Mission_Massacre_name"}"#,
+            "\n",
+        ),
+    )
+    .unwrap();
+
+    let mut config = AppConfig::default().into_runtime(&CliConfigOverrides {
+        journal_folder: Some(temp_dir.path().to_path_buf()),
+        ..CliConfigOverrides::default()
+    });
+    config.monitor.live_status = true;
+    config.log_levels.missions_all = 3;
+
+    let mut runtime = MonitorRuntime::start(
+        &config,
+        &mut ConfiguredJournalSelector,
+        MatrixStartupStatus::disabled(),
+        WebStartupStatus::disabled(),
+    )
+    .unwrap();
+    let now = Utc.with_ymd_and_hms(2035, 1, 5, 8, 15, 0).unwrap();
+    let batch = runtime.process_preload(now);
+    let redirect = batch
+        .notifications
+        .iter()
+        .find(|item| item.notification.event_type == "mission_redirected")
+        .expect("second massacre redirect should notify");
+
+    assert_eq!(
+        redirect.notification.terminal_text,
+        "Completed kills for all missions! (2/2)"
+    );
+    assert_eq!(redirect.notification.level, 3);
+    let status_line = runtime
+        .status_snapshot(now, false)
+        .status_line
+        .expect("live status line enabled");
+    assert!(status_line.contains("🎯 2/2"), "{status_line}");
+}

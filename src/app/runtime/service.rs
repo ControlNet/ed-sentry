@@ -58,8 +58,9 @@ impl MonitorRuntime {
             preload_eof_offset: preload.eof_offset,
         };
         let tail = LiveTail::from_preload(&journal_file, &preload);
-        let monitor = EventMonitor::from_runtime_config(config);
+        let mut monitor = EventMonitor::from_runtime_config(config);
         let missions = mission_history::preload_mission_history(config, &journal_file)?;
+        monitor.seed_from_mission_tracker(&missions);
         let companion_paths = CompanionPaths::from_journal_file(&journal_file);
         let afk_checklist = companion_paths
             .as_ref()
