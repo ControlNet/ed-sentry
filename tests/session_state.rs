@@ -353,7 +353,7 @@ fn session_state_bounty_and_faction_kill_bond_increment_observed_kills() {
     assert!(state.active_session);
     assert_eq!(state.session_started_at, Some(timestamp(-1)));
     assert_eq!(state.kills, 2);
-    assert_eq!(state.bounty_total, 15_200);
+    assert_eq!(state.bounty_total, 18_400);
     assert_eq!(state.last_kill_at, Some(timestamp(5)));
     assert_eq!(state.kill_timestamps(), &[timestamp(0), timestamp(5)]);
     assert!((state.total_kill_rate_per_hour_at(timestamp(60)) - 120.0 / 61.0).abs() < 1e-12);
@@ -367,7 +367,22 @@ fn session_state_bounty_uses_reward_items_when_total_reward_is_absent() {
     state.apply_event(&bounty(0, None, &[1_000, 2_500]));
 
     assert_eq!(state.kills, 1);
-    assert_eq!(state.bounty_total, 1_000);
+    assert_eq!(state.bounty_total, 3_500);
+}
+
+#[test]
+fn session_state_multi_faction_bounty_uses_total_reward_or_saturating_rewards_sum() {
+    let mut state = SessionState::new();
+    state.apply_event(&bounty(0, Some(300_000), &[50_000, 250_000]));
+    assert_eq!(state.bounty_total, 300_000);
+
+    let mut fallback_zero = SessionState::new();
+    fallback_zero.apply_event(&bounty(0, Some(0), &[50_000, 250_000]));
+    assert_eq!(fallback_zero.bounty_total, 300_000);
+
+    let mut saturating = SessionState::new();
+    saturating.apply_event(&bounty(0, None, &[u64::MAX, 10]));
+    assert_eq!(saturating.bounty_total, u64::MAX);
 }
 
 #[test]

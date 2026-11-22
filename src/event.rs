@@ -371,6 +371,20 @@ pub struct BountyEvent {
     pub pilot_name_localised: Option<String>,
 }
 
+impl BountyEvent {
+    pub fn effective_reward(&self) -> u64 {
+        if let Some(total) = self.total_reward.filter(|total| *total > 0) {
+            return total;
+        }
+        self.rewards
+            .as_deref()
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|reward| reward.reward)
+            .fold(0_u64, u64::saturating_add)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FactionKillBondEvent {
     pub timestamp: DateTime<Utc>,

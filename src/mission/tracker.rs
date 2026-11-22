@@ -178,7 +178,7 @@ impl MissionTracker {
     }
 
     fn apply_bounty(&mut self, event: &BountyEvent) {
-        if event.total_reward.unwrap_or(0) == 0 {
+        if event.effective_reward() == 0 {
             return;
         }
         if event

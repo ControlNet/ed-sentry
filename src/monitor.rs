@@ -1240,13 +1240,7 @@ fn raw_value_text(raw: &Value, key: &str) -> Option<String> {
 }
 
 fn bounty_credits(event: &BountyEvent) -> u64 {
-    event
-        .rewards
-        .as_ref()
-        .and_then(|rewards| rewards.first())
-        .and_then(|reward| reward.reward)
-        .or(event.total_reward)
-        .unwrap_or(0)
+    event.effective_reward()
 }
 
 fn alert_level(level: u8) -> AlertLevel {

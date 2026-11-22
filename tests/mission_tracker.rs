@@ -146,11 +146,22 @@ fn mission_tracker_ignores_invalid_massacre_bounties() {
     let tracker = apply_lines(&[
         r#"{"timestamp":"2035-01-04T12:01:00Z","event":"MissionAccepted","Faction":"Issuer A","Name":"Mission_Massacre_name","MissionID":1,"TargetFaction":"Raiders","KillCount":3}"#,
         r#"{"timestamp":"2035-01-04T12:02:00Z","event":"Bounty","TotalReward":0,"VictimFaction":"Raiders","Target":"viper"}"#,
+        r#"{"timestamp":"2035-01-04T12:02:30Z","event":"Bounty","Rewards":[{"Faction":"Issuer A","Reward":0}],"VictimFaction":"Raiders","Target":"viper"}"#,
         r#"{"timestamp":"2035-01-04T12:03:00Z","event":"Bounty","TotalReward":1000,"VictimFaction":"Raiders","Target":"suit_enemy"}"#,
         r#"{"timestamp":"2035-01-04T12:04:00Z","event":"Bounty","TotalReward":1000,"VictimFaction":"faction_none","Target":"viper"}"#,
     ]);
 
     assert_eq!(massacre_kills(&tracker, 1), 0);
+}
+
+#[test]
+fn mission_tracker_counts_massacre_bounty_with_rewards_only_without_total_reward() {
+    let tracker = apply_lines(&[
+        r#"{"timestamp":"2035-01-04T12:01:00Z","event":"MissionAccepted","Faction":"Issuer A","Name":"Mission_Massacre_name","MissionID":1,"TargetFaction":"Raiders","KillCount":3}"#,
+        r#"{"timestamp":"2035-01-04T12:02:00Z","event":"Bounty","Rewards":[{"Faction":"Issuer A","Reward":50000},{"Faction":"Issuer B","Reward":250000}],"VictimFaction":"Raiders","Target":"viper"}"#,
+    ]);
+
+    assert_eq!(massacre_kills(&tracker, 1), 1);
 }
 
 #[test]

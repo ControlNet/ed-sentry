@@ -141,6 +141,39 @@ fn monitor_events_combat_notifications() {
 }
 
 #[test]
+fn monitor_events_multi_faction_bounty_counts_full_total_in_state_and_notification() {
+    let monitor_config = MonitorConfig {
+        bounty_value: true,
+        ..MonitorConfig::default()
+    };
+    let with_total_reward = parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:00:00Z","event":"Bounty","Rewards":[{"Faction":"Federation","Reward":50000},{"Faction":"Local Security","Reward":250000}],"TotalReward":300000,"Target":"viper","VictimFaction":"Raiders"}"#,
+    )
+    .unwrap();
+    let rewards_only = parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:01:00Z","event":"Bounty","Rewards":[{"Faction":"Federation","Reward":50000},{"Faction":"Local Security","Reward":250000}],"Target":"cobra","VictimFaction":"Raiders"}"#,
+    )
+    .unwrap();
+
+    let run = run_events(
+        &[with_total_reward, rewards_only],
+        monitor_config,
+        LogLevelConfig::default(),
+    );
+
+    assert_eq!(run.monitor.state().bounty_total, 600_000);
+    let kill_texts: Vec<&str> = run
+        .notifications
+        .iter()
+        .filter(|notification| notification.event_type == "kill_bounty")
+        .map(|notification| notification.terminal_text.as_str())
+        .collect();
+    assert_eq!(kill_texts.len(), 2);
+    assert!(kill_texts[0].contains("[300k cr]"), "{}", kill_texts[0]);
+    assert!(kill_texts[1].contains("[300k cr]"), "{}", kill_texts[1]);
+}
+
+#[test]
 fn monitor_events_rank_promotions_default_to_level_two_mentions() {
     let events = [
         parse_journal_line(

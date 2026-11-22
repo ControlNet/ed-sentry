@@ -426,7 +426,7 @@ impl SessionState {
 
     fn record_kill(&mut self, timestamp: DateTime<Utc>, reward: u64, victim_faction: Option<&str>) {
         self.kills += 1;
-        self.bounty_total += reward;
+        self.bounty_total = self.bounty_total.saturating_add(reward);
         self.merits_to_report += 1;
         self.last_kill_at = Some(timestamp);
         self.kill_timestamps.push(timestamp);
@@ -549,13 +549,7 @@ fn destination_drop_starts_session(event: &SupercruiseDestinationDropEvent) -> b
 }
 
 fn bounty_reward_total(event: &BountyEvent) -> u64 {
-    event
-        .rewards
-        .as_ref()
-        .and_then(|rewards| rewards.first())
-        .and_then(|reward| reward.reward)
-        .or(event.total_reward)
-        .unwrap_or(0)
+    event.effective_reward()
 }
 
 fn bounty_victim_faction(event: &BountyEvent) -> Option<&str> {
