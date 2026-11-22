@@ -1,13 +1,31 @@
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use tauri::Emitter;
 
 use crate::app::runtime::DesktopRuntime;
 use crate::app::AppLiveUpdate;
+use crate::config::RuntimeConfig;
+use crate::web::RuntimeConfigApplier;
 
 use super::config::{frontend_safe_runtime_startup_error, load_desktop_startup};
 use super::state::DesktopState;
+
+struct DesktopStateConfigObserver {
+    state: Arc<DesktopState>,
+}
+
+#[async_trait]
+impl RuntimeConfigApplier for DesktopStateConfigObserver {
+    async fn apply_runtime_config(&self, config: &RuntimeConfig) {
+        *self.state.config.write().await = config.clone();
+        *self.state.config_source.write().await = config.config_source.clone();
+        self.state
+            .config_load_failed
+            .store(false, Ordering::Release);
+    }
+}
 
 pub(crate) fn spawn_desktop_runtime(app: tauri::AppHandle, state: Arc<DesktopState>) {
     tauri::async_runtime::spawn(async move {
@@ -71,7 +89,10 @@ where
     F: FnOnce(Arc<DesktopRuntime>) + Send + 'static,
 {
     let config = state.config.read().await.clone();
-    match DesktopRuntime::start(config.clone()).await {
+    let observer: Arc<dyn RuntimeConfigApplier> = Arc::new(DesktopStateConfigObserver {
+        state: Arc::clone(&state),
+    });
+    match DesktopRuntime::start_with_observer(config.clone(), Some(observer)).await {
         Ok(runtime) => {
             let runtime = Arc::new(runtime);
             {
@@ -247,5 +268,116 @@ mod tests {
         .unwrap();
         assert!(restart_view.restart_required);
         assert_eq!(restart_view.restart_required_sections, vec!["Web UI"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn web_save_config_refreshes_desktop_state_and_survives_next_desktop_save() {
+        use std::io::{Read, Write};
+        use std::net::TcpStream;
+        use std::time::Duration;
+
+        let _env = crate::web::test_env_lock().await;
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dist_dir = tempfile::tempdir().unwrap();
+        fs::write(dist_dir.path().join("index.html"), "<!doctype html>").unwrap();
+        std::env::set_var("ED_SENTRY_WEBUI_DIST", dist_dir.path());
+
+        let config_path = temp_dir.path().join("config.toml");
+        let journal_path = temp_dir.path().join("Journal.2035-01-08T160000.01.log");
+        fs::write(
+            &journal_path,
+            r#"{"timestamp":"2035-01-08T16:00:00Z","event":"Commander","Name":"Cmdr Bridge"}"#,
+        )
+        .unwrap();
+        fs::write(
+            &config_path,
+            format!(
+                "[journal]\nfolder = {:?}\n\n[monitor]\nwarn_kill_rate = 20\npirate_names = false\n\n[web]\nenabled = true\nhost = \"127.0.0.1\"\nport = 0\nopen_browser = false\n",
+                temp_dir.path().display().to_string()
+            ),
+        )
+        .unwrap();
+
+        let loaded = AppConfig::load_tauri_from_path(&config_path).unwrap();
+        let source = loaded.source.clone();
+        let initial_config = loaded
+            .config
+            .into_runtime_with_source(source.clone(), &CliConfigOverrides::default());
+        let state = Arc::new(DesktopState::new(
+            Some(config_path.clone()),
+            initial_config,
+            source,
+            None,
+            true,
+        ));
+        run_desktop_runtime_attempt(Arc::clone(&state), |_| {}).await;
+        let runtime = wait_for_desktop_runtime(&state).await.unwrap();
+        let port = runtime
+            .web_bound_port()
+            .expect("embedded WebUI should bind");
+
+        let body = r#"{"monitor":{"warn_kill_rate":55,"poll_interval_ms":300}}"#;
+        let request = format!(
+            "PUT /api/config HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nOrigin: http://127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        let response = tokio::task::spawn_blocking(move || {
+            let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            stream.write_all(request.as_bytes()).unwrap();
+            let mut response = String::new();
+            stream.read_to_string(&mut response).unwrap();
+            response
+        })
+        .await
+        .unwrap();
+        assert!(response.starts_with("HTTP/1.1 200 OK"), "{response}");
+
+        assert_eq!(
+            runtime.snapshot().await.thresholds.warn_kill_rate_per_hour,
+            55
+        );
+        let stored_after_web =
+            crate::desktop_gui::config::config_api_view(&*state.config.read().await);
+        assert_eq!(stored_after_web.config.monitor.warn_kill_rate, 55);
+        assert_eq!(stored_after_web.config.monitor.poll_interval_ms, 300);
+
+        let desktop_view = crate::desktop_gui::save_desktop_config(
+            &state,
+            crate::app::EditableConfigUpdate {
+                monitor: Some(crate::app::MonitorConfigEdit {
+                    use_utc: None,
+                    live_status: None,
+                    dynamic_title: None,
+                    warn_kill_rate: Some(stored_after_web.config.monitor.warn_kill_rate),
+                    warn_kill_rate_delay_minutes: None,
+                    warn_no_kills_minutes: None,
+                    warn_no_kills_initial_minutes: None,
+                    warn_cooldown_minutes: None,
+                    duplicate_max: None,
+                    pirate_names: Some(true),
+                    bounty_faction: None,
+                    bounty_value: None,
+                    extended_stats: None,
+                    min_scan_level: None,
+                    poll_interval_ms: Some(stored_after_web.config.monitor.poll_interval_ms),
+                }),
+                ..crate::app::EditableConfigUpdate::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(desktop_view.config.monitor.warn_kill_rate, 55);
+        assert!(desktop_view.config.monitor.pirate_names);
+
+        let reloaded = AppConfig::load_from_path(&config_path).unwrap();
+        assert_eq!(reloaded.config.monitor.warn_kill_rate, 55);
+        assert_eq!(reloaded.config.monitor.poll_interval_ms, 300);
+        assert!(reloaded.config.monitor.pirate_names);
+
+        drop(runtime);
+        std::env::remove_var("ED_SENTRY_WEBUI_DIST");
     }
 }

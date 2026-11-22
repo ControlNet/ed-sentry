@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 use toml_edit::DocumentMut;
 
@@ -13,6 +14,11 @@ mod atomic;
 
 use apply::{apply_update, validate_update};
 use atomic::write_document_atomically;
+
+pub(crate) fn config_write_lock() -> &'static tokio::sync::Mutex<()> {
+    static LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| tokio::sync::Mutex::new(()))
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConfigWriteOutcome {
@@ -99,7 +105,7 @@ impl AppConfig {
                     path: target.path.clone(),
                     source: Box::new(error),
                 })?;
-        apply_update(&mut document, update);
+        apply_update(&mut document, update)?;
         if let Some(parent) = target.path.parent() {
             fs::create_dir_all(parent).map_err(|error| ConfigWriteError::Io {
                 path: target.path.clone(),

@@ -99,6 +99,11 @@ fn build_runtime_command(cli: Cli) -> Result<RuntimeCommand, AppError> {
             message: "--poll-interval-ms has no effect with --replay".to_string(),
         });
     }
+    if cli.poll_interval_ms == Some(0) {
+        return Err(AppError {
+            message: "--poll-interval-ms must be greater than 0".to_string(),
+        });
+    }
     if mode == Mode::Replay && cli.set_file.is_none() {
         return Err(AppError {
             message: "replay requires --set-file <file>".to_string(),

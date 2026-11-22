@@ -61,11 +61,15 @@ struct DesktopConfigApplier {
     runtime: OnceLock<Arc<Mutex<MonitorRuntime>>>,
     delivery: OnceLock<Arc<Mutex<dyn DesktopDeliveryControl>>>,
     poll_interval_tx: watch::Sender<Duration>,
+    observer: Option<Arc<dyn RuntimeConfigApplier>>,
 }
 
 #[async_trait]
 impl RuntimeConfigApplier for DesktopConfigApplier {
     async fn apply_runtime_config(&self, config: &RuntimeConfig) {
+        if let Some(observer) = &self.observer {
+            observer.apply_runtime_config(config).await;
+        }
         let Some(runtime) = self.runtime.get() else {
             return;
         };
@@ -93,6 +97,13 @@ pub struct DesktopRuntime {
 
 impl DesktopRuntime {
     pub async fn start(config: RuntimeConfig) -> Result<Self, RuntimeError> {
+        Self::start_with_observer(config, None).await
+    }
+
+    pub async fn start_with_observer(
+        config: RuntimeConfig,
+        observer: Option<Arc<dyn RuntimeConfigApplier>>,
+    ) -> Result<Self, RuntimeError> {
         let program_started_at = Utc::now();
         let mut selector = ConfiguredJournalSelector;
         let mut runtime = MonitorRuntime::start(
@@ -106,6 +117,7 @@ impl DesktopRuntime {
             runtime: OnceLock::new(),
             delivery: OnceLock::new(),
             poll_interval_tx: poll_interval_tx.clone(),
+            observer,
         });
         let web_server = start_webui_silent_with_applier(
             &config,
@@ -164,6 +176,11 @@ impl DesktopRuntime {
 
     pub async fn snapshot(&self) -> AppSnapshot {
         self.runtime.lock().await.snapshot(Utc::now())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn web_bound_port(&self) -> Option<u16> {
+        self._web_server.bound_port()
     }
 
     pub async fn apply_runtime_config(&self, config: &RuntimeConfig) {

@@ -352,3 +352,43 @@ async fn webui_api_config_update_write_failure_error_is_frontend_safe_without_pa
     );
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn webui_api_config_update_rejects_out_of_range_values_with_422_and_preserves_config() {
+    let _env = env_lock().await;
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dist = tempfile::tempdir().unwrap();
+    write_dist(dist.path(), "api dist");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let config_path = temp_dir.path().join("config.toml");
+    let original_toml = "[monitor]\npoll_interval_ms = 1000\n";
+    std::fs::write(&config_path, original_toml).unwrap();
+    let runtime = api_runtime_for_source(
+        ConfigSource::Explicit(ConfigPath::editable(config_path.clone())),
+        0,
+        "127.0.0.1",
+    );
+    let server = start_with_state(&runtime, api_store(&runtime)).await;
+    let port = server.bound_port().unwrap();
+
+    for invalid_body in [
+        r#"{"monitor":{"poll_interval_ms":0}}"#,
+        r#"{"journal":{"recent_files":0}}"#,
+        r#"{"web":{"host":"   ","port":8765}}"#,
+        r#"{"matrix":{"enabled":false,"status_update_interval_seconds":5,"clear_access_token":false}}"#,
+    ] {
+        let response = put_config(port, invalid_body, "127.0.0.1", "http://127.0.0.1:3000");
+        let response_json = json_body(&response);
+        assert!(
+            response.starts_with("HTTP/1.1 422 Unprocessable Entity"),
+            "body={invalid_body} response={response}"
+        );
+        assert_eq!(response_json["error"]["code"], "invalid_config_update");
+        assert_eq!(
+            std::fs::read_to_string(&config_path).unwrap(),
+            original_toml
+        );
+    }
+
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}

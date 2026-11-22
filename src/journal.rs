@@ -430,7 +430,7 @@ where
 }
 
 pub fn live_poll_interval(config: &RuntimeConfig) -> Duration {
-    Duration::from_millis(config.monitor.poll_interval_ms)
+    Duration::from_millis(config.monitor.poll_interval_ms.max(1))
 }
 
 impl LiveTail {

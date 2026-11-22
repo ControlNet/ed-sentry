@@ -64,6 +64,7 @@ pub(crate) async fn save_desktop_config(
     state: &DesktopState,
     update: EditableConfigUpdate,
 ) -> Result<ConfigApiView, String> {
+    let _write_guard = crate::config::config_write_lock().lock().await;
     let source = state.config_source.read().await.clone();
     let outcome = crate::config::AppConfig::write_update_to_source(&source, &update)
         .map_err(config::frontend_safe_config_write_error)?;

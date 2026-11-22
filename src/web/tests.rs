@@ -11,7 +11,7 @@ use super::{resolve_assets_for_executable, start};
 
 static ENV_LOCK: Mutex<()> = Mutex::const_new(());
 
-async fn env_lock() -> MutexGuard<'static, ()> {
+pub(super) async fn env_lock() -> MutexGuard<'static, ()> {
     ENV_LOCK.lock().await
 }
 

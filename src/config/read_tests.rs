@@ -175,3 +175,19 @@ fn config_web_defaults_to_disabled_localhost() {
 fn config_source_tracks_write_target() {
     source::test_support::assert_source_tracks_write_target();
 }
+
+#[test]
+fn zero_poll_interval_in_toml_produces_non_zero_live_poll_duration() -> Result<(), ConfigError> {
+    let loaded = AppConfig::from_toml_str(
+        r#"
+        [monitor]
+        poll_interval_ms = 0
+        "#,
+    )?;
+    let runtime = loaded.config.into_runtime(&CliConfigOverrides::default());
+    let interval = crate::journal::live_poll_interval(&runtime);
+
+    assert!(!interval.is_zero());
+    assert_eq!(interval, std::time::Duration::from_millis(1));
+    Ok(())
+}

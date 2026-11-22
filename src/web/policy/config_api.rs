@@ -34,6 +34,7 @@ pub(super) async fn update_config(
 ) -> Result<Json<ConfigApiView>, WebErrorResponse> {
     authorize_state_change(&state, &headers).await?;
     authorize_config_access(&state, &headers).await?;
+    let _write_guard = crate::config::config_write_lock().lock().await;
     let source = state.config_source.read().await.clone();
     let outcome = AppConfig::write_update_to_source(&source, &update).map_err(write_error)?;
     let runtime = outcome

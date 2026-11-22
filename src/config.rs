@@ -26,6 +26,7 @@ pub use monitor::MonitorConfig;
 pub use source::{ConfigBlockReason, ConfigPath, ConfigSource, ConfigWriteState};
 pub use tunnel::TunnelConfig;
 pub use web::WebConfig;
+pub(crate) use write::config_write_lock;
 pub use write::{ConfigWriteError, ConfigWriteOutcome};
 
 use value_read::{read_bool, read_optional_string, read_string, read_u16};

@@ -193,3 +193,13 @@ fn cli_config_replay_rejects_journal_folder() {
 
     assert!(error.message.contains("replay does not accept --journal"));
 }
+
+#[test]
+fn cli_config_rejects_zero_poll_interval_ms() {
+    let cli = Cli::try_parse_from(["ed-sentry", "--poll-interval-ms", "0"]).unwrap();
+    let error = build_runtime_command(cli).unwrap_err();
+
+    assert!(error
+        .message
+        .contains("--poll-interval-ms must be greater than 0"));
+}
