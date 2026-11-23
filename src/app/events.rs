@@ -223,7 +223,7 @@ impl AppEventStoreState {
     fn snapshot_with_history(&self, mut snapshot: AppSnapshot) -> AppSnapshot {
         snapshot.notifications = self.notifications.iter().cloned().collect();
         snapshot.event_feed = self.events.iter().cloned().collect();
-        if snapshot.tunnel.checked_at.is_none() && self.snapshot.tunnel.checked_at.is_some() {
+        if snapshot.tunnel.checked_at < self.snapshot.tunnel.checked_at {
             snapshot.tunnel = self.snapshot.tunnel.clone();
         }
         snapshot

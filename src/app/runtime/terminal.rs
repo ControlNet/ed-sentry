@@ -56,7 +56,7 @@ pub async fn run_watch(config: &RuntimeConfig) -> Result<(), RuntimeError> {
         Some(applier as Arc<dyn RuntimeConfigApplier>),
     )
     .await;
-    let _tunnel =
+    let tunnel =
         super::web::start_tunnel_after_webui(config, &mut runtime, &web_server, true).await;
     let super::WatchDelivery {
         hub: mut delivery,
@@ -87,6 +87,7 @@ pub async fn run_watch(config: &RuntimeConfig) -> Result<(), RuntimeError> {
         &mut delivery,
         &startup.journal_file,
         Some(config_rx),
+        tunnel,
     )
     .await
 }

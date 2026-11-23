@@ -34,8 +34,16 @@ async fn retry_startup(
 
 #[tauri::command]
 async fn load_config(state: State<'_, Arc<DesktopState>>) -> Result<ConfigApiView, String> {
-    let config = state.config.read().await;
-    Ok(config_api_view(&config))
+    Ok(load_desktop_config(&state).await)
+}
+
+pub(crate) async fn load_desktop_config(state: &DesktopState) -> ConfigApiView {
+    let config = state.config.read().await.clone();
+    let restart_required_sections = desktop_restart_required_sections(state, &config).await;
+    let mut view = config_api_view(&config);
+    view.restart_required = !restart_required_sections.is_empty();
+    view.restart_required_sections = restart_required_sections;
+    view
 }
 
 #[tauri::command]
@@ -81,22 +89,28 @@ pub(crate) async fn save_desktop_config(
         *config_source = outcome.source;
     }
     state.config_load_failed.store(false, Ordering::Release);
-    let restart_required_sections = if let Some(runtime) = state.runtime.read().await.clone() {
+    if let Some(runtime) = state.runtime.read().await.clone() {
         runtime.apply_runtime_config(&runtime_config).await;
-        let tunnel_running = runtime.tunnel_is_running().await;
-        match state.running_config.read().await.as_ref() {
-            Some(running) => {
-                crate::app::restart_required_sections(running, &runtime_config, tunnel_running)
-            }
-            None => Vec::new(),
-        }
-    } else {
-        Vec::new()
-    };
+    }
+    let restart_required_sections = desktop_restart_required_sections(state, &runtime_config).await;
     let mut view = config_api_view(&runtime_config);
     view.restart_required = !restart_required_sections.is_empty();
     view.restart_required_sections = restart_required_sections;
     Ok(view)
+}
+
+async fn desktop_restart_required_sections(
+    state: &DesktopState,
+    config: &crate::config::RuntimeConfig,
+) -> Vec<String> {
+    let Some(runtime) = state.runtime.read().await.clone() else {
+        return Vec::new();
+    };
+    let tunnel_running = runtime.tunnel_is_running().await;
+    match state.running_config.read().await.as_ref() {
+        Some(running) => crate::app::restart_required_sections(running, config, tunnel_running),
+        None => Vec::new(),
+    }
 }
 
 #[tauri::command]

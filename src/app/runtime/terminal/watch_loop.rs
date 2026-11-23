@@ -9,6 +9,7 @@ use tokio::time::Interval;
 use crate::config::RuntimeConfig;
 use crate::delivery::DeliveryHub;
 use crate::text::line_safe;
+use crate::web::tunnel_state::WebTunnelState;
 
 use super::super::file_watcher::{AfkFileWatcher, AfkFileWatcherStart, AfkWatcherEvent};
 use super::super::watch_runner::{self, TitleMode, WatcherEventBuffer, WindowTitleTracker};
@@ -56,9 +57,11 @@ pub(super) async fn run_with_config_updates<W: Write>(
     delivery: &mut DeliveryHub<W>,
     selected_file: &Path,
     config_rx: Option<watch::Receiver<RuntimeConfig>>,
+    tunnel: Option<WebTunnelState>,
 ) -> Result<(), RuntimeError> {
     let file_watcher = TerminalFileWatcher::start(selected_file);
-    run_loop_with_config_updates(runtime, delivery, file_watcher, config_rx).await
+    run_loop_with_config_updates_and_tunnel(runtime, delivery, file_watcher, config_rx, tunnel)
+        .await
 }
 
 #[cfg(test)]
@@ -70,11 +73,22 @@ pub(super) async fn run_loop<W: Write>(
     run_loop_with_config_updates(runtime, delivery, file_watcher, None).await
 }
 
+#[cfg(test)]
 pub(super) async fn run_loop_with_config_updates<W: Write>(
     runtime: &mut MonitorRuntime,
     delivery: &mut DeliveryHub<W>,
     file_watcher: TerminalFileWatcher,
     config_rx: Option<watch::Receiver<RuntimeConfig>>,
+) -> Result<(), RuntimeError> {
+    run_loop_with_config_updates_and_tunnel(runtime, delivery, file_watcher, config_rx, None).await
+}
+
+async fn run_loop_with_config_updates_and_tunnel<W: Write>(
+    runtime: &mut MonitorRuntime,
+    delivery: &mut DeliveryHub<W>,
+    file_watcher: TerminalFileWatcher,
+    config_rx: Option<watch::Receiver<RuntimeConfig>>,
+    tunnel: Option<WebTunnelState>,
 ) -> Result<(), RuntimeError> {
     let mut title_tracker = WindowTitleTracker::new(
         TitleMode::PlatformWindow,
@@ -85,6 +99,7 @@ pub(super) async fn run_loop_with_config_updates<W: Write>(
         delivery,
         file_watcher,
         config_rx,
+        tunnel,
         &mut title_tracker,
     )
     .await
@@ -105,6 +120,7 @@ pub(super) async fn run_loop_with_config_updates_and_titles<W: Write>(
         delivery,
         file_watcher,
         config_rx,
+        None,
         &mut title_tracker,
     )
     .await
@@ -115,6 +131,7 @@ async fn run_loop_with_tracker<W: Write>(
     delivery: &mut DeliveryHub<W>,
     mut file_watcher: TerminalFileWatcher,
     mut config_rx: Option<watch::Receiver<RuntimeConfig>>,
+    tunnel: Option<WebTunnelState>,
     title_tracker: &mut WindowTitleTracker,
 ) -> Result<(), RuntimeError> {
     let mut interval = tokio::time::interval(runtime.poll_interval());
@@ -140,6 +157,10 @@ async fn run_loop_with_tracker<W: Write>(
                 file_watcher.events = None;
             }
             TerminalLoopWake::Interval => {
+                if let Some(tunnel) = &tunnel {
+                    let status = tunnel.status(Utc::now()).await;
+                    runtime.sync_tunnel_status(status);
+                }
                 watch_runner::poll_and_deliver_with_tracker(runtime, delivery, title_tracker)
                     .await?;
             }

@@ -181,6 +181,7 @@ async fn snapshot(
 ) -> Result<Json<SnapshotApiView>, WebErrorResponse> {
     let surface = validate_host(&state, &headers).await?;
     let snapshot = state.events.subscribe().bootstrap.snapshot;
+    let snapshot = refresh_snapshot_tunnel(snapshot, &state).await;
     let snapshot = snapshot_for_surface(snapshot, &state, surface).await;
     Ok(Json(SnapshotApiView {
         events: snapshot.event_feed.clone(),
@@ -276,6 +277,25 @@ pub(super) async fn validate_host(
         return Ok(surface);
     }
     Err(forbidden("host_rejected", "Host header is not trusted"))
+}
+
+pub(super) async fn refresh_snapshot_tunnel(
+    mut snapshot: AppSnapshot,
+    state: &WebApiState,
+) -> AppSnapshot {
+    let live = state.tunnel.status(Utc::now()).await;
+    if live.checked_at.is_some() && live.checked_at >= snapshot.tunnel.checked_at {
+        let changed = snapshot.tunnel.kind != live.kind
+            || snapshot.tunnel.public_url != live.public_url
+            || snapshot.tunnel.session_id != live.session_id
+            || snapshot.tunnel.message != live.message
+            || snapshot.tunnel.retryable_error != live.retryable_error;
+        snapshot = snapshot.with_tunnel_status(live);
+        if changed {
+            state.events.publish_snapshot(snapshot.clone());
+        }
+    }
+    snapshot
 }
 
 pub(super) async fn snapshot_for_surface(

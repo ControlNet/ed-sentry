@@ -17,13 +17,16 @@ pub(super) async fn config_view(
     headers: HeaderMap,
 ) -> Result<Json<ConfigApiView>, WebErrorResponse> {
     authorize_config_access(&state, &headers).await?;
-    let config = state.config.read().await;
+    let config = state.config.read().await.clone();
+    let tunnel_running = state.tunnel.active_tunnel(Utc::now()).await.is_some();
+    let restart_required_sections =
+        crate::app::restart_required_sections(&state.startup_config, &config, tunnel_running);
     Ok(Json(ConfigApiView {
         version: 1,
         config: EditableConfigView::from_runtime_config(&config),
         policy: state.policy.clone(),
-        restart_required: false,
-        restart_required_sections: Vec::new(),
+        restart_required: !restart_required_sections.is_empty(),
+        restart_required_sections,
     }))
 }
 
@@ -83,10 +86,9 @@ fn write_error(error: ConfigWriteError) -> WebErrorResponse {
         ConfigWriteError::UnsafeRemoteBind { .. } => {
             unprocessable("unsafe_remote_bind", "Invalid WebUI bind host.")
         }
-        ConfigWriteError::InvalidUpdate { .. } => unprocessable(
-            "invalid_config_update",
-            "The config update contains conflicting settings.",
-        ),
+        ConfigWriteError::InvalidUpdate { reason } => {
+            unprocessable("invalid_config_update", reason)
+        }
         ConfigWriteError::NoWritableTarget | ConfigWriteError::Blocked { .. } => forbidden(
             "config_write_blocked",
             "This config source cannot be saved from the WebUI.",

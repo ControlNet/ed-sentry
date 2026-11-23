@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use std::path::Path;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
@@ -57,11 +57,67 @@ impl<W: Write + Send> DesktopDeliveryControl for DeliveryHub<W> {
     }
 }
 
+enum DesktopApplierTarget {
+    Pending(Option<Box<RuntimeConfig>>),
+    Ready {
+        runtime: Arc<Mutex<MonitorRuntime>>,
+        delivery: Arc<Mutex<dyn DesktopDeliveryControl>>,
+    },
+}
+
 struct DesktopConfigApplier {
-    runtime: OnceLock<Arc<Mutex<MonitorRuntime>>>,
-    delivery: OnceLock<Arc<Mutex<dyn DesktopDeliveryControl>>>,
+    target: Mutex<DesktopApplierTarget>,
     poll_interval_tx: watch::Sender<Duration>,
     observer: Option<Arc<dyn RuntimeConfigApplier>>,
+}
+
+impl DesktopConfigApplier {
+    fn new(
+        poll_interval_tx: watch::Sender<Duration>,
+        observer: Option<Arc<dyn RuntimeConfigApplier>>,
+    ) -> Self {
+        Self {
+            target: Mutex::new(DesktopApplierTarget::Pending(None)),
+            poll_interval_tx,
+            observer,
+        }
+    }
+
+    async fn attach_and_flush(
+        &self,
+        runtime: Arc<Mutex<MonitorRuntime>>,
+        delivery: Arc<Mutex<dyn DesktopDeliveryControl>>,
+    ) {
+        let mut target = self.target.lock().await;
+        let pending = match std::mem::replace(
+            &mut *target,
+            DesktopApplierTarget::Ready {
+                runtime: Arc::clone(&runtime),
+                delivery: Arc::clone(&delivery),
+            },
+        ) {
+            DesktopApplierTarget::Pending(config) => config,
+            DesktopApplierTarget::Ready { .. } => None,
+        };
+        if let Some(config) = pending {
+            self.apply_to_targets(&runtime, &delivery, &config).await;
+        }
+    }
+
+    async fn apply_to_targets(
+        &self,
+        runtime: &Arc<Mutex<MonitorRuntime>>,
+        delivery: &Arc<Mutex<dyn DesktopDeliveryControl>>,
+        config: &RuntimeConfig,
+    ) {
+        let (monitor_config, poll_interval) = {
+            let mut runtime = runtime.lock().await;
+            runtime.apply_runtime_config(config, Utc::now());
+            (runtime.monitor_config().clone(), runtime.poll_interval())
+        };
+        delivery.lock().await.update_monitor_config(&monitor_config);
+        let _ = self.poll_interval_tx.send(poll_interval);
+    }
 }
 
 #[async_trait]
@@ -70,18 +126,15 @@ impl RuntimeConfigApplier for DesktopConfigApplier {
         if let Some(observer) = &self.observer {
             observer.apply_runtime_config(config).await;
         }
-        let Some(runtime) = self.runtime.get() else {
-            return;
-        };
-        let (monitor_config, poll_interval) = {
-            let mut runtime = runtime.lock().await;
-            runtime.apply_runtime_config(config, Utc::now());
-            (runtime.monitor_config().clone(), runtime.poll_interval())
-        };
-        if let Some(delivery) = self.delivery.get() {
-            delivery.lock().await.update_monitor_config(&monitor_config);
+        let mut target = self.target.lock().await;
+        match &mut *target {
+            DesktopApplierTarget::Pending(pending) => {
+                *pending = Some(Box::new(config.clone()));
+            }
+            DesktopApplierTarget::Ready { runtime, delivery } => {
+                self.apply_to_targets(runtime, delivery, config).await;
+            }
         }
-        let _ = self.poll_interval_tx.send(poll_interval);
     }
 }
 
@@ -113,12 +166,10 @@ impl DesktopRuntime {
             WebStartupStatus::from_current_runtime_config(&config),
         )?;
         let (poll_interval_tx, poll_interval_rx) = watch::channel(runtime.poll_interval());
-        let applier = Arc::new(DesktopConfigApplier {
-            runtime: OnceLock::new(),
-            delivery: OnceLock::new(),
-            poll_interval_tx: poll_interval_tx.clone(),
+        let applier = Arc::new(DesktopConfigApplier::new(
+            poll_interval_tx.clone(),
             observer,
-        });
+        ));
         let web_server = start_webui_silent_with_applier(
             &config,
             &mut runtime,
@@ -148,15 +199,17 @@ impl DesktopRuntime {
         let event_store = runtime.event_store();
         let file_watcher = DesktopFileWatcher::start(&runtime.startup().journal_file);
         let runtime = Arc::new(Mutex::new(runtime));
-        let _ = applier.runtime.set(Arc::clone(&runtime));
         let delivery = Arc::new(Mutex::new(delivery));
         let delivery_control: Arc<Mutex<dyn DesktopDeliveryControl>> = Arc::clone(&delivery) as _;
-        let _ = applier.delivery.set(Arc::clone(&delivery_control));
+        applier
+            .attach_and_flush(Arc::clone(&runtime), Arc::clone(&delivery_control))
+            .await;
         let monitor_task = tokio::spawn(run_monitor_loop_with_interval(
             Arc::clone(&runtime),
             Arc::clone(&delivery),
             file_watcher,
             Some(poll_interval_rx),
+            tunnel.clone(),
         ));
 
         Ok(Self {
@@ -175,7 +228,12 @@ impl DesktopRuntime {
     }
 
     pub async fn snapshot(&self) -> AppSnapshot {
-        self.runtime.lock().await.snapshot(Utc::now())
+        let now = Utc::now();
+        if let Some(tunnel) = &self.tunnel {
+            let status = tunnel.status(now).await;
+            self.runtime.lock().await.sync_tunnel_status(status);
+        }
+        self.runtime.lock().await.snapshot(now)
     }
 
     #[cfg(test)]
@@ -267,7 +325,7 @@ async fn run_monitor_loop<W>(
 ) where
     W: Write + Send + 'static,
 {
-    run_monitor_loop_with_interval(runtime, delivery, file_watcher, None).await;
+    run_monitor_loop_with_interval(runtime, delivery, file_watcher, None, None).await;
 }
 
 async fn run_monitor_loop_with_interval<W>(
@@ -275,6 +333,7 @@ async fn run_monitor_loop_with_interval<W>(
     delivery: Arc<Mutex<DeliveryHub<W>>>,
     mut file_watcher: DesktopFileWatcher,
     mut poll_interval_rx: Option<watch::Receiver<Duration>>,
+    tunnel: Option<WebTunnelState>,
 ) where
     W: Write + Send + 'static,
 {
@@ -305,7 +364,9 @@ async fn run_monitor_loop_with_interval<W>(
                 file_watcher.events = None;
                 Ok(())
             }
-            DesktopLoopWake::Interval => deliver_desktop_poll(&runtime, &delivery).await,
+            DesktopLoopWake::Interval => {
+                deliver_desktop_poll(&runtime, &delivery, tunnel.as_ref()).await
+            }
             DesktopLoopWake::PollIntervalChanged(duration) => {
                 interval = tokio::time::interval(duration);
                 interval.tick().await;
@@ -399,13 +460,21 @@ async fn next_file_or_timer_wake(
 async fn deliver_desktop_poll<W>(
     runtime: &Arc<Mutex<MonitorRuntime>>,
     delivery: &Arc<Mutex<DeliveryHub<W>>>,
+    tunnel: Option<&WebTunnelState>,
 ) -> Result<(), RuntimeError>
 where
     W: Write,
 {
     let now = Utc::now();
+    let tunnel_status = match tunnel {
+        Some(tunnel) => Some(tunnel.status(now).await),
+        None => None,
+    };
     let cycle = {
         let mut runtime = runtime.lock().await;
+        if let Some(status) = tunnel_status {
+            runtime.sync_tunnel_status(status);
+        }
         watch_runner::poll_runtime_once(&mut runtime, now)?
     };
     let mut delivery = delivery.lock().await;

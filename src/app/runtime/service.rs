@@ -103,6 +103,18 @@ impl MonitorRuntime {
         self.events.publish_snapshot(self.snapshot(now));
     }
 
+    pub fn sync_tunnel_status(&mut self, status: TunnelStatus) {
+        if status.checked_at.is_none() || status.checked_at < self.tunnel_status.checked_at {
+            return;
+        }
+        if self.tunnel_status == status {
+            return;
+        }
+        let now = status.checked_at.unwrap_or_else(Utc::now);
+        self.tunnel_status = status;
+        self.events.publish_snapshot(self.snapshot(now));
+    }
+
     pub fn apply_runtime_config(&mut self, config: &RuntimeConfig, now: DateTime<Utc>) {
         self.config.monitor = config.monitor.clone();
         self.config.log_levels = config.log_levels.clone();

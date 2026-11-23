@@ -12,7 +12,8 @@ use crate::app::{AppLiveUpdate, AppSnapshot, EventFeedItem};
 use crate::text::line_safe;
 
 use super::{
-    snapshot_for_surface, validate_host, RequestHost, WebApiState, WebErrorBody, WebErrorResponse,
+    refresh_snapshot_tunnel, snapshot_for_surface, validate_host, RequestHost, WebApiState,
+    WebErrorBody, WebErrorResponse,
 };
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -48,7 +49,8 @@ pub(super) async fn websocket(
 
 async fn websocket_session(mut socket: WebSocket, state: WebApiState, surface: RequestHost) {
     let subscriber = state.events.subscribe();
-    let snapshot = snapshot_for_surface(subscriber.bootstrap.snapshot, &state, surface).await;
+    let snapshot = refresh_snapshot_tunnel(subscriber.bootstrap.snapshot, &state).await;
+    let snapshot = snapshot_for_surface(snapshot, &state, surface).await;
     let hello = WebSocketEnvelope::Hello {
         version: 1,
         snapshot,

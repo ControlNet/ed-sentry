@@ -268,6 +268,10 @@ mod tests {
         .unwrap();
         assert!(restart_view.restart_required);
         assert_eq!(restart_view.restart_required_sections, vec!["Web UI"]);
+
+        let reloaded_view = crate::desktop_gui::load_desktop_config(&state).await;
+        assert!(reloaded_view.restart_required);
+        assert_eq!(reloaded_view.restart_required_sections, vec!["Web UI"]);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -274,6 +274,7 @@ async fn desktop_runtime_apply_runtime_config_updates_thresholds_log_levels_and_
             events: None,
         },
         Some(poll_interval_rx),
+        None,
     ));
     let desktop = DesktopRuntime {
         runtime: Arc::clone(&runtime),
@@ -309,6 +310,198 @@ async fn desktop_runtime_apply_runtime_config_updates_thresholds_log_levels_and_
     wait_for_output(&buffer, "Scan: Loud Anaconda").await;
     assert!(!buffer.contains("[16:02:01]"));
     assert!(!buffer.contains("Muted Viper"));
+}
+
+#[tokio::test]
+async fn desktop_config_applier_flushes_pending_update_when_targets_attach() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let journal_path = temp_dir.path().join("Journal.2035-01-08T150000.01.log");
+    fs::write(
+        &journal_path,
+        concat!(
+            r#"{"timestamp":"2035-01-08T15:00:00Z","event":"Commander","Name":"Cmdr Startup Window"}"#,
+            "\n",
+            r#"{"timestamp":"2035-01-08T15:01:00Z","event":"Location","StarSystem":"Startup Window","Docked":false}"#,
+            "\n"
+        ),
+    )
+    .unwrap();
+    let mut initial = AppConfig::default().into_runtime(&CliConfigOverrides {
+        set_file: Some(journal_path.clone()),
+        no_status_line: true,
+        poll_interval_ms: Some(1_000),
+        ..CliConfigOverrides::default()
+    });
+    initial.monitor.use_utc = false;
+
+    let (poll_interval_tx, poll_interval_rx) =
+        tokio::sync::watch::channel(Duration::from_millis(1_000));
+    let applier = DesktopConfigApplier::new(poll_interval_tx, None);
+
+    let mut intermediate = initial.clone();
+    intermediate.monitor.warn_kill_rate = 25;
+    intermediate.monitor.poll_interval_ms = 600;
+    applier.apply_runtime_config(&intermediate).await;
+
+    let mut latest = initial.clone();
+    latest.monitor.use_utc = true;
+    latest.monitor.warn_kill_rate = 44;
+    latest.monitor.warn_no_kills_minutes = 9;
+    latest.monitor.poll_interval_ms = 250;
+    latest.log_levels.scan_easy = 0;
+    applier.apply_runtime_config(&latest).await;
+
+    let runtime = runtime_from_config(&initial);
+    runtime
+        .lock()
+        .await
+        .process_preload(Utc.with_ymd_and_hms(2035, 1, 8, 15, 0, 0).unwrap());
+    let buffer = SharedBuffer::default();
+    let plus_two = chrono::FixedOffset::east_opt(2 * 3600).unwrap();
+    let terminal = TerminalNotifier::plain(buffer.clone(), TimeDisplayZone::FixedOffset(plus_two));
+    let delivery = Arc::new(Mutex::new(DeliveryHub::terminal_only(terminal)));
+    let delivery_control: Arc<Mutex<dyn super::DesktopDeliveryControl>> =
+        Arc::clone(&delivery) as _;
+
+    applier
+        .attach_and_flush(Arc::clone(&runtime), Arc::clone(&delivery_control))
+        .await;
+
+    assert_eq!(*poll_interval_rx.borrow(), Duration::from_millis(250));
+    {
+        let guard = runtime.lock().await;
+        assert_eq!(guard.poll_interval(), Duration::from_millis(250));
+        let snapshot = guard.snapshot(Utc.with_ymd_and_hms(2035, 1, 8, 15, 2, 0).unwrap());
+        assert_eq!(snapshot.thresholds.warn_kill_rate_per_hour, 44);
+        assert_eq!(snapshot.thresholds.warn_no_kills_minutes, 9);
+    }
+
+    append_line(
+        &journal_path,
+        r#"{"timestamp":"2035-01-08T15:02:00Z","event":"ShipTargeted","TargetLocked":true,"ScanStage":3,"Ship":"viper","Ship_Localised":"Muted Viper","PilotName":"Muted Pirate","PilotName_Localised":"Muted Pirate","LegalStatus":"Wanted"}"#,
+    );
+    append_line(
+        &journal_path,
+        r#"{"timestamp":"2035-01-08T15:02:01Z","event":"ShipTargeted","TargetLocked":true,"ScanStage":3,"Ship":"anaconda","Ship_Localised":"Loud Anaconda","PilotName":"Hard Pirate","PilotName_Localised":"Hard Pirate","LegalStatus":"Wanted"}"#,
+    );
+    deliver_desktop_poll(&runtime, &delivery, None)
+        .await
+        .unwrap();
+    assert!(buffer.contains("[15:02:01]"));
+    assert!(buffer.contains("Scan: Loud Anaconda"));
+    assert!(!buffer.contains("[17:02:01]"));
+    assert!(!buffer.contains("Muted Viper"));
+}
+
+#[tokio::test]
+async fn desktop_runtime_refreshes_tunnel_status_after_cloudflared_exit() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let journal_path = temp_dir.path().join("Journal.2035-01-08T160000.01.log");
+    fs::write(
+        &journal_path,
+        r#"{"timestamp":"2035-01-08T16:00:00Z","event":"LoadGame","Commander":"Cmdr Tunnel","Odyssey":true}"#,
+    )
+    .unwrap();
+    let exit_signal = temp_dir.path().join("exit-signal");
+    let fake_bin = fake_cloudflared_exit_after_signal(temp_dir.path(), &exit_signal);
+    let provider = crate::app::CloudflareQuickTunnelProvider::with_executable_and_timeout(
+        fake_bin,
+        Duration::from_secs(2),
+    );
+    let manager = crate::app::TunnelLifecycleManager::new(provider, Some(8765), true);
+    let tunnel = WebTunnelState::from_manager(manager).unwrap();
+
+    let config = AppConfig::default().into_runtime(&CliConfigOverrides {
+        set_file: Some(journal_path),
+        no_status_line: true,
+        poll_interval_ms: Some(15),
+        ..CliConfigOverrides::default()
+    });
+    let runtime = runtime_from_config(&config);
+    let event_store = runtime.lock().await.event_store();
+    let delivery = Arc::new(Mutex::new(DeliveryHub::terminal_only(
+        TerminalNotifier::plain(std::io::sink(), TimeDisplayZone::Utc),
+    )));
+    let delivery_control: Arc<Mutex<dyn super::DesktopDeliveryControl>> =
+        Arc::clone(&delivery) as _;
+    let (poll_interval_tx, poll_interval_rx) =
+        tokio::sync::watch::channel(Duration::from_millis(15));
+    let monitor_task = tokio::spawn(super::run_monitor_loop_with_interval(
+        Arc::clone(&runtime),
+        Arc::clone(&delivery),
+        DesktopFileWatcher {
+            _watcher: None,
+            events: None,
+        },
+        Some(poll_interval_rx),
+        Some(tunnel.clone()),
+    ));
+    let desktop = DesktopRuntime {
+        runtime: Arc::clone(&runtime),
+        delivery: delivery_control,
+        event_store: event_store.clone(),
+        _web_server: WebServer::disabled(),
+        tunnel: Some(tunnel),
+        poll_interval_tx,
+        monitor_task,
+    };
+
+    let started = desktop.start_tunnel().await;
+    assert_eq!(started.kind, TunnelStatusKind::Running);
+    assert_eq!(
+        desktop.snapshot().await.tunnel.kind,
+        TunnelStatusKind::Running
+    );
+
+    fs::write(&exit_signal, "exit").unwrap();
+
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let store_snapshot = event_store.subscribe().bootstrap.snapshot;
+            if store_snapshot.tunnel.kind == TunnelStatusKind::Error {
+                assert!(store_snapshot.tunnel.retryable_error);
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(15)).await;
+        }
+    })
+    .await
+    .expect("event store snapshot should refresh to Error after cloudflared exits");
+
+    let final_snapshot = desktop.snapshot().await;
+    assert_eq!(final_snapshot.tunnel.kind, TunnelStatusKind::Error);
+    assert!(final_snapshot.tunnel.retryable_error);
+}
+
+fn fake_cloudflared_exit_after_signal(
+    dir: &std::path::Path,
+    signal_path: &std::path::Path,
+) -> std::path::PathBuf {
+    let (name, script) = if cfg!(windows) {
+        (
+            "cloudflared-fixture.cmd",
+            format!(
+                "@echo off\r\necho https://fixture.trycloudflare.com\r\n:wait\r\nif not exist \"{}\" (ping -n 2 127.0.0.1 >NUL\r\ngoto wait)\r\n",
+                signal_path.display()
+            ),
+        )
+    } else {
+        let quoted = signal_path.display().to_string().replace('\'', "'\\''");
+        (
+            "cloudflared-fixture",
+            format!(
+                "#!/bin/sh\nprintf '%s\\n' 'https://fixture.trycloudflare.com'; while [ ! -f '{quoted}' ]; do sleep 0.01; done\n"
+            ),
+        )
+    };
+    let path = dir.join(name);
+    fs::write(&path, script).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    path
 }
 
 #[derive(Clone, Default)]

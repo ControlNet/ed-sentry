@@ -39,6 +39,11 @@ impl WebTunnelState {
         Self::with_manager(manager)
     }
 
+    #[cfg(test)]
+    pub(crate) fn from_manager(manager: TunnelLifecycleManager) -> Result<Self, TunnelAuthError> {
+        Self::with_manager(manager)
+    }
+
     fn with_manager(manager: TunnelLifecycleManager) -> Result<Self, TunnelAuthError> {
         Ok(Self {
             manager: Arc::new(Mutex::new(manager)),

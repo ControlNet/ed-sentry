@@ -108,8 +108,8 @@ pub(crate) fn frontend_safe_config_write_error(error: ConfigWriteError) -> Strin
         ConfigWriteError::UnsafeRemoteBind { .. } => {
             "Config save failed: invalid web.host".to_string()
         }
-        ConfigWriteError::InvalidUpdate { .. } => {
-            "Config save failed: config update contains conflicting settings".to_string()
+        ConfigWriteError::InvalidUpdate { reason } => {
+            format!("Config save failed: {reason}")
         }
         ConfigWriteError::MalformedToml { .. } => {
             "Config save failed: malformed TOML config".to_string()
@@ -276,6 +276,14 @@ mod tests {
             "Config save failed: config file could not be written: permission denied"
         );
         assert!(!save_message.contains(CONFIG_PATH) && !save_message.contains("config.toml"));
+
+        let invalid_message = frontend_safe_config_write_error(ConfigWriteError::InvalidUpdate {
+            reason: "monitor.warn_cooldown_minutes must be between 1 and 1440",
+        });
+        assert_eq!(
+            invalid_message,
+            "Config save failed: monitor.warn_cooldown_minutes must be between 1 and 1440"
+        );
     }
 
     #[test]

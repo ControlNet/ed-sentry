@@ -211,6 +211,21 @@ async fn webui_api_config_update_applies_live_monitor_settings_and_flags_restart
         restart_json["restart_required_sections"],
         serde_json::json!(["Web UI"])
     );
+
+    let reloaded_config_response = request(
+        port,
+        "GET /api/config HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    );
+    assert!(
+        reloaded_config_response.starts_with("HTTP/1.1 200 OK"),
+        "{reloaded_config_response}"
+    );
+    let reloaded_config_json = json_body(&reloaded_config_response);
+    assert_eq!(reloaded_config_json["restart_required"], Value::Bool(true));
+    assert_eq!(
+        reloaded_config_json["restart_required_sections"],
+        serde_json::json!(["Web UI"])
+    );
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }
 
@@ -371,11 +386,39 @@ async fn webui_api_config_update_rejects_out_of_range_values_with_422_and_preser
     let server = start_with_state(&runtime, api_store(&runtime)).await;
     let port = server.bound_port().unwrap();
 
-    for invalid_body in [
-        r#"{"monitor":{"poll_interval_ms":0}}"#,
-        r#"{"journal":{"recent_files":0}}"#,
-        r#"{"web":{"host":"   ","port":8765}}"#,
-        r#"{"matrix":{"enabled":false,"status_update_interval_seconds":5,"clear_access_token":false}}"#,
+    for (invalid_body, expected_message) in [
+        (
+            r#"{"monitor":{"poll_interval_ms":0}}"#,
+            "monitor.poll_interval_ms must be between 100 and 60000",
+        ),
+        (
+            r#"{"monitor":{"warn_cooldown_minutes":0}}"#,
+            "monitor.warn_cooldown_minutes must be between 1 and 1440",
+        ),
+        (
+            r#"{"monitor":{"warn_no_kills_minutes":1441}}"#,
+            "monitor.warn_no_kills_minutes must be between 0 and 1440",
+        ),
+        (
+            r#"{"monitor":{"warn_no_kills_initial_minutes":1441}}"#,
+            "monitor.warn_no_kills_initial_minutes must be between 0 and 1440",
+        ),
+        (
+            r#"{"monitor":{"warn_kill_rate_delay_minutes":1441}}"#,
+            "monitor.warn_kill_rate_delay_minutes must be between 0 and 1440",
+        ),
+        (
+            r#"{"journal":{"recent_files":0}}"#,
+            "journal.recent_files must be between 1 and 100",
+        ),
+        (
+            r#"{"web":{"host":"   ","port":8765}}"#,
+            "web.host must not be empty",
+        ),
+        (
+            r#"{"matrix":{"enabled":false,"status_update_interval_seconds":5,"clear_access_token":false}}"#,
+            "matrix.status_update_interval_seconds must be between 10 and 86400",
+        ),
     ] {
         let response = put_config(port, invalid_body, "127.0.0.1", "http://127.0.0.1:3000");
         let response_json = json_body(&response);
@@ -384,11 +427,96 @@ async fn webui_api_config_update_rejects_out_of_range_values_with_422_and_preser
             "body={invalid_body} response={response}"
         );
         assert_eq!(response_json["error"]["code"], "invalid_config_update");
+        assert_eq!(response_json["error"]["message"], expected_message);
         assert_eq!(
             std::fs::read_to_string(&config_path).unwrap(),
             original_toml
         );
     }
 
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn webui_api_disabling_matrix_preserves_fields_and_token_across_subsequent_save() {
+    let _env = env_lock().await;
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dist = tempfile::tempdir().unwrap();
+    write_dist(dist.path(), "api dist");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let config_path = temp_dir.path().join("config.toml");
+    write_api_config(&config_path, temp_dir.path());
+    let runtime = api_runtime(&config_path, 0, "127.0.0.1");
+    let server = start_with_state(&runtime, api_store(&runtime)).await;
+    let port = server.bound_port().unwrap();
+
+    let disable_matrix = r#"{"matrix":{"enabled":false,"homeserver":"https://matrix.invalid","room_id":"!room:matrix.invalid","mention_user_id":"@cmdr:matrix.invalid","status_update_interval_seconds":90,"access_token_replacement":null,"clear_access_token":false}}"#;
+    let disable_response = put_config(port, disable_matrix, "127.0.0.1", "http://127.0.0.1:3000");
+    assert!(
+        disable_response.starts_with("HTTP/1.1 200 OK"),
+        "{disable_response}"
+    );
+    let disable_json = json_body(&disable_response);
+    assert_eq!(
+        disable_json["config"]["matrix"]["enabled"],
+        Value::Bool(false)
+    );
+    assert_eq!(
+        disable_json["config"]["matrix"]["access_token_present"],
+        Value::Bool(true)
+    );
+
+    let reloaded_view_response = request(
+        port,
+        "GET /api/config HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    );
+    assert!(
+        reloaded_view_response.starts_with("HTTP/1.1 200 OK"),
+        "{reloaded_view_response}"
+    );
+    let reloaded_matrix = &json_body(&reloaded_view_response)["config"]["matrix"];
+    assert_eq!(reloaded_matrix["enabled"], Value::Bool(false));
+    assert_eq!(reloaded_matrix["homeserver"], "https://matrix.invalid");
+    assert_eq!(reloaded_matrix["room_id"], "!room:matrix.invalid");
+    assert_eq!(reloaded_matrix["mention_user_id"], "@cmdr:matrix.invalid");
+    assert_eq!(reloaded_matrix["status_update_interval_seconds"], 90);
+    assert_eq!(reloaded_matrix["access_token_present"], Value::Bool(true));
+
+    // Save another setting with the reloaded disabled matrix fields, as the UI form does.
+    let save_other_body = serde_json::json!({
+        "monitor": { "warn_kill_rate": 25 },
+        "matrix": {
+            "enabled": reloaded_matrix["enabled"],
+            "homeserver": reloaded_matrix["homeserver"],
+            "room_id": reloaded_matrix["room_id"],
+            "mention_user_id": reloaded_matrix["mention_user_id"],
+            "status_update_interval_seconds": reloaded_matrix["status_update_interval_seconds"],
+            "access_token_replacement": null,
+            "clear_access_token": false
+        }
+    })
+    .to_string();
+    let other_response = put_config(port, &save_other_body, "127.0.0.1", "http://127.0.0.1:3000");
+    assert!(
+        other_response.starts_with("HTTP/1.1 200 OK"),
+        "{other_response}"
+    );
+
+    let loaded = AppConfig::load_from_path(&config_path).unwrap();
+    assert!(loaded.warnings.is_empty(), "{:?}", loaded.warnings);
+    assert_eq!(loaded.config.monitor.warn_kill_rate, 25);
+    let matrix = loaded
+        .config
+        .matrix
+        .expect("disabled matrix config should survive reload");
+    assert!(!matrix.enabled);
+    assert_eq!(matrix.homeserver.as_deref(), Some("https://matrix.invalid"));
+    assert_eq!(matrix.room_id.as_deref(), Some("!room:matrix.invalid"));
+    assert_eq!(
+        matrix.mention_user_id.as_deref(),
+        Some("@cmdr:matrix.invalid")
+    );
+    assert_eq!(matrix.status_update_interval_seconds, 90);
+    assert_eq!(matrix.access_token.as_deref(), Some("fixture-access-token"));
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }
