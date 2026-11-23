@@ -102,6 +102,22 @@ export function validateConfigForm(form: ConfigFormState): readonly string[] {
   const errors: string[] = []
   addRangeError(errors, "Recent Journal files", form.journal.recent_files, 1, 100)
   addRangeError(errors, "Warn kill rate", form.monitor.warn_kill_rate, 0, 1000)
+  addRangeError(
+    errors,
+    "Warn kill rate delay minutes",
+    form.monitor.warn_kill_rate_delay_minutes,
+    0,
+    1440,
+  )
+  addRangeError(errors, "No kills warning minutes", form.monitor.warn_no_kills_minutes, 0, 1440)
+  addRangeError(
+    errors,
+    "Initial no kills warning minutes",
+    form.monitor.warn_no_kills_initial_minutes,
+    0,
+    1440,
+  )
+  addRangeError(errors, "Warning cooldown minutes", form.monitor.warn_cooldown_minutes, 1, 1440)
   addRangeError(errors, "Duplicate suppression max", form.monitor.duplicate_max, 0, 1000)
   addRangeError(errors, "Minimum scan level", form.monitor.min_scan_level, 0, 3)
   addRangeError(errors, "Poll interval", form.monitor.poll_interval_ms, 100, 60_000)

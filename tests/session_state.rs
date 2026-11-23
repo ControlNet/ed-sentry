@@ -460,6 +460,25 @@ fn session_state_missions_snapshot_and_abandon_unfinished_preserve_counts() {
 }
 
 #[test]
+fn session_state_ignores_redirect_for_unknown_massacre_mission_id() {
+    let mut state = SessionState::new();
+    let snapshot = ed_sentry::event::parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:00:00Z","event":"Missions","Active":[{"MissionID":10,"Name":"Mission_Massacre_name","Expires":1000}]}"#,
+    )
+    .unwrap();
+    state.apply_event(&snapshot);
+    state.apply_event(&JournalEvent::MissionRedirected(mission(
+        "MissionRedirected",
+        1,
+        99,
+        "Mission_Massacre_name",
+    )));
+
+    assert_eq!(state.mission_total, 1);
+    assert_eq!(state.mission_completed, 0);
+}
+
+#[test]
 fn session_state_massacre_matching_uses_localised_name_and_case_insensitive_text() {
     let mut state = SessionState::new();
     let mut localised_massacre = mission("MissionAccepted", 0, 90, "Mission_Delivery_name");

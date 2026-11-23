@@ -312,7 +312,7 @@ impl SessionState {
             return;
         };
 
-        if (self.active_massacre_mission_ids.contains(&mission_id) || mission_is_massacre(event))
+        if self.active_massacre_mission_ids.contains(&mission_id)
             && self.redirected_massacre_mission_ids.insert(mission_id)
         {
             self.mission_completed += 1;

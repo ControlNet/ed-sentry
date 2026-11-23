@@ -219,3 +219,66 @@ fn warnings_level_zero_suppresses_delivery_without_breaking_state() {
     assert_eq!(notifications(&sent, "no_kills")[0].level, 0);
     assert!(notifications(&sent, "kill_rate").is_empty());
 }
+
+#[test]
+fn warnings_zero_disables_initial_and_later_no_kills_warnings() {
+    let initial_disabled = MonitorConfig {
+        warn_no_kills_initial_minutes: 0,
+        warn_no_kills_minutes: 10,
+        warn_kill_rate: 0,
+        ..monitor_config()
+    };
+    let mut monitor_initial = monitor(initial_disabled, LogLevelConfig::default());
+    let mut sent_initial = Vec::new();
+    push_event(&mut sent_initial, &mut monitor_initial, &res_drop(0));
+    push_warning(&mut sent_initial, &mut monitor_initial, 60, false);
+    assert!(notifications(&sent_initial, "no_kills").is_empty());
+
+    let later_disabled = MonitorConfig {
+        warn_no_kills_initial_minutes: 5,
+        warn_no_kills_minutes: 0,
+        warn_kill_rate: 0,
+        ..monitor_config()
+    };
+    let mut monitor_later = monitor(later_disabled, LogLevelConfig::default());
+    let mut sent_later = Vec::new();
+    push_event(&mut sent_later, &mut monitor_later, &res_drop(0));
+    push_event(&mut sent_later, &mut monitor_later, &bounty(1));
+    push_warning(&mut sent_later, &mut monitor_later, 60, false);
+    assert!(notifications(&sent_later, "no_kills").is_empty());
+}
+
+#[test]
+fn warnings_cooldown_clamps_zero_and_saturates_without_overflow() {
+    let config = MonitorConfig {
+        warn_kill_rate: 0,
+        warn_no_kills_minutes: 1,
+        warn_cooldown_minutes: 0,
+        ..monitor_config()
+    };
+    let mut monitor = monitor(config, LogLevelConfig::default());
+    let mut sent = Vec::new();
+
+    push_event(&mut sent, &mut monitor, &res_drop(0));
+    push_event(&mut sent, &mut monitor, &bounty(1));
+
+    let first_at = timestamp(2);
+    sent.extend(monitor.check_warnings_at(first_at, false));
+    assert_eq!(notifications(&sent, "no_kills").len(), 1);
+
+    // Clamped 0 -> 1 minute cooldown blocks an immediate repeat before 1 minute elapses.
+    sent.extend(monitor.check_warnings_at(first_at + Duration::seconds(30), false));
+    assert_eq!(notifications(&sent, "no_kills").len(), 1);
+
+    // Repeated cooldown doublings beyond i32::BITS saturate cleanly without overflowing.
+    let mut cursor = first_at;
+    let mut step_minutes: i64 = 1;
+    for _ in 0..40 {
+        cursor += Duration::minutes(step_minutes);
+        let emitted = monitor.check_warnings_at(cursor, false);
+        assert_eq!(emitted.len(), 1);
+        sent.extend(emitted);
+        step_minutes = step_minutes.saturating_mul(2).min(1 << 20);
+    }
+    assert_eq!(notifications(&sent, "no_kills").len(), 41);
+}

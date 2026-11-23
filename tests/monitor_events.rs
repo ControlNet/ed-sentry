@@ -431,6 +431,10 @@ fn monitor_events_upstream_missions_snapshot_and_redirect_semantics() {
             r#"{"timestamp":"2035-01-09T10:02:00Z","event":"MissionRedirected","MissionID":99,"Name":"Mission_Massacre_name"}"#,
         )
         .unwrap(),
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:03:00Z","event":"MissionRedirected","MissionID":10,"Name":"Mission_Massacre_name"}"#,
+        )
+        .unwrap(),
     ];
 
     let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
@@ -439,20 +443,21 @@ fn monitor_events_upstream_missions_snapshot_and_redirect_semantics() {
         .iter()
         .filter(|notification| notification.event_type == "missions_snapshot")
         .count();
-    let redirect = notifications
+    let redirects: Vec<_> = notifications
         .iter()
-        .find(|notification| notification.event_type == "mission_redirected")
-        .unwrap();
+        .filter(|notification| notification.event_type == "mission_redirected")
+        .collect();
 
     assert_eq!(mission_loads, 1);
+    assert_eq!(redirects.len(), 1);
     assert_eq!(
-        redirect.terminal_text,
+        redirects[0].terminal_text,
         "Completed kills for all missions! (1/1)"
     );
     assert!(run
         .monitor
         .render_dynamic_title(
-            DateTime::parse_from_rfc3339("2035-01-09T10:02:00Z")
+            DateTime::parse_from_rfc3339("2035-01-09T10:03:00Z")
                 .unwrap()
                 .with_timezone(&Utc)
         )
@@ -640,4 +645,127 @@ fn monitor_events_level_zero_updates_state_without_delivery() {
         .notifications
         .iter()
         .all(|notification| notification.level == 0));
+}
+
+#[test]
+fn monitor_events_unknown_redirect_and_completion_do_not_corrupt_counts() {
+    let now = DateTime::parse_from_rfc3339("2035-01-09T10:05:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    let events = [
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:00:00Z","event":"Missions","Active":[{"MissionID":10,"Name":"Mission_Massacre_name","Expires":100}]}"#,
+        )
+        .unwrap(),
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:01:00Z","event":"MissionRedirected","MissionID":99,"Name":"Mission_Massacre_name"}"#,
+        )
+        .unwrap(),
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:02:00Z","event":"MissionCompleted","MissionID":99,"Name":"Mission_Massacre_name"}"#,
+        )
+        .unwrap(),
+    ];
+
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+
+    assert!(!run
+        .notifications
+        .iter()
+        .any(|notification| notification.event_type == "mission_redirected"));
+    assert_eq!(run.monitor.state().mission_completed, 0);
+    assert_eq!(run.monitor.state().mission_total, 1);
+    assert!(run.monitor.render_status_line(now).contains("🎯 0/1"));
+}
+
+#[test]
+fn monitor_events_seeded_history_tracks_new_massacre_without_missions_snapshot() {
+    let mut tracker = ed_sentry::mission::MissionTracker::new();
+    for line in [
+        r#"{"timestamp":"2035-01-09T09:00:00Z","event":"MissionAccepted","MissionID":101,"Name":"Mission_Massacre_name","KillCount":20}"#,
+        r#"{"timestamp":"2035-01-09T09:01:00Z","event":"MissionAccepted","MissionID":102,"Name":"Mission_Massacre_name","KillCount":20}"#,
+        r#"{"timestamp":"2035-01-09T09:30:00Z","event":"MissionRedirected","MissionID":101,"Name":"Mission_Massacre_name"}"#,
+    ] {
+        tracker.apply_event(&parse_journal_line(line).unwrap());
+    }
+
+    let log_levels = LogLevelConfig {
+        missions: 1,
+        missions_all: 3,
+        ..LogLevelConfig::default()
+    };
+    let mut monitor = EventMonitor::new(MonitorConfig::default(), log_levels);
+    monitor.seed_from_mission_tracker(&tracker);
+
+    let accepted_103 = parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:00:00Z","event":"MissionAccepted","MissionID":103,"Name":"Mission_Massacre_name","KillCount":20}"#,
+    )
+    .unwrap();
+    let redirected_102 = parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:05:00Z","event":"MissionRedirected","MissionID":102,"Name":"Mission_Massacre_name"}"#,
+    )
+    .unwrap();
+    let redirected_103 = parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:10:00Z","event":"MissionRedirected","MissionID":103,"Name":"Mission_Massacre_name"}"#,
+    )
+    .unwrap();
+
+    let accepted_notes = monitor.process_event(&accepted_103);
+    assert!(accepted_notes
+        .iter()
+        .any(|note| note.terminal_text == "Accepted massacre mission (active: 3)"));
+
+    let mid_notes = monitor.process_event(&redirected_102);
+    assert_eq!(mid_notes.len(), 1);
+    assert_eq!(
+        mid_notes[0].terminal_text,
+        "Completed kills for a mission (2/3)"
+    );
+    assert_eq!(mid_notes[0].level, 1);
+    assert_eq!(monitor.state().mission_completed, 2);
+    assert_eq!(monitor.state().mission_total, 3);
+    let now = DateTime::parse_from_rfc3339("2035-01-09T10:06:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    assert!(monitor.render_status_line(now).contains("🎯 2/3"));
+
+    let final_notes = monitor.process_event(&redirected_103);
+    assert_eq!(final_notes.len(), 1);
+    assert_eq!(
+        final_notes[0].terminal_text,
+        "Completed kills for all missions! (3/3)"
+    );
+    assert_eq!(final_notes[0].level, 3);
+    assert_eq!(monitor.state().mission_completed, 3);
+    assert_eq!(monitor.state().mission_total, 3);
+}
+
+#[test]
+fn monitor_events_missions_event_without_active_key_is_skipped() {
+    let now = DateTime::parse_from_rfc3339("2035-01-09T10:05:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    let events = [
+        parse_journal_line(r#"{"timestamp":"2035-01-09T10:00:00Z","event":"Missions"}"#).unwrap(),
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:01:00Z","event":"Missions","Active":[{"MissionID":10,"Name":"Mission_Massacre_name","Expires":100}]}"#,
+        )
+        .unwrap(),
+    ];
+
+    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let snapshots: Vec<_> = run
+        .notifications
+        .iter()
+        .filter(|notification| notification.event_type == "missions_snapshot")
+        .collect();
+
+    assert_eq!(snapshots.len(), 1);
+    assert_eq!(
+        snapshots[0].terminal_text,
+        "Missions loaded (active massacres: 1)"
+    );
+    assert_eq!(run.monitor.state().mission_total, 1);
+    assert_eq!(run.monitor.state().mission_completed, 0);
+    assert!(run.monitor.render_status_line(now).contains("🎯 0/1"));
 }

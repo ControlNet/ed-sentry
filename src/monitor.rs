@@ -29,6 +29,7 @@ pub struct EventMonitor {
     last_fuel_at: Option<DateTime<Utc>>,
     last_fuel_main: Option<f64>,
     mission_tracking_loaded: bool,
+    mission_history_seeded: bool,
     active_massacre_missions: Vec<u64>,
     redirected_massacre_missions: BTreeSet<u64>,
     last_event_name: Option<String>,
@@ -37,6 +38,7 @@ pub struct EventMonitor {
 const FUEL_LOW: f64 = 0.2;
 const FUEL_CRITICAL: f64 = 0.1;
 const DEFAULT_FUEL_CAPACITY: f64 = 64.0;
+const MAX_COOLDOWN_MULTIPLIER: i32 = 1 << 20;
 const COMBAT_RANKS: &[&str] = &[
     "Harmless",
     "Mostly Harmless",
@@ -109,6 +111,7 @@ impl EventMonitor {
             last_fuel_at: None,
             last_fuel_main: None,
             mission_tracking_loaded: false,
+            mission_history_seeded: false,
             active_massacre_missions: Vec::new(),
             redirected_massacre_missions: BTreeSet::new(),
             last_event_name: None,
@@ -141,6 +144,7 @@ impl EventMonitor {
             })
             .map(|mission| mission.mission_id)
             .collect();
+        self.mission_history_seeded = !self.active_massacre_missions.is_empty();
     }
 
     pub fn update_config(&mut self, monitor_config: MonitorConfig, log_levels: LogLevelConfig) {
@@ -433,7 +437,7 @@ impl EventMonitor {
                 }
             }
             JournalEvent::MissionAccepted(mission) => {
-                if self.mission_tracking_loaded
+                if (self.mission_tracking_loaded || self.mission_history_seeded)
                     && mission_is_massacre_text(
                         mission.name.as_deref(),
                         mission.localised_name.as_deref(),
@@ -459,10 +463,10 @@ impl EventMonitor {
             | JournalEvent::MissionFailed(mission)
             | JournalEvent::MissionAbandoned(mission) => {
                 if let Some(mission_id) = mission.mission_id {
+                    self.redirected_massacre_missions.remove(&mission_id);
                     if self.active_massacre_missions.contains(&mission_id) {
                         self.active_massacre_missions
                             .retain(|active| *active != mission_id);
-                        self.redirected_massacre_missions.remove(&mission_id);
                         let event = mission
                             .event
                             .strip_prefix("Mission")
@@ -481,7 +485,7 @@ impl EventMonitor {
                 }
             }
             JournalEvent::Missions(event) => {
-                if self.mission_tracking_loaded {
+                if self.mission_tracking_loaded || !event.active_present {
                     return notifications;
                 }
                 self.mission_tracking_loaded = true;
@@ -624,7 +628,8 @@ impl EventMonitor {
         session_started_at: DateTime<Utc>,
     ) -> Option<Notification> {
         if self.state.kills == 0 {
-            if self.warnings.initial_no_kills_sent
+            if self.monitor_config.warn_no_kills_initial_minutes == 0
+                || self.warnings.initial_no_kills_sent
                 || now.signed_duration_since(session_started_at) < self.initial_no_kills_threshold()
             {
                 return None;
@@ -641,6 +646,9 @@ impl EventMonitor {
             ));
         }
 
+        if self.monitor_config.warn_no_kills_minutes == 0 {
+            return None;
+        }
         let last_kill_at = self.state.last_kill_at?;
         let elapsed_since_kill = now.signed_duration_since(last_kill_at);
         if elapsed_since_kill < self.later_no_kills_threshold()
@@ -711,8 +719,13 @@ impl EventMonitor {
     }
 
     fn warning_cooldown(&self) -> Duration {
-        Duration::minutes(i64::from(self.monitor_config.warn_cooldown_minutes))
-            * self.warnings.cooldown_multiplier.max(1)
+        let base_minutes = i64::from(self.monitor_config.warn_cooldown_minutes.max(1));
+        let multiplier = i64::from(
+            self.warnings
+                .cooldown_multiplier
+                .clamp(1, MAX_COOLDOWN_MULTIPLIER),
+        );
+        Duration::minutes(base_minutes.saturating_mul(multiplier))
     }
 
     fn fuel_level(&self, fuel_main: Option<f64>) -> u8 {
@@ -852,7 +865,9 @@ impl EventMonitor {
 
     fn mission_redirect_notification(&mut self, mission: &MissionEvent) -> Notification {
         if let Some(mission_id) = mission.mission_id {
-            self.redirected_massacre_missions.insert(mission_id);
+            if self.active_massacre_missions.contains(&mission_id) {
+                self.redirected_massacre_missions.insert(mission_id);
+            }
         }
         let completed = self.redirected_massacre_missions.len();
         let active = self.active_massacre_missions.len();
@@ -1132,7 +1147,11 @@ impl WarningScheduler {
             cleared = true;
         }
         if cleared {
-            self.cooldown_multiplier = self.cooldown_multiplier.max(1) * 2;
+            self.cooldown_multiplier = self
+                .cooldown_multiplier
+                .max(1)
+                .saturating_mul(2)
+                .min(MAX_COOLDOWN_MULTIPLIER);
         }
     }
 }

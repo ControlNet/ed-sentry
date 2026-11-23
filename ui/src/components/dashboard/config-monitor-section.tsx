@@ -70,7 +70,7 @@ export function ConfigMonitorSection({
       <NumberField
         label="Warning cooldown minutes"
         value={form.monitor.warn_cooldown_minutes}
-        min={0}
+        min={1}
         max={1440}
         onChange={(warn_cooldown_minutes) => setMonitor({ ...form.monitor, warn_cooldown_minutes })}
       />

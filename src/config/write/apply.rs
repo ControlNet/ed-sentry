@@ -22,6 +22,26 @@ pub(super) fn validate_update(
             "monitor.warn_kill_rate must be between 0 and 1000",
         )?;
         validate_opt_range(
+            monitor.warn_kill_rate_delay_minutes,
+            0..=1_440,
+            "monitor.warn_kill_rate_delay_minutes must be between 0 and 1440",
+        )?;
+        validate_opt_range(
+            monitor.warn_no_kills_minutes,
+            0..=1_440,
+            "monitor.warn_no_kills_minutes must be between 0 and 1440",
+        )?;
+        validate_opt_range(
+            monitor.warn_no_kills_initial_minutes,
+            0..=1_440,
+            "monitor.warn_no_kills_initial_minutes must be between 0 and 1440",
+        )?;
+        validate_opt_range(
+            monitor.warn_cooldown_minutes,
+            1..=1_440,
+            "monitor.warn_cooldown_minutes must be between 1 and 1440",
+        )?;
+        validate_opt_range(
             monitor.duplicate_max,
             0..=1_000,
             "monitor.duplicate_max must be between 0 and 1000",
