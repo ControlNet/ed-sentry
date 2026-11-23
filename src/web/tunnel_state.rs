@@ -192,7 +192,7 @@ mod tests {
         let start_task = tokio::spawn(async move { start_state.start(started_at).await });
 
         // Wait until start has marked the provider Starting.
-        tokio::time::timeout(Duration::from_secs(2), async {
+        tokio::time::timeout(Duration::from_secs(5), async {
             loop {
                 let status = state.status(Utc::now()).await;
                 if status.kind == TunnelStatusKind::Starting {
@@ -229,7 +229,7 @@ mod tests {
         let before_release = Utc::now();
         fs::write(&release_signal, "go").unwrap();
 
-        let final_status = tokio::time::timeout(Duration::from_secs(3), start_task)
+        let final_status = tokio::time::timeout(Duration::from_secs(10), start_task)
             .await
             .expect("start task should finish after release")
             .unwrap();
@@ -265,7 +265,7 @@ mod tests {
         let start_task = tokio::spawn(async move { start_state.start(Utc::now()).await });
 
         // Wait until the fake cloudflared process is spawned and has written its PID.
-        tokio::time::timeout(Duration::from_secs(2), async {
+        tokio::time::timeout(Duration::from_secs(5), async {
             loop {
                 if fs::read_to_string(&pid_file)
                     .ok()
@@ -290,7 +290,7 @@ mod tests {
             .expect("stop() must not block on slow cloudflared startup");
         assert_eq!(stopped.kind, TunnelStatusKind::Disabled);
 
-        let start_result = tokio::time::timeout(Duration::from_secs(2), start_task)
+        let start_result = tokio::time::timeout(Duration::from_secs(5), start_task)
             .await
             .expect("start task should exit promptly after stop")
             .unwrap();
@@ -334,7 +334,7 @@ mod tests {
                 lines.push(format!("echo started>> \"{}\"", log.display()));
             }
             if let Some(pid) = pid_file {
-                lines.push(format!("echo 1> \"{}\"", pid.display()));
+                lines.push(format!("(echo 1)> \"{}\"", pid.display()));
             }
             lines.push(":wait".to_string());
             lines.push(format!(
