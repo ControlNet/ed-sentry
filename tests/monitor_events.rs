@@ -294,20 +294,42 @@ fn monitor_events_mission_redirect_uses_mission_log_level_without_counting_kills
         )
         .unwrap(),
         parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:00:30Z","event":"MissionAccepted","MissionID":43,"Name":"Mission_Massacre_name"}"#,
+        )
+        .unwrap(),
+        parse_journal_line(
             r#"{"timestamp":"2035-01-09T10:01:00Z","event":"MissionRedirected","MissionID":42,"Name":"Mission_Massacre_name"}"#,
+        )
+        .unwrap(),
+        parse_journal_line(
+            r#"{"timestamp":"2035-01-09T10:02:00Z","event":"MissionRedirected","MissionID":43,"Name":"Mission_Massacre_name"}"#,
         )
         .unwrap(),
     ];
 
-    let run = run_events(&events, MonitorConfig::default(), LogLevelConfig::default());
+    let log_levels = LogLevelConfig {
+        missions: 1,
+        missions_all: 3,
+        ..LogLevelConfig::default()
+    };
+    let run = run_events(&events, MonitorConfig::default(), log_levels.clone());
 
-    let notifications = &run.notifications;
-    let redirect = notifications
+    let redirects: Vec<_> = run
+        .notifications
         .iter()
-        .find(|notification| notification.event_type == "mission_redirected")
-        .unwrap();
-    assert!(redirect.terminal_text.contains("Completed kills for"));
-    assert_eq!(redirect.level, LogLevelConfig::default().missions);
+        .filter(|notification| notification.event_type == "mission_redirected")
+        .collect();
+    assert_eq!(redirects.len(), 2);
+    assert_eq!(
+        redirects[0].terminal_text,
+        "Completed kills for a mission (1/2)"
+    );
+    assert_eq!(redirects[0].level, log_levels.missions);
+    assert_eq!(
+        redirects[1].terminal_text,
+        "Completed kills for all missions! (2/2)"
+    );
+    assert_eq!(redirects[1].level, log_levels.missions_all);
     assert_eq!(run.monitor.state().kills, 0);
 }
 
@@ -768,4 +790,61 @@ fn monitor_events_missions_event_without_active_key_is_skipped() {
     assert_eq!(run.monitor.state().mission_total, 1);
     assert_eq!(run.monitor.state().mission_completed, 0);
     assert!(run.monitor.render_status_line(now).contains("🎯 0/1"));
+}
+
+#[test]
+fn monitor_events_zero_seeded_history_tracks_new_massacres_to_all_complete() {
+    let empty_tracker = ed_sentry::mission::MissionTracker::new();
+    let log_levels = LogLevelConfig {
+        missions: 1,
+        missions_all: 3,
+        ..LogLevelConfig::default()
+    };
+    let mut monitor = EventMonitor::new(MonitorConfig::default(), log_levels);
+    monitor.seed_from_mission_tracker(&empty_tracker);
+
+    let accept_201 = parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:00:00Z","event":"MissionAccepted","MissionID":201,"Name":"Mission_Massacre_name","KillCount":20}"#,
+    )
+    .unwrap();
+    let accept_202 = parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:01:00Z","event":"MissionAccepted","MissionID":202,"Name":"Mission_Massacre_name","KillCount":20}"#,
+    )
+    .unwrap();
+    let redirect_201 = parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:05:00Z","event":"MissionRedirected","MissionID":201,"Name":"Mission_Massacre_name"}"#,
+    )
+    .unwrap();
+    let redirect_202 = parse_journal_line(
+        r#"{"timestamp":"2035-01-09T10:10:00Z","event":"MissionRedirected","MissionID":202,"Name":"Mission_Massacre_name"}"#,
+    )
+    .unwrap();
+
+    monitor.process_event(&accept_201);
+    monitor.process_event(&accept_202);
+
+    let first_redirect = monitor.process_event(&redirect_201);
+    assert_eq!(first_redirect.len(), 1);
+    assert_eq!(
+        first_redirect[0].terminal_text,
+        "Completed kills for a mission (1/2)"
+    );
+    assert_eq!(first_redirect[0].level, 1);
+    assert_eq!(monitor.state().mission_completed, 1);
+    assert_eq!(monitor.state().mission_total, 2);
+    let now = DateTime::parse_from_rfc3339("2035-01-09T10:06:00Z")
+        .unwrap()
+        .with_timezone(&Utc);
+    assert!(monitor.render_status_line(now).contains("🎯 1/2"));
+
+    let second_redirect = monitor.process_event(&redirect_202);
+    assert_eq!(second_redirect.len(), 1);
+    assert_eq!(
+        second_redirect[0].terminal_text,
+        "Completed kills for all missions! (2/2)"
+    );
+    assert_eq!(second_redirect[0].level, 3);
+    assert_eq!(monitor.state().mission_completed, 2);
+    assert_eq!(monitor.state().mission_total, 2);
+    assert!(monitor.render_status_line(now).contains("🎯 2/2"));
 }

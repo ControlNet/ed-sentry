@@ -437,26 +437,26 @@ impl EventMonitor {
                 }
             }
             JournalEvent::MissionAccepted(mission) => {
-                if (self.mission_tracking_loaded || self.mission_history_seeded)
-                    && mission_is_massacre_text(
-                        mission.name.as_deref(),
-                        mission.localised_name.as_deref(),
-                    )
-                {
+                if mission_is_massacre_text(
+                    mission.name.as_deref(),
+                    mission.localised_name.as_deref(),
+                ) {
                     if let Some(mission_id) = mission.mission_id {
                         if !self.active_massacre_missions.contains(&mission_id) {
                             self.active_massacre_missions.push(mission_id);
                         }
                     }
-                    notifications.push(self.notification(
-                        "mission_accepted",
-                        self.log_levels.missions,
-                        format!(
-                            "Accepted massacre mission (active: {})",
-                            self.active_massacre_missions.len()
-                        ),
-                        mission.timestamp,
-                    ));
+                    if self.mission_tracking_loaded || self.mission_history_seeded {
+                        notifications.push(self.notification(
+                            "mission_accepted",
+                            self.log_levels.missions,
+                            format!(
+                                "Accepted massacre mission (active: {})",
+                                self.active_massacre_missions.len()
+                            ),
+                            mission.timestamp,
+                        ));
+                    }
                 }
             }
             JournalEvent::MissionCompleted(mission)
