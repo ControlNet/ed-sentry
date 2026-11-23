@@ -103,10 +103,10 @@ async fn desktop_restart_required_sections(
     state: &DesktopState,
     config: &crate::config::RuntimeConfig,
 ) -> Vec<String> {
-    let Some(runtime) = state.runtime.read().await.clone() else {
-        return Vec::new();
+    let tunnel_running = match state.runtime.read().await.clone() {
+        Some(runtime) => runtime.tunnel_is_running().await,
+        None => false,
     };
-    let tunnel_running = runtime.tunnel_is_running().await;
     match state.running_config.read().await.as_ref() {
         Some(running) => crate::app::restart_required_sections(running, config, tunnel_running),
         None => Vec::new(),

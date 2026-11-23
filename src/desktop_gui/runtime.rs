@@ -88,30 +88,65 @@ pub(crate) async fn run_desktop_runtime_attempt<F>(state: Arc<DesktopState>, on_
 where
     F: FnOnce(Arc<DesktopRuntime>) + Send + 'static,
 {
-    let config = state.config.read().await.clone();
+    run_desktop_runtime_attempt_with_starter(
+        state,
+        DesktopRuntime::start_with_observer,
+        on_started,
+    )
+    .await;
+}
+
+pub(crate) async fn run_desktop_runtime_attempt_with_starter<StartFn, StartFut, F>(
+    state: Arc<DesktopState>,
+    start_runtime: StartFn,
+    on_started: F,
+) where
+    StartFn: FnOnce(RuntimeConfig, Option<Arc<dyn RuntimeConfigApplier>>) -> StartFut,
+    StartFut:
+        std::future::Future<Output = Result<DesktopRuntime, crate::app::runtime::RuntimeError>>,
+    F: FnOnce(Arc<DesktopRuntime>) + Send + 'static,
+{
+    let startup_config = {
+        let _write_guard = crate::config::config_write_lock().lock().await;
+        let config = state.config.read().await.clone();
+        *state.running_config.write().await = Some(config.clone());
+        config
+    };
     let observer: Arc<dyn RuntimeConfigApplier> = Arc::new(DesktopStateConfigObserver {
         state: Arc::clone(&state),
     });
-    match DesktopRuntime::start_with_observer(config.clone(), Some(observer)).await {
+    match start_runtime(startup_config.clone(), Some(observer)).await {
         Ok(runtime) => {
             let runtime = Arc::new(runtime);
             {
-                let mut startup_error = state.startup_error.write().await;
-                *startup_error = None;
-            }
-            {
-                let mut running_config = state.running_config.write().await;
-                *running_config = Some(config);
-            }
-            {
-                let mut stored_runtime = state.runtime.write().await;
-                *stored_runtime = Some(runtime.clone());
+                let _write_guard = crate::config::config_write_lock().lock().await;
+                {
+                    let mut startup_error = state.startup_error.write().await;
+                    *startup_error = None;
+                }
+                {
+                    let mut running_config = state.running_config.write().await;
+                    *running_config = Some(startup_config.clone());
+                }
+                {
+                    let mut stored_runtime = state.runtime.write().await;
+                    *stored_runtime = Some(runtime.clone());
+                }
+                let latest_config = state.config.read().await.clone();
+                if latest_config != startup_config {
+                    runtime.apply_runtime_config(&latest_config).await;
+                }
             }
             state.starting.store(false, Ordering::Release);
             on_started(runtime);
         }
         Err(error) => {
-            let message = frontend_safe_runtime_startup_error(&error, &config);
+            let message = frontend_safe_runtime_startup_error(&error, &startup_config);
+            let _write_guard = crate::config::config_write_lock().lock().await;
+            {
+                let mut running_config = state.running_config.write().await;
+                *running_config = None;
+            }
             let mut startup_error = state.startup_error.write().await;
             *startup_error = Some(message);
             state.starting.store(false, Ordering::Release);
@@ -383,5 +418,107 @@ mod tests {
 
         drop(runtime);
         std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn desktop_save_config_during_startup_applies_after_runtime_starts_and_marks_restart_sections(
+    ) {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("config.toml");
+        let journal_path = temp_dir.path().join("Journal.2035-01-08T170000.01.log");
+        fs::write(
+            &journal_path,
+            r#"{"timestamp":"2035-01-08T17:00:00Z","event":"Commander","Name":"Cmdr StartupSave"}"#,
+        )
+        .unwrap();
+        fs::write(
+            &config_path,
+            format!(
+                "[journal]\nfolder = {:?}\n\n[monitor]\nwarn_kill_rate = 20\n\n[web]\nenabled = false\nhost = \"127.0.0.1\"\nport = 8765\n",
+                temp_dir.path().display().to_string()
+            ),
+        )
+        .unwrap();
+
+        let loaded = AppConfig::load_tauri_from_path(&config_path).unwrap();
+        let source = loaded.source.clone();
+        let initial_config = loaded
+            .config
+            .into_runtime_with_source(source.clone(), &CliConfigOverrides::default());
+        let state = Arc::new(DesktopState::new(
+            Some(config_path),
+            initial_config,
+            source,
+            None,
+            true,
+        ));
+
+        let (entered_tx, entered_rx) = tokio::sync::oneshot::channel();
+        let (proceed_tx, proceed_rx) = tokio::sync::oneshot::channel();
+        let startup_state = Arc::clone(&state);
+        let startup_task = tokio::spawn(super::run_desktop_runtime_attempt_with_starter(
+            startup_state,
+            move |config, observer| async move {
+                let _ = entered_tx.send(());
+                let _ = proceed_rx.await;
+                crate::app::runtime::DesktopRuntime::start_with_observer(config, observer).await
+            },
+            |_| {},
+        ));
+
+        entered_rx.await.unwrap();
+        assert!(state.runtime.read().await.is_none());
+
+        // Save both a live setting and a restart-only setting while DesktopRuntime is still starting.
+        let saved_view = crate::desktop_gui::save_desktop_config(
+            &state,
+            crate::app::EditableConfigUpdate {
+                monitor: Some(crate::app::MonitorConfigEdit {
+                    use_utc: None,
+                    live_status: None,
+                    dynamic_title: None,
+                    warn_kill_rate: Some(66),
+                    warn_kill_rate_delay_minutes: None,
+                    warn_no_kills_minutes: Some(11),
+                    warn_no_kills_initial_minutes: None,
+                    warn_cooldown_minutes: None,
+                    duplicate_max: None,
+                    pirate_names: None,
+                    bounty_faction: None,
+                    bounty_value: None,
+                    extended_stats: None,
+                    min_scan_level: None,
+                    poll_interval_ms: Some(250),
+                }),
+                web: Some(crate::app::WebConfigEdit {
+                    enabled: Some(false),
+                    host: Some("127.0.0.1".to_string()),
+                    port: Some(9876),
+                    open_browser: Some(false),
+                }),
+                ..crate::app::EditableConfigUpdate::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert!(saved_view.restart_required);
+        assert_eq!(saved_view.restart_required_sections, vec!["Web UI"]);
+
+        let _ = proceed_tx.send(());
+        startup_task.await.unwrap();
+
+        let runtime = wait_for_desktop_runtime(&state).await.unwrap();
+        let snapshot = runtime.snapshot().await;
+        assert_eq!(snapshot.thresholds.warn_kill_rate_per_hour, 66);
+        assert_eq!(snapshot.thresholds.warn_no_kills_minutes, 11);
+
+        // running_config must remain the original startup config so restart_required stays accurate.
+        assert_eq!(
+            state.running_config.read().await.as_ref().unwrap().web.port,
+            8765
+        );
+        let reloaded = crate::desktop_gui::load_desktop_config(&state).await;
+        assert!(reloaded.restart_required);
+        assert_eq!(reloaded.restart_required_sections, vec!["Web UI"]);
     }
 }
