@@ -16,7 +16,7 @@ fn config_matrix_missing_section_defaults_to_none() -> Result<()> {
 }
 
 #[test]
-fn config_matrix_disabled_is_silent_none() -> Result<()> {
+fn config_matrix_disabled_preserves_fields_silently() -> Result<()> {
     let loaded = AppConfig::from_toml_str(
         r#"
         [matrix]
@@ -26,7 +26,67 @@ fn config_matrix_disabled_is_silent_none() -> Result<()> {
     )?;
 
     assert!(loaded.warnings.is_empty());
-    assert_eq!(loaded.config.matrix, None);
+    let matrix = require_some(loaded.config.matrix, "matrix config should be present")?;
+    assert!(!matrix.enabled);
+    assert_eq!(matrix.homeserver, None);
+    let runtime = matrix.to_runtime_config();
+    assert_eq!(runtime.config, None);
+    assert!(runtime.warnings.is_empty());
+    Ok(())
+}
+
+#[test]
+fn config_matrix_disabled_keeps_existing_fields_and_token_presence() -> Result<()> {
+    let loaded = AppConfig::from_toml_str(concat!(
+        r#"
+        [matrix]
+        enabled = false
+        homeserver = "https://matrix.invalid"
+        room_id = "!fixture-room:matrix.invalid"
+        access_"#,
+        "token",
+        r#" = "fixture-value"
+        mention_user_id = "@mention-fixture:matrix.invalid"
+        status_update_interval_seconds = 75
+        "#,
+    ))?;
+
+    assert!(loaded.warnings.is_empty());
+    let matrix = require_some(
+        loaded.config.matrix.clone(),
+        "matrix config should be present",
+    )?;
+    assert!(!matrix.enabled);
+    assert_eq!(matrix.homeserver.as_deref(), Some("https://matrix.invalid"));
+    assert_eq!(
+        matrix.room_id.as_deref(),
+        Some("!fixture-room:matrix.invalid")
+    );
+    assert_eq!(matrix.access_token.as_deref(), Some("fixture-value"));
+    assert_eq!(
+        matrix.mention_user_id.as_deref(),
+        Some("@mention-fixture:matrix.invalid")
+    );
+    assert_eq!(matrix.status_update_interval_seconds, 75);
+
+    let runtime = loaded.config.into_runtime(&CliConfigOverrides::default());
+    assert_eq!(runtime.matrix_runtime().config, None);
+    assert!(runtime.matrix_runtime().warnings.is_empty());
+    let view = crate::app::EditableConfigView::from_runtime_config(&runtime)
+        .matrix
+        .expect("disabled matrix view should be present");
+    assert!(!view.enabled);
+    assert_eq!(view.homeserver.as_deref(), Some("https://matrix.invalid"));
+    assert_eq!(
+        view.room_id.as_deref(),
+        Some("!fixture-room:matrix.invalid")
+    );
+    assert_eq!(
+        view.mention_user_id.as_deref(),
+        Some("@mention-fixture:matrix.invalid")
+    );
+    assert_eq!(view.status_update_interval_seconds, 75);
+    assert!(view.access_token_present);
     Ok(())
 }
 

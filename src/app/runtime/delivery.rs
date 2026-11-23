@@ -141,7 +141,7 @@ async fn connect_matrix_delivery(
     }
 
     let Some(matrix_config) = runtime.config else {
-        let status = if config.matrix.is_some() {
+        let status = if config.matrix.as_ref().is_some_and(|matrix| matrix.enabled) {
             MatrixStartupStatus::warning("Matrix config incomplete", Utc::now())
         } else {
             MatrixStartupStatus::disabled()
@@ -236,5 +236,24 @@ mod tests {
             "{}",
             notification.remote_text
         );
+    }
+
+    #[tokio::test]
+    async fn disabled_matrix_with_stored_fields_reports_disabled_not_incomplete() {
+        let mut config = AppConfig::default().into_runtime(&CliConfigOverrides::default());
+        config.matrix = Some(crate::config::MatrixConfig {
+            enabled: false,
+            homeserver: Some("https://matrix.invalid".to_string()),
+            room_id: None,
+            access_token: None,
+            mention_user_id: Some("@cmdr:matrix.invalid".to_string()),
+            status_update_interval_seconds: 90,
+        });
+
+        let (status, delivery) = connect_matrix_delivery(&config).await;
+
+        assert_eq!(status.kind, ServiceStatusKind::Disabled);
+        assert_eq!(status.message, None);
+        assert!(delivery.is_none());
     }
 }

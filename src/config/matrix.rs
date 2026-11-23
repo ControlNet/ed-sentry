@@ -168,40 +168,47 @@ pub(super) fn read_matrix_config(
         &mut enabled,
         warnings,
     );
-    if !enabled {
-        return None;
-    }
 
-    let mut matrix = MatrixConfig::default();
+    let mut discarded_warnings = Vec::new();
+    let field_warnings = if enabled {
+        warnings
+    } else {
+        &mut discarded_warnings
+    };
+
+    let mut matrix = MatrixConfig {
+        enabled,
+        ..MatrixConfig::default()
+    };
     read_optional_string(
         table.get("homeserver"),
         "matrix.homeserver",
         &mut matrix.homeserver,
-        warnings,
+        field_warnings,
     );
     read_optional_string(
         table.get("room_id"),
         "matrix.room_id",
         &mut matrix.room_id,
-        warnings,
+        field_warnings,
     );
     read_optional_string(
         table.get("access_token"),
         "matrix.access_token",
         &mut matrix.access_token,
-        warnings,
+        field_warnings,
     );
     read_optional_string(
         table.get("mention_user_id"),
         "matrix.mention_user_id",
         &mut matrix.mention_user_id,
-        warnings,
+        field_warnings,
     );
     value_read::read_u64(
         table.get("status_update_interval_seconds"),
         "matrix.status_update_interval_seconds",
         &mut matrix.status_update_interval_seconds,
-        warnings,
+        field_warnings,
     );
 
     Some(matrix)

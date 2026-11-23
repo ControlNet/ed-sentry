@@ -34,7 +34,7 @@ pub fn restart_required_sections(
     if running.journal != updated.journal {
         sections.push("Journal".to_string());
     }
-    if running.matrix != updated.matrix {
+    if matrix_restart_required(running.matrix.as_ref(), updated.matrix.as_ref()) {
         sections.push("Matrix".to_string());
     }
     if running.web != updated.web {
@@ -46,6 +46,15 @@ pub fn restart_required_sections(
         sections.push("Tunnel".to_string());
     }
     sections
+}
+
+fn matrix_restart_required(running: Option<&MatrixConfig>, updated: Option<&MatrixConfig>) -> bool {
+    let running_enabled = running.is_some_and(|matrix| matrix.enabled);
+    let updated_enabled = updated.is_some_and(|matrix| matrix.enabled);
+    if running_enabled != updated_enabled {
+        return true;
+    }
+    running_enabled && running != updated
 }
 
 impl From<&JournalConfig> for JournalConfigView {
@@ -218,6 +227,23 @@ mod tests {
         assert_eq!(
             super::restart_required_sections(&running, &auto_start_updated, false),
             vec!["Tunnel"]
+        );
+
+        let mut disabled_matrix_updated = running.clone();
+        disabled_matrix_updated.matrix = Some(crate::config::MatrixConfig {
+            enabled: false,
+            homeserver: Some("https://matrix.invalid".to_string()),
+            ..crate::config::MatrixConfig::default()
+        });
+        assert!(
+            super::restart_required_sections(&running, &disabled_matrix_updated, false).is_empty()
+        );
+
+        let mut enabled_matrix_updated = disabled_matrix_updated.clone();
+        enabled_matrix_updated.matrix.as_mut().unwrap().enabled = true;
+        assert_eq!(
+            super::restart_required_sections(&running, &enabled_matrix_updated, false),
+            vec!["Matrix"]
         );
     }
 }
