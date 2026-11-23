@@ -17,7 +17,7 @@ use tower_http::services::ServeDir;
 
 use crate::app::{
     AppEventStore, AppSnapshot, ConfigEndpointPolicy, EventFeedItem, JournalSourceView,
-    MatrixStartupStatus, MatrixStatusView, WebStartupStatus, WebStatusView,
+    MatrixStatusView, WebStartupStatus, WebStatusView,
 };
 use crate::config::{ConfigSource, RuntimeConfig};
 use crate::web::tunnel_state::WebTunnelState;
@@ -117,7 +117,8 @@ impl WebApiState {
             *config_source = source;
         }
         self.events.update_thresholds(&runtime.monitor);
-        self.tunnel.configure_provider(&runtime).await;
+        let tunnel_status = self.tunnel.configure_provider(&runtime, Utc::now()).await;
+        self.events.update_tunnel_status(tunnel_status);
         if let Some(applier) = &self.runtime_applier {
             applier.apply_runtime_config(&runtime).await;
         }
@@ -180,8 +181,7 @@ async fn snapshot(
     headers: HeaderMap,
 ) -> Result<Json<SnapshotApiView>, WebErrorResponse> {
     let surface = validate_host(&state, &headers).await?;
-    let snapshot = state.events.subscribe().bootstrap.snapshot;
-    let snapshot = refresh_snapshot_tunnel(snapshot, &state).await;
+    let snapshot = refresh_snapshot_tunnel(&state).await;
     let snapshot = snapshot_for_surface(snapshot, &state, surface).await;
     Ok(Json(SnapshotApiView {
         events: snapshot.event_feed.clone(),
@@ -202,10 +202,7 @@ async fn matrix_status(
     headers: HeaderMap,
 ) -> Result<Json<MatrixStatusView>, WebErrorResponse> {
     validate_host(&state, &headers).await?;
-    let config = state.config.read().await;
-    Ok(Json(
-        MatrixStartupStatus::from_runtime_config(&config).into(),
-    ))
+    Ok(Json(state.events.snapshot().matrix))
 }
 
 async fn web_policy(
@@ -279,23 +276,9 @@ pub(super) async fn validate_host(
     Err(forbidden("host_rejected", "Host header is not trusted"))
 }
 
-pub(super) async fn refresh_snapshot_tunnel(
-    mut snapshot: AppSnapshot,
-    state: &WebApiState,
-) -> AppSnapshot {
+pub(super) async fn refresh_snapshot_tunnel(state: &WebApiState) -> AppSnapshot {
     let live = state.tunnel.status(Utc::now()).await;
-    if live.checked_at.is_some() && live.checked_at >= snapshot.tunnel.checked_at {
-        let changed = snapshot.tunnel.kind != live.kind
-            || snapshot.tunnel.public_url != live.public_url
-            || snapshot.tunnel.session_id != live.session_id
-            || snapshot.tunnel.message != live.message
-            || snapshot.tunnel.retryable_error != live.retryable_error;
-        snapshot = snapshot.with_tunnel_status(live);
-        if changed {
-            state.events.publish_snapshot(snapshot.clone());
-        }
-    }
-    snapshot
+    state.events.update_tunnel_status(live)
 }
 
 pub(super) async fn snapshot_for_surface(
@@ -358,11 +341,17 @@ fn is_trusted_state_change_origin(origin: &str, request_host: &str, surface: Req
 }
 
 fn is_loopback_host(host: &str) -> bool {
-    matches!(host.trim(), "127.0.0.1" | "localhost" | "::1" | "[::1]")
+    matches!(
+        host::normalize_host(host).as_str(),
+        "127.0.0.1" | "localhost" | "::1" | "[::1]"
+    )
 }
 
 fn is_wildcard_bind_host(host: &str) -> bool {
-    matches!(host.trim(), "0.0.0.0" | "::" | "[::]")
+    matches!(
+        host::normalize_host(host).as_str(),
+        "0.0.0.0" | "::" | "[::]"
+    )
 }
 
 fn forbidden(code: &'static str, message: impl Into<String>) -> WebErrorResponse {

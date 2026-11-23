@@ -5,6 +5,9 @@ use super::{TunnelProvider, TunnelStatus};
 mod cloudflare;
 
 pub use cloudflare::{cloudflare_trycloudflare_url, CloudflareQuickTunnelProvider};
+pub(crate) use cloudflare::{
+    AbandonedCloudflareProcess, CloudflareStartStep, CompletedCloudflareStart,
+};
 
 pub trait TunnelProviderController {
     fn provider(&self) -> TunnelProvider;

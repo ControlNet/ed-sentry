@@ -13,6 +13,7 @@ pub use auth::{
     TunnelSigningSecret,
 };
 pub use lifecycle::TunnelLifecycleManager;
+pub(crate) use provider::CloudflareStartStep;
 pub use provider::{
     cloudflare_trycloudflare_url, CloudflareQuickTunnelProvider, SshTunnelProvider, TunnelManager,
     TunnelProviderController,
@@ -118,6 +119,13 @@ impl TunnelStatus {
         Self::new(TunnelStatusKind::Disabled, provider)
     }
 
+    pub fn disabled_at(provider: TunnelProvider, checked_at: DateTime<Utc>) -> Self {
+        Self {
+            checked_at: Some(checked_at),
+            ..Self::disabled(provider)
+        }
+    }
+
     pub fn disabled_with_message(
         provider: TunnelProvider,
         message: impl Into<String>,
@@ -136,6 +144,13 @@ impl TunnelStatus {
 
     pub fn manual_start(provider: TunnelProvider) -> Self {
         Self::new(TunnelStatusKind::Start, provider)
+    }
+
+    pub fn manual_start_at(provider: TunnelProvider, checked_at: DateTime<Utc>) -> Self {
+        Self {
+            checked_at: Some(checked_at),
+            ..Self::manual_start(provider)
+        }
     }
 
     pub fn starting(provider: TunnelProvider, session: TunnelSession) -> Self {

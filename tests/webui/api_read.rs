@@ -171,3 +171,68 @@ async fn webui_api_snapshot_config_status_and_config_redaction_work_over_http() 
     assert!(health.starts_with("HTTP/1.1 200 OK"), "{health}");
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn webui_api_matrix_status_returns_live_status_from_event_store() {
+    let _env = env_lock().await;
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dist = tempfile::tempdir().unwrap();
+    write_dist(dist.path(), "matrix live status dist");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let config_path = temp_dir.path().join("config.toml");
+    write_api_config(&config_path, temp_dir.path());
+    let runtime = api_runtime(&config_path, 0, "127.0.0.1");
+    let store = api_store(&runtime);
+    let server = start_with_state(&runtime, store.clone()).await;
+    let port = server.bound_port().unwrap();
+
+    let checked_at = chrono::Utc::now();
+    let running_snapshot = ed_sentry::app::AppSnapshot::from_state(
+        &ed_sentry::state::SessionState::default(),
+        &ed_sentry::mission::MissionTracker::new(),
+        checked_at,
+        ed_sentry::app::MatrixStartupStatus::running("!room:matrix.invalid", checked_at),
+        ed_sentry::app::WebStartupStatus::from_current_runtime_config(&runtime),
+    );
+    store.publish_snapshot(running_snapshot);
+
+    let running_response = request(
+        port,
+        "GET /api/matrix/status HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    );
+    assert!(
+        running_response.starts_with("HTTP/1.1 200 OK"),
+        "{running_response}"
+    );
+    let running_json = json_body(&running_response);
+    assert_eq!(running_json["kind"], Value::String("running".to_string()));
+    assert_eq!(
+        running_json["room_id"],
+        Value::String("!room:matrix.invalid".to_string())
+    );
+
+    let warning_snapshot = ed_sentry::app::AppSnapshot::from_state(
+        &ed_sentry::state::SessionState::default(),
+        &ed_sentry::mission::MissionTracker::new(),
+        checked_at,
+        ed_sentry::app::MatrixStartupStatus::warning("Matrix connection unavailable", checked_at),
+        ed_sentry::app::WebStartupStatus::from_current_runtime_config(&runtime),
+    );
+    store.publish_snapshot(warning_snapshot);
+
+    let warning_response = request(
+        port,
+        "GET /api/matrix/status HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    );
+    assert!(
+        warning_response.starts_with("HTTP/1.1 200 OK"),
+        "{warning_response}"
+    );
+    let warning_json = json_body(&warning_response);
+    assert_eq!(warning_json["kind"], Value::String("warning".to_string()));
+    assert_eq!(
+        warning_json["message"],
+        Value::String("Matrix connection unavailable".to_string())
+    );
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}

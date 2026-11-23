@@ -253,7 +253,8 @@ impl DesktopRuntime {
             .update_monitor_config(&monitor_config);
         let _ = self.poll_interval_tx.send(poll_interval);
         if let Some(tunnel) = &self.tunnel {
-            tunnel.configure_provider(config).await;
+            let status = tunnel.configure_provider(config, Utc::now()).await;
+            self.runtime.lock().await.sync_tunnel_status(status);
         }
         self._web_server
             .sync_external_config(config, &config.config_source)

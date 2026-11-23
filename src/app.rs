@@ -32,6 +32,7 @@ pub use snapshot::{AppSnapshot, WarningThresholdsView};
 pub use status::{
     MatrixStartupStatus, MatrixStatusView, ServiceStatusKind, WebStartupStatus, WebStatusView,
 };
+pub(crate) use tunnel::CloudflareStartStep;
 pub use tunnel::{
     cloudflare_trycloudflare_url, ActiveTunnel, CloudflareQuickTunnelProvider, SshTunnelProvider,
     TunnelAuth, TunnelAuthClaims, TunnelAuthError, TunnelAuthIssue, TunnelAuthPurpose,

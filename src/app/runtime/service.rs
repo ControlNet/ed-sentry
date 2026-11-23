@@ -110,9 +110,8 @@ impl MonitorRuntime {
         if self.tunnel_status == status {
             return;
         }
-        let now = status.checked_at.unwrap_or_else(Utc::now);
-        self.tunnel_status = status;
-        self.events.publish_snapshot(self.snapshot(now));
+        self.tunnel_status = status.clone();
+        self.events.update_tunnel_status(status);
     }
 
     pub fn apply_runtime_config(&mut self, config: &RuntimeConfig, now: DateTime<Utc>) {

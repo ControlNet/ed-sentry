@@ -35,35 +35,53 @@ pub(super) async fn spawn_cloudflared(
         )
     })?;
     let (sender, mut receiver) = mpsc::channel(4);
-    let readers = spawn_output_readers(&mut child, sender);
+    let mut readers = ReadersGuard(spawn_output_readers(&mut child, sender));
     match tokio::time::timeout(url_timeout, wait_for_tunnel_url(&mut child, &mut receiver)).await {
-        Ok(Ok(public_url)) => Ok((child, readers, public_url)),
+        Ok(Ok(public_url)) => Ok((child, readers.take(), public_url)),
         Ok(Err(message)) => {
             terminate_child(child).await;
-            abort_tasks(readers);
+            readers.abort();
             Err(message)
         }
         Err(_elapsed) => match child.try_wait() {
             Ok(Some(exit_status)) => {
-                abort_tasks(readers);
+                readers.abort();
                 Err(format!(
                     "cloudflared exited before URL was reported: {exit_status}"
                 ))
             }
             Ok(None) => {
                 terminate_child(child).await;
-                abort_tasks(readers);
+                readers.abort();
                 Err("cloudflared did not report a tunnel URL before timeout".to_string())
             }
             Err(error) => {
                 terminate_child(child).await;
-                abort_tasks(readers);
+                readers.abort();
                 Err(format!(
                     "cloudflared status check failed: {}",
                     line_safe(&error.to_string())
                 ))
             }
         },
+    }
+}
+
+struct ReadersGuard(Vec<JoinHandle<()>>);
+
+impl ReadersGuard {
+    fn take(&mut self) -> Vec<JoinHandle<()>> {
+        std::mem::take(&mut self.0)
+    }
+
+    fn abort(&mut self) {
+        abort_tasks(self.take());
+    }
+}
+
+impl Drop for ReadersGuard {
+    fn drop(&mut self) {
+        self.abort();
     }
 }
 

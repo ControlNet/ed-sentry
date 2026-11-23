@@ -117,6 +117,78 @@ async fn tunnel_lifecycle_manual_start_keeps_ssh_provider_unsupported() {
 }
 
 #[tokio::test]
+async fn tunnel_lifecycle_ssh_startup_stays_unsupported_after_refresh() {
+    let mut config = RuntimeConfig::default();
+    config.web.enabled = true;
+    config.tunnel.provider = "ssh".to_string();
+    let provider = CloudflareQuickTunnelProvider::disabled();
+    let mut lifecycle = TunnelLifecycleManager::new(provider, Some(8765), true);
+
+    let startup = lifecycle
+        .apply_startup_policy(&config, fixture_time())
+        .await;
+    let refreshed = lifecycle.refresh(fixture_time() + chrono::Duration::seconds(5));
+
+    assert_eq!(startup.kind, TunnelStatusKind::Unsupported);
+    assert_eq!(startup.provider, TunnelProvider::Ssh);
+    assert_eq!(refreshed.kind, TunnelStatusKind::Unsupported);
+    assert_eq!(refreshed.provider, TunnelProvider::Ssh);
+}
+
+#[tokio::test]
+async fn tunnel_lifecycle_switching_ssh_to_cloudflare_quick_becomes_startable() {
+    let mut ssh_config = RuntimeConfig::default();
+    ssh_config.web.enabled = true;
+    ssh_config.tunnel.provider = "ssh".to_string();
+    let provider = CloudflareQuickTunnelProvider::disabled();
+    let mut lifecycle = TunnelLifecycleManager::new(provider, Some(8765), true);
+
+    let t0 = fixture_time();
+    let startup = lifecycle.apply_startup_policy(&ssh_config, t0).await;
+    assert_eq!(startup.kind, TunnelStatusKind::Unsupported);
+    assert_eq!(startup.provider, TunnelProvider::Ssh);
+
+    let mut cf_config = ssh_config;
+    cf_config.tunnel.provider = "cloudflare_quick".to_string();
+    let t1 = t0 + chrono::Duration::seconds(5);
+    let switched = lifecycle.configure_provider(&cf_config, t1);
+    let refreshed = lifecycle.refresh(t1 + chrono::Duration::seconds(1));
+
+    assert_eq!(switched.kind, TunnelStatusKind::Start);
+    assert_eq!(switched.provider, TunnelProvider::CloudflareQuick);
+    assert_eq!(switched.checked_at, Some(t1));
+    assert_eq!(refreshed.kind, TunnelStatusKind::Start);
+    assert_eq!(refreshed.provider, TunnelProvider::CloudflareQuick);
+}
+
+#[tokio::test]
+async fn tunnel_lifecycle_switching_cloudflare_error_to_ssh_shows_unsupported() {
+    let _guard = lock_cloudflared_process_test().await;
+    let temp = TempDir::new().unwrap();
+    let missing = temp.path().join("missing-cloudflared");
+    let provider =
+        CloudflareQuickTunnelProvider::with_executable_and_timeout(missing, FAKE_URL_TIMEOUT);
+    let mut lifecycle = TunnelLifecycleManager::new(provider, Some(8765), true);
+
+    let t0 = fixture_time();
+    let errored = lifecycle.manual_start(t0).await;
+    assert_eq!(errored.kind, TunnelStatusKind::Error);
+
+    let mut ssh_config = RuntimeConfig::default();
+    ssh_config.web.enabled = true;
+    ssh_config.tunnel.provider = "ssh".to_string();
+    let t1 = errored.checked_at.unwrap_or(t0) + chrono::Duration::seconds(5);
+    let switched = lifecycle.configure_provider(&ssh_config, t1);
+    let refreshed = lifecycle.refresh(t1 + chrono::Duration::seconds(1));
+
+    assert_eq!(switched.kind, TunnelStatusKind::Unsupported);
+    assert_eq!(switched.provider, TunnelProvider::Ssh);
+    assert_eq!(switched.checked_at, Some(t1));
+    assert_eq!(refreshed.kind, TunnelStatusKind::Unsupported);
+    assert_eq!(refreshed.provider, TunnelProvider::Ssh);
+}
+
+#[tokio::test]
 async fn tunnel_lifecycle_manual_start_is_idempotent_while_running() {
     let _guard = lock_cloudflared_process_test().await;
 

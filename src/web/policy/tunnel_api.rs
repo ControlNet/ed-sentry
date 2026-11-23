@@ -35,13 +35,7 @@ pub(super) async fn start(
 ) -> Result<Json<TunnelStatusView>, WebErrorResponse> {
     authorize_state_change(&state, &headers).await?;
     let status = state.tunnel.start(Utc::now()).await;
-    let snapshot = state
-        .events
-        .subscribe()
-        .bootstrap
-        .snapshot
-        .with_tunnel_status(status.clone());
-    state.events.publish_snapshot(snapshot);
+    state.events.update_tunnel_status(status.clone());
     Ok(Json(status.into()))
 }
 

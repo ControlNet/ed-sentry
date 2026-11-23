@@ -48,9 +48,9 @@ pub(super) async fn websocket(
 }
 
 async fn websocket_session(mut socket: WebSocket, state: WebApiState, surface: RequestHost) {
+    let _ = refresh_snapshot_tunnel(&state).await;
     let subscriber = state.events.subscribe();
-    let snapshot = refresh_snapshot_tunnel(subscriber.bootstrap.snapshot, &state).await;
-    let snapshot = snapshot_for_surface(snapshot, &state, surface).await;
+    let snapshot = snapshot_for_surface(subscriber.bootstrap.snapshot, &state, surface).await;
     let hello = WebSocketEnvelope::Hello {
         version: 1,
         snapshot,

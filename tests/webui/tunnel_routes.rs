@@ -211,6 +211,129 @@ async fn tunnel_routes_manual_start_keeps_ssh_provider_unsupported() {
     std::env::remove_var("ED_SENTRY_WEBUI_DIST");
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn config_api_requires_bearer_for_mixed_case_and_trailing_dot_tunnel_host_on_wildcard_bind() {
+    let _env = env_lock().await;
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dist = tempfile::tempdir().unwrap();
+    write_dist(dist.path(), "wildcard tunnel auth dist");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let fake = fake_cloudflared(temp_dir.path(), FakeCloudflared::EmitUrlThenWait);
+    std::env::set_var("ED_SENTRY_CLOUDFLARED_PATH", &fake);
+    let config_path = temp_dir.path().join("config.toml");
+    write_tunnel_api_config(&config_path, temp_dir.path(), TUNNEL_PASSWORD);
+    let runtime = api_runtime(&config_path, 0, "0.0.0.0");
+    let server = start_with_state(&runtime, api_store(&runtime)).await;
+    let port = server.bound_port().unwrap();
+    assert!(start_tunnel(port).starts_with("HTTP/1.1 200 OK"));
+
+    let uppercase_read = request(
+        port,
+        "GET /api/config HTTP/1.1\r\nHost: FIXTURE.TRYCLOUDFLARE.COM\r\nConnection: close\r\n\r\n",
+    );
+    let trailing_dot_read = request(
+        port,
+        "GET /api/config HTTP/1.1\r\nHost: fixture.trycloudflare.com.\r\nConnection: close\r\n\r\n",
+    );
+    let lan_read = request(
+        port,
+        "GET /api/config HTTP/1.1\r\nHost: 192.168.50.10\r\nConnection: close\r\n\r\n",
+    );
+
+    assert!(
+        uppercase_read.starts_with("HTTP/1.1 403 Forbidden"),
+        "{uppercase_read}"
+    );
+    assert_eq!(
+        json_body(&uppercase_read)["error"]["code"],
+        Value::String("tunnel_config_auth_required".to_string())
+    );
+    assert!(
+        trailing_dot_read.starts_with("HTTP/1.1 403 Forbidden"),
+        "{trailing_dot_read}"
+    );
+    assert_eq!(
+        json_body(&trailing_dot_read)["error"]["code"],
+        Value::String("tunnel_config_auth_required".to_string())
+    );
+    assert!(lan_read.starts_with("HTTP/1.1 200 OK"), "{lan_read}");
+
+    let token = json_body(&login(port, FIRST_TUNNEL_HOST, TUNNEL_PASSWORD))["token"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let authorized_uppercase_read = request(
+        port,
+        &format!(
+            "GET /api/config HTTP/1.1\r\nHost: FIXTURE.TRYCLOUDFLARE.COM\r\nAuthorization: Bearer {token}\r\nConnection: close\r\n\r\n"
+        ),
+    );
+    assert!(
+        authorized_uppercase_read.starts_with("HTTP/1.1 200 OK"),
+        "{authorized_uppercase_read}"
+    );
+
+    std::env::remove_var("ED_SENTRY_CLOUDFLARED_PATH");
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn web_config_provider_switch_from_ssh_to_cloudflare_updates_snapshot_to_startable() {
+    let _env = env_lock().await;
+    let temp_dir = tempfile::tempdir().unwrap();
+    let dist = tempfile::tempdir().unwrap();
+    write_dist(dist.path(), "provider switch dist");
+    std::env::set_var("ED_SENTRY_WEBUI_DIST", dist.path());
+    let config_path = temp_dir.path().join("config.toml");
+    write_ssh_tunnel_api_config(&config_path, temp_dir.path());
+    let runtime = api_runtime(&config_path, 0, "127.0.0.1");
+    let server = start_with_state(&runtime, api_store(&runtime)).await;
+    let port = server.bound_port().unwrap();
+
+    let initial_snapshot = request(
+        port,
+        "GET /api/snapshot HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    );
+    assert!(
+        initial_snapshot.starts_with("HTTP/1.1 200 OK"),
+        "{initial_snapshot}"
+    );
+    assert_eq!(
+        json_body(&initial_snapshot)["tunnel"]["kind"],
+        Value::String("unsupported".to_string())
+    );
+
+    let switch_body = r#"{"tunnel":{"provider":"cloudflare_quick","auto_start":false,"config_password_replacement":null,"clear_config_password":false}}"#;
+    let put_response = put_config(port, switch_body, "127.0.0.1", "http://127.0.0.1:3000");
+    assert!(
+        put_response.starts_with("HTTP/1.1 200 OK"),
+        "{put_response}"
+    );
+    assert_eq!(
+        json_body(&put_response)["restart_required"],
+        Value::Bool(false)
+    );
+
+    let updated_snapshot = request(
+        port,
+        "GET /api/snapshot HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n",
+    );
+    assert!(
+        updated_snapshot.starts_with("HTTP/1.1 200 OK"),
+        "{updated_snapshot}"
+    );
+    assert_eq!(
+        json_body(&updated_snapshot)["tunnel"]["kind"],
+        Value::String("start".to_string())
+    );
+    assert_eq!(
+        json_body(&updated_snapshot)["tunnel"]["provider"],
+        Value::String("cloudflare_quick".to_string())
+    );
+
+    std::env::remove_var("ED_SENTRY_WEBUI_DIST");
+}
+
 fn start_tunnel(port: u16) -> String {
     request(
         port,

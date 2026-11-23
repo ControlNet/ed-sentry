@@ -11,7 +11,10 @@ use crate::state::SessionState;
 use crate::text::line_safe;
 
 use super::display::display_timestamp;
-use super::{AppSnapshot, EventFeedItem, MatrixStartupStatus, NotificationView, WebStartupStatus};
+use super::{
+    AppSnapshot, EventFeedItem, MatrixStartupStatus, NotificationView, TunnelStatus,
+    TunnelStatusView, WebStartupStatus,
+};
 
 pub const DEFAULT_RECENT_EVENT_CAPACITY: usize = 200;
 
@@ -88,6 +91,14 @@ impl AppEventStore {
         Self::new(AppSnapshot::from_state(state, missions, now, matrix, web))
     }
 
+    pub fn snapshot(&self) -> AppSnapshot {
+        self.lock_state().snapshot.clone()
+    }
+
+    pub fn subscriber_count(&self) -> usize {
+        self.lock_state().subscribers.len()
+    }
+
     pub fn subscribe(&self) -> AppEventSubscriber {
         let (sender, live) = mpsc::channel();
         let mut state = self.lock_state();
@@ -103,6 +114,27 @@ impl AppEventStore {
         state.broadcast(AppLiveUpdate::Snapshot {
             snapshot: Box::new(snapshot),
         });
+    }
+
+    pub fn update_tunnel_status(&self, live: TunnelStatus) -> AppSnapshot {
+        let mut state = self.lock_state();
+        if live.checked_at.is_some() && live.checked_at >= state.snapshot.tunnel.checked_at {
+            let live_view = TunnelStatusView::from(live);
+            let changed = state.snapshot.tunnel.kind != live_view.kind
+                || state.snapshot.tunnel.provider != live_view.provider
+                || state.snapshot.tunnel.public_url != live_view.public_url
+                || state.snapshot.tunnel.session_id != live_view.session_id
+                || state.snapshot.tunnel.message != live_view.message
+                || state.snapshot.tunnel.retryable_error != live_view.retryable_error;
+            state.snapshot.tunnel = live_view;
+            if changed {
+                let snapshot = state.snapshot.clone();
+                state.broadcast(AppLiveUpdate::Snapshot {
+                    snapshot: Box::new(snapshot),
+                });
+            }
+        }
+        state.snapshot.clone()
     }
 
     pub fn update_thresholds(&self, monitor: &crate::config::MonitorConfig) {
