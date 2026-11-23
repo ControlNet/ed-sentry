@@ -108,6 +108,13 @@ fn watch_level_one_and_two_notifications_reach_fake_matrix() {
         &[],
         WATCH_READINESS_DEADLINE,
     );
+    // Console output is printed before the Matrix send, so wait for the
+    // delivery while the watch is still running instead of killing it first.
+    let records = matrix::wait_for_matrix_record(
+        &matrix_log,
+        matrix::is_live_cobra_send_record,
+        MATRIX_RECORD_DEADLINE,
+    );
     let output = watch.stop();
     let stdout = String::from_utf8(output.stdout).unwrap();
     let stderr = String::from_utf8(output.stderr).unwrap();
@@ -120,11 +127,6 @@ fn watch_level_one_and_two_notifications_reach_fake_matrix() {
     assert!(!stdout.contains("📦"), "{stdout}");
     assert!(!stdout.contains("⏱️"), "{stdout}");
 
-    let records = matrix::wait_for_matrix_record(
-        &matrix_log,
-        matrix::is_live_cobra_send_record,
-        MATRIX_RECORD_DEADLINE,
-    );
     assert!(
         records.iter().any(|record| record["kind"] == "connect"),
         "{records:?}"
