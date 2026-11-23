@@ -10,6 +10,7 @@ import {
   ConfigPanelView,
   canScheduleAutosave,
   classifySaveFailure,
+  pickActiveSection,
   type SaveState,
 } from "./config-panel"
 
@@ -151,5 +152,36 @@ describe("ConfigPanel autosave error handling and tunnel re-auth", () => {
     expect(html).toContain('aria-label="Tunnel config authentication"')
     expect(html).toContain("Unlock Systems")
     expect(html).not.toContain("Config unavailable")
+  })
+})
+
+describe("pickActiveSection", () => {
+  const sections = [
+    { id: "journal", top: -400 },
+    { id: "matrix", top: -120 },
+    { id: "tunnel", top: 180 },
+    { id: "web", top: 520 },
+    { id: "monitor", top: 900 },
+    { id: "routing", top: 1400 },
+  ] as const
+
+  it("selects the last section whose heading has reached the top of the pane", () => {
+    expect(pickActiveSection(sections, false)).toBe("matrix")
+  })
+
+  it("treats a heading just below the top edge as reached", () => {
+    const nearTop = sections.map((section) =>
+      section.id === "tunnel" ? { ...section, top: 12 } : section,
+    )
+    expect(pickActiveSection(nearTop, false)).toBe("tunnel")
+  })
+
+  it("falls back to the first section before any heading reaches the top", () => {
+    const unscrolled = sections.map((section) => ({ ...section, top: section.top + 600 }))
+    expect(pickActiveSection(unscrolled, false)).toBe("journal")
+  })
+
+  it("selects the last section once the pane is scrolled to the bottom", () => {
+    expect(pickActiveSection(sections, true)).toBe("routing")
   })
 })

@@ -78,11 +78,53 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
   const latestFormRef = useRef<ConfigFormState | null>(null)
   const pendingFormAfterUnlockRef = useRef<ConfigFormState | null>(null)
   const [activeSection, setActiveSection] = useState<ConfigSectionId>("journal")
+  // Scroll position produced by an index click. While the pane stays there, keep the clicked
+  // section highlighted even if a later section is also visible (e.g. near the bottom).
+  const pinnedScrollTopRef = useRef<number | null>(null)
 
   const jumpToSection = (id: ConfigSectionId): void => {
     setActiveSection(id)
-    scrollSectionIntoView(id)
+    pinnedScrollTopRef.current = scrollSectionIntoView(id)
   }
+
+  const ready = state.status === "ready"
+  useEffect(() => {
+    if (!ready) {
+      return
+    }
+    const scroller = document.getElementById(`sys-${configSectionIds[0]}`)?.closest(".scroll")
+    if (scroller === null || scroller === undefined) {
+      return
+    }
+    let frame = 0
+    const update = (): void => {
+      frame = 0
+      const pinned = pinnedScrollTopRef.current
+      if (pinned !== null) {
+        if (Math.abs(scroller.scrollTop - pinned) <= 2) {
+          return
+        }
+        pinnedScrollTopRef.current = null
+      }
+      const next = sectionInView(scroller)
+      if (next !== null) {
+        setActiveSection(next)
+      }
+    }
+    const onScroll = (): void => {
+      if (frame === 0) {
+        frame = requestAnimationFrame(update)
+      }
+    }
+    update()
+    scroller.addEventListener("scroll", onScroll, { passive: true })
+    return () => {
+      scroller.removeEventListener("scroll", onScroll)
+      if (frame !== 0) {
+        cancelAnimationFrame(frame)
+      }
+    }
+  }, [ready])
 
   useEffect(() => {
     let active = true
@@ -464,16 +506,62 @@ function SaveIndicator({
   }
 }
 
-/** Scroll the content pane (not the whole window) so the section starts at the top. */
-function scrollSectionIntoView(id: ConfigSectionId): void {
+/** A section counts as reached once its heading is within this distance of the pane top. */
+const SECTION_ACTIVATION_OFFSET_PX = 24
+
+/**
+ * Choose the index entry to highlight from section offsets relative to the top of the
+ * scroll pane: the last section whose heading has reached the top, or the last section
+ * once the pane is scrolled to the bottom (later sections may never reach the top).
+ */
+export function pickActiveSection(
+  sections: readonly { readonly id: ConfigSectionId; readonly top: number }[],
+  atBottom: boolean,
+): ConfigSectionId {
+  const last = sections.at(-1)
+  if (atBottom && last !== undefined) {
+    return last.id
+  }
+  let active = sections[0]?.id ?? "journal"
+  for (const section of sections) {
+    if (section.top > SECTION_ACTIVATION_OFFSET_PX) {
+      break
+    }
+    active = section.id
+  }
+  return active
+}
+
+function sectionInView(scroller: Element): ConfigSectionId | null {
+  const padTop = Number.parseFloat(getComputedStyle(scroller).paddingTop) || 0
+  const viewTop = scroller.getBoundingClientRect().top + padTop
+  const sections = configSectionIds.flatMap((id) => {
+    const element = document.getElementById(`sys-${id}`)
+    return element === null ? [] : [{ id, top: element.getBoundingClientRect().top - viewTop }]
+  })
+  if (sections.length === 0) {
+    return null
+  }
+  const atBottom =
+    scroller.scrollTop > 0 &&
+    scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2
+  return pickActiveSection(sections, atBottom)
+}
+
+/**
+ * Scroll the content pane (not the whole window) so the section starts at the top.
+ * Returns the resulting scroll position, which may be clamped near the bottom.
+ */
+function scrollSectionIntoView(id: ConfigSectionId): number | null {
   const element = document.getElementById(`sys-${id}`)
   const scroller = element?.closest(".scroll")
   if (element === null || element === undefined || scroller === null || scroller === undefined) {
-    return
+    return null
   }
   const padTop = Number.parseFloat(getComputedStyle(scroller).paddingTop) || 0
   scroller.scrollTop +=
     element.getBoundingClientRect().top - scroller.getBoundingClientRect().top - padTop
+  return scroller.scrollTop
 }
 
 function assertNever(value: never): never {
