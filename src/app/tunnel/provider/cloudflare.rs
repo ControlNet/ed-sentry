@@ -27,7 +27,7 @@ const CHILD_STOP_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub(crate) enum CloudflareStartStep {
     Immediate(TunnelStatus),
-    Prepared(PreparedCloudflareStart),
+    Prepared(Box<PreparedCloudflareStart>),
 }
 
 pub(crate) struct PreparedCloudflareStart {
@@ -164,7 +164,7 @@ impl CloudflareQuickTunnelProvider {
         self.status = TunnelStatus::starting(TunnelProvider::CloudflareQuick, session.clone());
         let local_url = format!("http://127.0.0.1:{port}");
 
-        CloudflareStartStep::Prepared(PreparedCloudflareStart {
+        CloudflareStartStep::Prepared(Box::new(PreparedCloudflareStart {
             executable: self.executable.clone(),
             local_url,
             url_timeout: self.url_timeout,
@@ -173,7 +173,7 @@ impl CloudflareQuickTunnelProvider {
             previous_child,
             _in_flight_guard: in_flight_guard,
             cancel_rx,
-        })
+        }))
     }
 
     pub(crate) async fn run_prepared_start(
@@ -265,7 +265,7 @@ impl CloudflareQuickTunnelProvider {
         match self.prepare_start(bound_port, now) {
             CloudflareStartStep::Immediate(status) => status,
             CloudflareStartStep::Prepared(prepared) => {
-                let completed = Self::run_prepared_start(prepared).await;
+                let completed = Self::run_prepared_start(*prepared).await;
                 let completed_at = Utc::now().max(now);
                 let (status, abandoned) = self.commit_start(completed, completed_at);
                 if let Some(abandoned) = abandoned {

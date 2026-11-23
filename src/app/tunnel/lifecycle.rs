@@ -45,7 +45,7 @@ impl TunnelLifecycleManager {
         match self.prepare_startup_policy(config, now) {
             CloudflareStartStep::Immediate(status) => status,
             CloudflareStartStep::Prepared(prepared) => {
-                let completed = CloudflareQuickTunnelProvider::run_prepared_start(prepared).await;
+                let completed = CloudflareQuickTunnelProvider::run_prepared_start(*prepared).await;
                 let completed_at = Utc::now().max(now);
                 let (status, abandoned) = self.commit_start(completed, completed_at);
                 if let Some(abandoned) = abandoned {
@@ -141,7 +141,7 @@ impl TunnelLifecycleManager {
         match self.prepare_manual_start(now) {
             CloudflareStartStep::Immediate(status) => status,
             CloudflareStartStep::Prepared(prepared) => {
-                let completed = CloudflareQuickTunnelProvider::run_prepared_start(prepared).await;
+                let completed = CloudflareQuickTunnelProvider::run_prepared_start(*prepared).await;
                 let completed_at = Utc::now().max(now);
                 let (status, abandoned) = self.commit_start(completed, completed_at);
                 if let Some(abandoned) = abandoned {

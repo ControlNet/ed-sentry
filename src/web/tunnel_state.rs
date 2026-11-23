@@ -105,7 +105,7 @@ impl WebTunnelState {
         match step {
             CloudflareStartStep::Immediate(status) => status,
             CloudflareStartStep::Prepared(prepared) => {
-                let completed = CloudflareQuickTunnelProvider::run_prepared_start(prepared).await;
+                let completed = CloudflareQuickTunnelProvider::run_prepared_start(*prepared).await;
                 let completed_at = Utc::now().max(started_at);
                 let (status, abandoned) = {
                     let mut manager = self.manager.lock().await;
