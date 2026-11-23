@@ -28,6 +28,9 @@ const tunnelLoginResponseSchema = z.object({
   token: z.string().min(1),
 })
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 5_000
+const DEFAULT_TUNNEL_START_TIMEOUT_MS = 15_000
+
 export type WebDashboardAdapterOptions = {
   readonly baseUrl?: string
   readonly snapshotPath?: string
@@ -37,6 +40,7 @@ export type WebDashboardAdapterOptions = {
   readonly tunnelStartPath?: string
   readonly tunnelLoginPath?: string
   readonly timeoutMs?: number
+  readonly tunnelStartTimeoutMs?: number
 }
 
 export function createWebDashboardAdapter(
@@ -49,7 +53,9 @@ export function createWebDashboardAdapter(
   const tunnelStatusPath = options.tunnelStatusPath ?? "api/tunnel/status"
   const tunnelStartPath = options.tunnelStartPath ?? "api/tunnel/start"
   const tunnelLoginPath = options.tunnelLoginPath ?? "api/tunnel/login"
-  const timeout = options.timeoutMs ?? 5_000
+  const timeout = options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+  const tunnelStartTimeout =
+    options.tunnelStartTimeoutMs ?? Math.max(timeout, DEFAULT_TUNNEL_START_TIMEOUT_MS)
   const api = ky.create({
     baseUrl,
     timeout,
@@ -128,7 +134,9 @@ export function createWebDashboardAdapter(
     },
     async startTunnel(): Promise<TunnelStatusView> {
       try {
-        const status = parseTunnelStatusView(await api.post(tunnelStartPath).json<unknown>())
+        const status = parseTunnelStatusView(
+          await api.post(tunnelStartPath, { timeout: tunnelStartTimeout }).json<unknown>(),
+        )
         reconcileTunnelAuth(status)
         return status
       } catch (error) {

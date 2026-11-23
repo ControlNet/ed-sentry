@@ -31,13 +31,13 @@ type ConfigPanelProps = {
   readonly adapter: DashboardAdapter
 }
 
-type SaveState = "idle" | "pending" | "saving" | "saved" | "error"
+export type SaveState = "idle" | "pending" | "saving" | "saved" | "error"
 
 type SaveMode = "auto" | "protected"
 
-const AUTOSAVE_DELAY_MS = 800
+export const AUTOSAVE_DELAY_MS = 800
 
-type ConfigLoadState =
+export type ConfigLoadState =
   | { readonly status: "loading" }
   | {
       readonly status: "ready"
@@ -47,6 +47,26 @@ type ConfigLoadState =
     }
   | { readonly status: "error"; readonly message: string }
 
+export type SaveFailureAction =
+  | { readonly kind: "auth_required"; readonly message: string }
+  | { readonly kind: "error"; readonly message: string }
+
+export function canScheduleAutosave(
+  canSave: boolean,
+  protectedChange: boolean,
+  saveState: SaveState,
+): boolean {
+  return canSave && !protectedChange && saveState === "pending"
+}
+
+export function classifySaveFailure(error: unknown): SaveFailureAction {
+  const message = error instanceof Error ? error.message : "Config save failed"
+  if (isTunnelConfigAuthRequired(message)) {
+    return { kind: "auth_required", message }
+  }
+  return { kind: "error", message }
+}
+
 export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
   const [state, setState] = useState<ConfigLoadState>({ status: "loading" })
   const [saveState, setSaveState] = useState<SaveState>("idle")
@@ -55,6 +75,8 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
   const [loadRevision, setLoadRevision] = useState(0)
   const formRevisionRef = useRef(0)
   const saveAttemptRef = useRef(0)
+  const latestFormRef = useRef<ConfigFormState | null>(null)
+  const pendingFormAfterUnlockRef = useRef<ConfigFormState | null>(null)
   const [activeSection, setActiveSection] = useState<ConfigSectionId>("journal")
 
   const jumpToSection = (id: ConfigSectionId): void => {
@@ -72,11 +94,26 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
         if (!active) {
           return
         }
-        const form = formFromConfig(view.config)
-        setState({ status: "ready", view, form, savedForm: form })
+        const savedForm = formFromConfig(view.config)
+        const preservedForm = pendingFormAfterUnlockRef.current
+        pendingFormAfterUnlockRef.current = null
+        const form = preservedForm ?? savedForm
+        latestFormRef.current = form
+        setState({ status: "ready", view, form, savedForm })
         setRestartNotice(restartNoticeFromConfigView(view))
-        setSaveState(loadRevision > 0 ? "saved" : "idle")
-        setSaveMessage(loadRevision > 0 ? "Tunnel access unlocked" : null)
+        if (preservedForm !== null && isConfigFormDirty(preservedForm, savedForm)) {
+          formRevisionRef.current += 1
+          const hasProtected = hasProtectedSecretChange(preservedForm)
+          setSaveState("pending")
+          setSaveMessage(
+            hasProtected
+              ? "Tunnel access unlocked · save protected change"
+              : "Tunnel access unlocked · autosave pending",
+          )
+        } else {
+          setSaveState(loadRevision > 0 ? "saved" : "idle")
+          setSaveMessage(loadRevision > 0 ? "Tunnel access unlocked" : null)
+        }
       })
       .catch((error: unknown) => {
         if (!active) {
@@ -102,12 +139,13 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
     validationErrors.length === 0 &&
     state.view.policy.state_changing_enabled &&
     saveState !== "saving"
-  const canAutosave = canSave && !protectedChange
+  const canAutosave = canScheduleAutosave(canSave, protectedChange, saveState)
 
   const setForm = (form: ConfigFormState): void => {
     if (state.status !== "ready") {
       return
     }
+    latestFormRef.current = form
     formRevisionRef.current += 1
     setSaveState("pending")
     setSaveMessage(hasProtectedSecretChange(form) ? null : "Autosave pending")
@@ -130,6 +168,9 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
         const nextNotice = restartNoticeFromConfigView(nextView)
         setRestartNotice(nextNotice)
         const changedDuringSave = revision !== formRevisionRef.current
+        if (!changedDuringSave) {
+          latestFormRef.current = nextForm
+        }
         setState((current) => {
           if (current.status !== "ready") {
             return current
@@ -155,9 +196,16 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
         if (saveAttempt !== saveAttemptRef.current) {
           return
         }
-        const message = error instanceof Error ? error.message : "Config save failed"
+        const failure = classifySaveFailure(error)
+        if (failure.kind === "auth_required") {
+          pendingFormAfterUnlockRef.current = latestFormRef.current ?? form
+          setSaveState("idle")
+          setSaveMessage(null)
+          setState({ status: "error", message: failure.message })
+          return
+        }
         setSaveState("error")
-        setSaveMessage(message)
+        setSaveMessage(failure.message)
       }
     },
     [adapter],
@@ -184,6 +232,66 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
     void save(state.form, formRevisionRef.current, "protected")
   }
 
+  const retrySave = (): void => {
+    if (state.status !== "ready" || !canSave) {
+      return
+    }
+    void save(state.form, formRevisionRef.current, protectedChange ? "protected" : "auto")
+  }
+
+  return (
+    <ConfigPanelView
+      adapter={adapter}
+      state={state}
+      saveState={saveState}
+      saveMessage={saveMessage}
+      restartNotice={restartNotice}
+      validationErrors={validationErrors}
+      protectedChange={protectedChange}
+      canSave={canSave}
+      activeSection={activeSection}
+      onJumpToSection={jumpToSection}
+      onFormChange={setForm}
+      onSaveProtectedChange={saveProtectedChange}
+      onRetrySave={retrySave}
+      onAuthenticated={() => setLoadRevision((revision) => revision + 1)}
+    />
+  )
+}
+
+type ConfigPanelViewProps = {
+  readonly adapter: DashboardAdapter
+  readonly state: ConfigLoadState
+  readonly saveState: SaveState
+  readonly saveMessage: string | null
+  readonly restartNotice: string | null
+  readonly validationErrors: readonly string[]
+  readonly protectedChange: boolean
+  readonly canSave: boolean
+  readonly activeSection: ConfigSectionId
+  readonly onJumpToSection: (id: ConfigSectionId) => void
+  readonly onFormChange: (form: ConfigFormState) => void
+  readonly onSaveProtectedChange: () => void
+  readonly onRetrySave: () => void
+  readonly onAuthenticated: () => void
+}
+
+export function ConfigPanelView({
+  adapter,
+  state,
+  saveState,
+  saveMessage,
+  restartNotice,
+  validationErrors,
+  protectedChange,
+  canSave,
+  activeSection,
+  onJumpToSection,
+  onFormChange,
+  onSaveProtectedChange,
+  onRetrySave,
+  onAuthenticated,
+}: ConfigPanelViewProps): React.JSX.Element {
   if (state.status === "loading") {
     return (
       <section aria-label="Config editor" className="pnl">
@@ -196,12 +304,7 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
 
   if (state.status === "error") {
     if (isTunnelConfigAuthRequired(state.message)) {
-      return (
-        <TunnelConfigAuthPrompt
-          adapter={adapter}
-          onAuthenticated={() => setLoadRevision((revision) => revision + 1)}
-        />
-      )
+      return <TunnelConfigAuthPrompt adapter={adapter} onAuthenticated={onAuthenticated} />
     }
 
     return (
@@ -253,7 +356,7 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
               type="button"
               className={clsx("idx", activeSection === id && "idx-on")}
               aria-current={activeSection === id ? "true" : undefined}
-              onClick={() => jumpToSection(id)}
+              onClick={() => onJumpToSection(id)}
             >
               <span className="ixt">
                 <span className="ixl">{sectionTitles[id]}</span>
@@ -279,9 +382,19 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
                 className="btn"
                 style={{ marginTop: 10 }}
                 disabled={!canSave}
-                onClick={saveProtectedChange}
+                onClick={onSaveProtectedChange}
               >
                 Save protected change
+              </button>
+            ) : saveState === "error" ? (
+              <button
+                type="button"
+                className="btn"
+                style={{ marginTop: 10 }}
+                disabled={!canSave}
+                onClick={onRetrySave}
+              >
+                Retry
               </button>
             ) : null}
           </div>
@@ -290,20 +403,20 @@ export function ConfigPanel({ adapter }: ConfigPanelProps): React.JSX.Element {
 
       <div style={{ minWidth: 0 }}>
         {messages.length === 0 ? null : <div className="sys-msgs">{messages}</div>}
-        <JournalConfigSection form={state.form} onChange={setForm} />
+        <JournalConfigSection form={state.form} onChange={onFormChange} />
         <MatrixConfigSection
           form={state.form}
           tokenPresent={state.view.config.matrix?.access_token_present ?? false}
-          onChange={setForm}
+          onChange={onFormChange}
         />
         <TunnelConfigSection
           form={state.form}
           passwordPresent={state.view.config.tunnel.config_password_present}
-          onChange={setForm}
+          onChange={onFormChange}
         />
-        <WebConfigSection form={state.form} onChange={setForm} />
-        <ConfigMonitorSection form={state.form} onChange={setForm} />
-        <ConfigLogLevelsSection form={state.form} onChange={setForm} />
+        <WebConfigSection form={state.form} onChange={onFormChange} />
+        <ConfigMonitorSection form={state.form} onChange={onFormChange} />
+        <ConfigLogLevelsSection form={state.form} onChange={onFormChange} />
       </div>
     </section>
   )
@@ -329,7 +442,7 @@ function SaveIndicator({
   readonly saveState: SaveState
   readonly saveMessage: string | null
 }): React.JSX.Element {
-  if (protectedChange && saveState !== "saving") {
+  if (protectedChange && saveState !== "saving" && saveState !== "error") {
     return <Ind tone="warn">Protected secret change pending</Ind>
   }
   switch (saveState) {

@@ -656,9 +656,9 @@ function journalStatusKind(statusLabel: string): ServiceStatusKind {
   return "disabled"
 }
 
-function webInterfaceHref(web: AppSnapshot["web"]): string | null {
+export function webInterfaceHref(web: AppSnapshot["web"]): string | null {
   if (web.message !== null || web.url === null || web.url === undefined) {
     return null
   }
-  return web.url.replace("://0.0.0.0:", "://localhost:")
+  return web.url.replace("://0.0.0.0:", "://localhost:").replace("://[::]:", "://localhost:")
 }

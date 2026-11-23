@@ -10,28 +10,88 @@ type TunnelServiceLineProps = {
   readonly onStart: () => Promise<void>
 }
 
+export type TunnelStartRequestState =
+  | { readonly status: "idle" }
+  | { readonly status: "starting" }
+  | { readonly status: "error"; readonly message: string }
+
+export async function runTunnelStart(
+  onStart: () => Promise<void>,
+  onStateChange: (state: TunnelStartRequestState) => void,
+): Promise<void> {
+  onStateChange({ status: "starting" })
+  try {
+    await onStart()
+    onStateChange({ status: "idle" })
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message.trim().length > 0
+        ? error.message
+        : "Tunnel start failed"
+    onStateChange({ status: "error", message })
+  }
+}
+
 export function TunnelServiceLine({ tunnel, onStart }: TunnelServiceLineProps): React.JSX.Element {
   const [qrVisible, setQrVisible] = useState(false)
-  const [starting, setStarting] = useState(false)
+  const [startState, setStartState] = useState<TunnelStartRequestState>({ status: "idle" })
   const tunnelLinkRef = useRef<HTMLAnchorElement | null>(null)
-  const canStart = tunnelCanStart(tunnel)
-  const publicUrl = tunnel.kind === "running" ? (tunnel.public_url ?? null) : null
-  const busy = starting || tunnel.kind === "starting"
+  const localError =
+    startState.status === "error" && tunnel.kind !== "running" && tunnel.kind !== "starting"
+      ? startState.message
+      : null
+  const canStart = tunnelCanStart(tunnel) || localError !== null
 
   const start = async (): Promise<void> => {
-    if (!canStart || starting) {
+    if (!canStart || startState.status === "starting") {
       return
     }
-    setStarting(true)
-    try {
-      await onStart()
-    } finally {
-      setStarting(false)
-    }
+    await runTunnelStart(onStart, setStartState)
   }
 
   return (
-    <div className="row svc" data-service-node="Tunnel" data-status-kind={tunnel.kind}>
+    <TunnelServiceLineView
+      tunnel={tunnel}
+      startState={startState}
+      qrVisible={qrVisible}
+      tunnelLinkRef={tunnelLinkRef}
+      onQrVisibleChange={setQrVisible}
+      onStartClick={() => {
+        void start()
+      }}
+    />
+  )
+}
+
+type TunnelServiceLineViewProps = {
+  readonly tunnel: TunnelStatusView
+  readonly startState: TunnelStartRequestState
+  readonly qrVisible: boolean
+  readonly tunnelLinkRef: React.RefObject<HTMLAnchorElement | null>
+  readonly onQrVisibleChange: (visible: boolean) => void
+  readonly onStartClick: () => void
+}
+
+export function TunnelServiceLineView({
+  tunnel,
+  startState,
+  qrVisible,
+  tunnelLinkRef,
+  onQrVisibleChange,
+  onStartClick,
+}: TunnelServiceLineViewProps): React.JSX.Element {
+  const localError =
+    startState.status === "error" && tunnel.kind !== "running" && tunnel.kind !== "starting"
+      ? startState.message
+      : null
+  const effectiveKind: TunnelStatusKind = localError !== null ? "error" : tunnel.kind
+  const canStart = tunnelCanStart(tunnel) || localError !== null
+  const publicUrl = tunnel.kind === "running" ? (tunnel.public_url ?? null) : null
+  const busy = startState.status === "starting" || tunnel.kind === "starting"
+  const detailText = localError !== null ? lineSafeText(localError) : tunnelDetail(tunnel)
+
+  return (
+    <div className="row svc" data-service-node="Tunnel" data-status-kind={effectiveKind}>
       <span style={{ display: "flex", gap: 10, minWidth: 0 }}>
         <StrokeIcon
           path={iconPaths.tunnel}
@@ -41,8 +101,13 @@ export function TunnelServiceLine({ tunnel, onStart }: TunnelServiceLineProps): 
         <span style={{ minWidth: 0, position: "relative" }}>
           <span className="nm">Tunnel</span>
           {publicUrl === null ? (
-            <span className="dt" title={tunnelDetail(tunnel)}>
-              {tunnelDetail(tunnel)}
+            <span
+              className="dt"
+              style={effectiveKind === "error" ? { color: "#ffb3ad" } : undefined}
+              role={localError !== null ? "alert" : undefined}
+              title={detailText}
+            >
+              {detailText}
             </span>
           ) : (
             <a
@@ -53,10 +118,10 @@ export function TunnelServiceLine({ tunnel, onStart }: TunnelServiceLineProps): 
               target="_blank"
               rel="noopener noreferrer"
               onClick={handleExternalLinkClick}
-              onBlur={() => setQrVisible(false)}
-              onFocus={() => setQrVisible(true)}
-              onPointerEnter={() => setQrVisible(true)}
-              onPointerLeave={() => setQrVisible(false)}
+              onBlur={() => onQrVisibleChange(false)}
+              onFocus={() => onQrVisibleChange(true)}
+              onPointerEnter={() => onQrVisibleChange(true)}
+              onPointerLeave={() => onQrVisibleChange(false)}
             >
               {tunnelLinkLabel(publicUrl)}
             </a>
@@ -78,18 +143,12 @@ export function TunnelServiceLine({ tunnel, onStart }: TunnelServiceLineProps): 
           </span>
         </button>
       ) : canStart ? (
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            void start()
-          }}
-        >
-          {tunnel.kind === "error" ? "Retry" : "Start"}
+        <button type="button" className="btn" onClick={onStartClick}>
+          {effectiveKind === "error" ? "Retry" : "Start"}
         </button>
       ) : (
-        <Ind tone={tunnelTone(tunnel.kind)} live={tunnel.kind === "running"}>
-          {tunnelStatusLabel(tunnel.kind)}
+        <Ind tone={tunnelTone(effectiveKind)} live={effectiveKind === "running"}>
+          {tunnelStatusLabel(effectiveKind)}
         </Ind>
       )}
     </div>

@@ -1,12 +1,12 @@
 import clsx from "clsx"
-import type * as React from "react"
+import { type JSX, type ReactNode, useState } from "react"
 
 type NumberFieldProps = {
   readonly label: string
   readonly value: number
-  readonly min?: number
-  readonly max?: number
-  readonly step?: number
+  readonly min?: number | undefined
+  readonly max?: number | undefined
+  readonly step?: number | undefined
   readonly onChange: (value: number) => void
 }
 
@@ -47,8 +47,8 @@ export function ConfigSection({
   readonly id: string
   readonly label: string
   readonly title: string
-  readonly children: React.ReactNode
-}): React.JSX.Element {
+  readonly children: ReactNode
+}): JSX.Element {
   return (
     <section className="pnl sys-sec" id={id} aria-label={label}>
       <h2 className="pt">
@@ -66,7 +66,7 @@ export function TextField({
   placeholder,
   autoComplete,
   onChange,
-}: TextFieldProps): React.JSX.Element {
+}: TextFieldProps): JSX.Element {
   return (
     <label className="frow">
       <span>{label}</span>
@@ -83,6 +83,84 @@ export function TextField({
   )
 }
 
+export type NumberFieldState = {
+  readonly rawValue: string
+  readonly syncedValue: number
+}
+
+export function createNumberFieldState(value: number): NumberFieldState {
+  return { rawValue: String(value), syncedValue: value }
+}
+
+export function parseNumberFieldInput(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (trimmed.length === 0) {
+    return null
+  }
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+export function syncNumberFieldState(state: NumberFieldState, nextValue: number): NumberFieldState {
+  if (nextValue === state.syncedValue) {
+    return state
+  }
+  const currentParsed = parseNumberFieldInput(state.rawValue)
+  if (currentParsed !== null && currentParsed === nextValue) {
+    return { rawValue: state.rawValue, syncedValue: nextValue }
+  }
+  return { rawValue: String(nextValue), syncedValue: nextValue }
+}
+
+export function applyNumberFieldInput(
+  state: NumberFieldState,
+  nextRaw: string,
+): { readonly state: NumberFieldState; readonly parsedValue: number | null } {
+  const parsedValue = parseNumberFieldInput(nextRaw)
+  return {
+    state: {
+      rawValue: nextRaw,
+      syncedValue: state.syncedValue,
+    },
+    parsedValue,
+  }
+}
+
+export function NumberFieldView({
+  label,
+  rawValue,
+  invalid,
+  min,
+  max,
+  step = 1,
+  onRawChange,
+}: {
+  readonly label: string
+  readonly rawValue: string
+  readonly invalid: boolean
+  readonly min?: number | undefined
+  readonly max?: number | undefined
+  readonly step?: number | undefined
+  readonly onRawChange: (nextRaw: string) => void
+}): JSX.Element {
+  return (
+    <label className="frow">
+      <span>{label}</span>
+      <input
+        aria-label={label}
+        aria-invalid={invalid || undefined}
+        className="inp"
+        type="number"
+        value={rawValue}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(event) => onRawChange(event.currentTarget.value)}
+      />
+    </label>
+  )
+}
+
 export function NumberField({
   label,
   value,
@@ -90,30 +168,35 @@ export function NumberField({
   max,
   step = 1,
   onChange,
-}: NumberFieldProps): React.JSX.Element {
+}: NumberFieldProps): JSX.Element {
+  const [fieldState, setFieldState] = useState(() => createNumberFieldState(value))
+  const syncedState = syncNumberFieldState(fieldState, value)
+  if (syncedState !== fieldState) {
+    setFieldState(syncedState)
+  }
+
+  const handleChange = (nextRaw: string): void => {
+    const next = applyNumberFieldInput(syncedState, nextRaw)
+    setFieldState(next.state)
+    if (next.parsedValue !== null) {
+      onChange(next.parsedValue)
+    }
+  }
+
   return (
-    <label className="frow">
-      <span>{label}</span>
-      <input
-        aria-label={label}
-        className="inp"
-        type="number"
-        value={String(value)}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
-      />
-    </label>
+    <NumberFieldView
+      label={label}
+      rawValue={syncedState.rawValue}
+      invalid={parseNumberFieldInput(syncedState.rawValue) === null}
+      min={min}
+      max={max}
+      step={step}
+      onRawChange={handleChange}
+    />
   )
 }
 
-export function SelectField({
-  label,
-  value,
-  options,
-  onChange,
-}: SelectFieldProps): React.JSX.Element {
+export function SelectField({ label, value, options, onChange }: SelectFieldProps): JSX.Element {
   return (
     <label className="frow">
       <span>{label}</span>
@@ -133,7 +216,7 @@ export function SelectField({
   )
 }
 
-export function ToggleField({ label, checked, onChange }: ToggleFieldProps): React.JSX.Element {
+export function ToggleField({ label, checked, onChange }: ToggleFieldProps): JSX.Element {
   return (
     <div className="frow">
       <span>{label}</span>
@@ -156,7 +239,7 @@ export function FieldMessage({
   children,
 }: {
   readonly tone: "info" | "success" | "warning" | "error"
-  readonly children: React.ReactNode
-}): React.JSX.Element {
+  readonly children: ReactNode
+}): JSX.Element {
   return <p className={clsx("note", `note-${tone}`)}>{children}</p>
 }
