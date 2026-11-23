@@ -123,22 +123,22 @@ impl WatcherInitError {
 
 impl WatchedFileSet {
     pub fn new(selected_file: impl AsRef<Path>) -> Self {
-        let selected_file = normalize_path(selected_file.as_ref());
+        let selected_file = resolve_and_normalize_path(selected_file.as_ref());
         let watch_dir = selected_file
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
             .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("."));
+            .unwrap_or_else(|| resolve_and_normalize_path(Path::new(".")));
         Self {
-            status_file: normalize_path(&watch_dir.join(STATUS_FILE)),
-            cargo_file: normalize_path(&watch_dir.join(CARGO_FILE)),
+            status_file: resolve_and_normalize_path(&watch_dir.join(STATUS_FILE)),
+            cargo_file: resolve_and_normalize_path(&watch_dir.join(CARGO_FILE)),
             selected_file,
             watch_dir,
         }
     }
 
     pub fn classify_path(&self, path: impl AsRef<Path>) -> Option<AfkWatcherEvent> {
-        let path = normalize_path(path.as_ref());
+        let path = resolve_and_normalize_path(path.as_ref());
         if path == self.selected_file {
             return Some(AfkWatcherEvent::SelectedFile { path });
         }
@@ -185,6 +185,17 @@ fn dispatch_notify_result(
     }
 }
 
+pub(super) fn resolve_and_normalize_path(path: &Path) -> PathBuf {
+    let resolved = if path.is_absolute() {
+        path.to_path_buf()
+    } else if let Ok(current_dir) = std::env::current_dir() {
+        current_dir.join(path)
+    } else {
+        path.to_path_buf()
+    };
+    normalize_path(&resolved)
+}
+
 pub(super) fn normalize_path(path: &Path) -> PathBuf {
     let mut normalized = PathBuf::new();
     for component in path.components() {
@@ -193,7 +204,15 @@ pub(super) fn normalize_path(path: &Path) -> PathBuf {
             Component::RootDir => normalized.push(component.as_os_str()),
             Component::CurDir => {}
             Component::ParentDir => {
-                if !normalized.pop() {
+                if matches!(
+                    normalized.components().next_back(),
+                    Some(Component::Normal(_))
+                ) {
+                    normalized.pop();
+                } else if !matches!(
+                    normalized.components().next_back(),
+                    Some(Component::RootDir | Component::Prefix(_))
+                ) {
                     normalized.push(component.as_os_str());
                 }
             }

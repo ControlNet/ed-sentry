@@ -1,6 +1,6 @@
 use std::{fs, path::Path, path::PathBuf};
 
-use super::super::file_watcher::normalize_path;
+use super::super::file_watcher::resolve_and_normalize_path;
 use crate::app::AfkChecklistState;
 
 const STATUS_FILE: &str = "Status.json";
@@ -20,13 +20,15 @@ pub(super) struct CompanionPaths {
 
 impl CompanionPaths {
     pub(super) fn from_journal_file(journal_file: &Path) -> Option<Self> {
-        let companion_dir = journal_file
+        let resolved_journal = resolve_and_normalize_path(journal_file);
+        let companion_dir = resolved_journal
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."));
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| resolve_and_normalize_path(Path::new(".")));
         Some(Self {
-            status: normalize_path(&companion_dir.join(STATUS_FILE)),
-            cargo: normalize_path(&companion_dir.join(CARGO_FILE)),
+            status: resolve_and_normalize_path(&companion_dir.join(STATUS_FILE)),
+            cargo: resolve_and_normalize_path(&companion_dir.join(CARGO_FILE)),
         })
     }
 
@@ -62,7 +64,7 @@ impl CompanionPaths {
     }
 
     fn classify(&self, path: &Path) -> Option<CompanionFile> {
-        let normalized = normalize_path(path);
+        let normalized = resolve_and_normalize_path(path);
         if normalized == self.status {
             return Some(CompanionFile::Status);
         }
@@ -75,4 +77,51 @@ impl CompanionPaths {
 
 fn read_optional_companion_json(path: &Path) -> Option<String> {
     fs::read_to_string(path).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::ChecklistRowState;
+
+    #[test]
+    fn companion_paths_from_relative_journal_match_absolute_notify_paths() {
+        let cwd = std::env::current_dir().unwrap();
+        let relative = Path::new("relative-journals/Journal.2035-01-04T120000.01.log");
+        let paths = CompanionPaths::from_journal_file(relative).unwrap();
+        let abs_dir = resolve_and_normalize_path(&cwd.join("relative-journals"));
+
+        assert_eq!(
+            paths.classify(&abs_dir.join(STATUS_FILE)),
+            Some(CompanionFile::Status)
+        );
+        assert_eq!(
+            paths.classify(&abs_dir.join(CARGO_FILE)),
+            Some(CompanionFile::Cargo)
+        );
+        assert_eq!(
+            paths.classify(Path::new("relative-journals/Status.json")),
+            Some(CompanionFile::Status)
+        );
+    }
+
+    #[test]
+    fn companion_paths_from_bare_journal_match_absolute_cwd_paths() {
+        let cwd = std::env::current_dir().unwrap();
+        let paths =
+            CompanionPaths::from_journal_file(Path::new("Journal.2035-01-04T120000.01.log"))
+                .unwrap();
+        let abs_cwd = resolve_and_normalize_path(&cwd);
+
+        assert_eq!(
+            paths.classify(&abs_cwd.join(STATUS_FILE)),
+            Some(CompanionFile::Status)
+        );
+        assert_eq!(
+            paths.classify(&abs_cwd.join(CARGO_FILE)),
+            Some(CompanionFile::Cargo)
+        );
+        let state = AfkChecklistState::unknown();
+        assert_eq!(state.to_view().rows[0].state, ChecklistRowState::Unknown);
+    }
 }

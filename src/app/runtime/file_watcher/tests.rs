@@ -179,30 +179,139 @@ fn afk_companion_update_retries_partial_json_then_publishes_valid_state() {
 
 #[test]
 fn afk_watcher_bare_selected_filename_matches_companion_events() {
+    let cwd = std::env::current_dir().unwrap();
     let paths = WatchedFileSet::new(Path::new("Journal.2035-01-04T120000.01.log"));
+    let expected_selected = normalize_path(&cwd.join("Journal.2035-01-04T120000.01.log"));
+    let expected_status = normalize_path(&cwd.join("Status.json"));
+    let expected_cargo = normalize_path(&cwd.join("Cargo.json"));
 
+    assert_eq!(
+        paths.classify_path(&expected_selected),
+        Some(AfkWatcherEvent::SelectedFile {
+            path: expected_selected.clone(),
+        })
+    );
     assert_eq!(
         paths.classify_path(Path::new("Status.json")),
         Some(AfkWatcherEvent::StatusJson {
-            path: PathBuf::from("Status.json"),
+            path: expected_status.clone(),
         })
     );
     assert_eq!(
         paths.classify_path(Path::new("./Status.json")),
         Some(AfkWatcherEvent::StatusJson {
-            path: PathBuf::from("Status.json"),
+            path: expected_status.clone(),
+        })
+    );
+    assert_eq!(
+        paths.classify_path(&expected_status),
+        Some(AfkWatcherEvent::StatusJson {
+            path: expected_status,
         })
     );
     assert_eq!(
         paths.classify_path(Path::new("Cargo.json")),
         Some(AfkWatcherEvent::CargoJson {
-            path: PathBuf::from("Cargo.json"),
+            path: expected_cargo.clone(),
         })
     );
     assert_eq!(
         paths.classify_path(Path::new("./Cargo.json")),
         Some(AfkWatcherEvent::CargoJson {
-            path: PathBuf::from("Cargo.json"),
+            path: expected_cargo.clone(),
         })
     );
+    assert_eq!(
+        paths.classify_path(&expected_cargo),
+        Some(AfkWatcherEvent::CargoJson {
+            path: expected_cargo,
+        })
+    );
+}
+
+#[test]
+fn afk_watcher_relative_folder_matches_absolute_notify_event_paths() {
+    let cwd = std::env::current_dir().unwrap();
+    let relative_journal = Path::new("relative-journals/Journal.2035-01-04T120000.01.log");
+    let paths = WatchedFileSet::new(relative_journal);
+    let abs_dir = normalize_path(&cwd.join("relative-journals"));
+
+    assert_eq!(
+        paths.classify_path(abs_dir.join("Journal.2035-01-04T120000.01.log")),
+        Some(AfkWatcherEvent::SelectedFile {
+            path: abs_dir.join("Journal.2035-01-04T120000.01.log"),
+        })
+    );
+    assert_eq!(
+        paths.classify_path(abs_dir.join("Status.json")),
+        Some(AfkWatcherEvent::StatusJson {
+            path: abs_dir.join("Status.json"),
+        })
+    );
+    assert_eq!(
+        paths.classify_path(abs_dir.join("Cargo.json")),
+        Some(AfkWatcherEvent::CargoJson {
+            path: abs_dir.join("Cargo.json"),
+        })
+    );
+}
+
+#[tokio::test]
+async fn afk_watcher_real_watcher_emits_events_for_relative_journal_path() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let abs_journal = temp_dir.path().join("Journal.2035-01-04T120000.01.log");
+    fs::write(&abs_journal, "").unwrap();
+    let cwd = std::env::current_dir().unwrap();
+    let relative_journal =
+        relative_path_from(&cwd, &abs_journal).unwrap_or_else(|| abs_journal.clone());
+
+    let start = AfkFileWatcherStart::start(&relative_journal);
+    let AfkFileWatcherStart::Watching {
+        watcher: _watcher,
+        mut events,
+    } = start
+    else {
+        panic!("expected watcher to start for relative journal path");
+    };
+
+    let status_path = temp_dir.path().join("Status.json");
+    fs::write(&status_path, r#"{"Flags":64,"Pips":[4,0,8]}"#).unwrap();
+
+    let received = tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            match events.recv().await {
+                Some(AfkWatcherEvent::StatusJson { path }) => return path,
+                Some(_) => continue,
+                None => panic!("watcher closed before emitting StatusJson"),
+            }
+        }
+    })
+    .await
+    .expect("watcher should emit StatusJson for relative journal path");
+
+    let expected_status = normalize_path(&status_path);
+    assert_eq!(received, expected_status);
+}
+
+fn relative_path_from(base: &Path, target: &Path) -> Option<PathBuf> {
+    let base = normalize_path(base);
+    let target = normalize_path(target);
+    let base_components: Vec<_> = base.components().collect();
+    let target_components: Vec<_> = target.components().collect();
+    if base_components.first() != target_components.first() {
+        return None;
+    }
+    let common_len = base_components
+        .iter()
+        .zip(target_components.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+    let mut relative = PathBuf::new();
+    for _ in common_len..base_components.len() {
+        relative.push("..");
+    }
+    for component in &target_components[common_len..] {
+        relative.push(component.as_os_str());
+    }
+    Some(relative)
 }
