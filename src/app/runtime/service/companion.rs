@@ -1,6 +1,6 @@
 use std::{fs, path::Path, path::PathBuf};
 
-use super::super::file_watcher::resolve_and_normalize_path;
+use super::super::file_watcher::{paths_match, resolve_and_normalize_path};
 use crate::app::AfkChecklistState;
 
 const STATUS_FILE: &str = "Status.json";
@@ -65,10 +65,10 @@ impl CompanionPaths {
 
     fn classify(&self, path: &Path) -> Option<CompanionFile> {
         let normalized = resolve_and_normalize_path(path);
-        if normalized == self.status {
+        if paths_match(&normalized, &self.status) {
             return Some(CompanionFile::Status);
         }
-        if normalized == self.cargo {
+        if paths_match(&normalized, &self.cargo) {
             return Some(CompanionFile::Cargo);
         }
         None
@@ -123,5 +123,22 @@ mod tests {
         );
         let state = AfkChecklistState::unknown();
         assert_eq!(state.to_view().rows[0].state, ChecklistRowState::Unknown);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn companion_paths_match_case_insensitively_on_windows() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let journal = temp_dir.path().join("Journal.2035-01-04T120000.01.log");
+        let paths = CompanionPaths::from_journal_file(&journal).unwrap();
+
+        assert_eq!(
+            paths.classify(&temp_dir.path().join("STATUS.JSON")),
+            Some(CompanionFile::Status)
+        );
+        assert_eq!(
+            paths.classify(&temp_dir.path().join("cargo.json")),
+            Some(CompanionFile::Cargo)
+        );
     }
 }

@@ -293,6 +293,69 @@ async fn afk_watcher_real_watcher_emits_events_for_relative_journal_path() {
     assert_eq!(received, expected_status);
 }
 
+#[test]
+fn normalize_path_drops_parent_after_root_and_preserves_leading_relative_parent() {
+    assert_eq!(
+        normalize_path(Path::new("../logs/../Journal.log")),
+        PathBuf::from("../Journal.log")
+    );
+    assert_eq!(
+        normalize_path(Path::new("/../Journal.log")),
+        PathBuf::from("/Journal.log")
+    );
+}
+
+#[cfg(not(windows))]
+#[test]
+fn afk_watcher_remains_case_sensitive_on_non_windows() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let selected = temp_dir.path().join("Journal.2035-01-04T120000.01.log");
+    let paths = WatchedFileSet::new(&selected);
+
+    assert_eq!(
+        paths.classify_path(temp_dir.path().join("status.json")),
+        None
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn normalize_path_preserves_parent_after_windows_drive_relative_prefix() {
+    assert_eq!(
+        normalize_path(Path::new(r"C:..\Journal.log")),
+        PathBuf::from(r"C:..\Journal.log")
+    );
+    assert_eq!(
+        normalize_path(Path::new(r"C:\..\Journal.log")),
+        PathBuf::from(r"C:\Journal.log")
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn afk_watcher_matches_paths_case_insensitively_on_windows() {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let selected = temp_dir.path().join("Journal.2035-01-04T120000.01.log");
+    let paths = WatchedFileSet::new(&selected);
+
+    let different_case_selected = temp_dir.path().join("journal.2035-01-04t120000.01.LOG");
+    let different_case_status = temp_dir.path().join("STATUS.JSON");
+    let different_case_cargo = temp_dir.path().join("cargo.json");
+
+    assert!(matches!(
+        paths.classify_path(&different_case_selected),
+        Some(AfkWatcherEvent::SelectedFile { .. })
+    ));
+    assert!(matches!(
+        paths.classify_path(&different_case_status),
+        Some(AfkWatcherEvent::StatusJson { .. })
+    ));
+    assert!(matches!(
+        paths.classify_path(&different_case_cargo),
+        Some(AfkWatcherEvent::CargoJson { .. })
+    ));
+}
+
 fn relative_path_from(base: &Path, target: &Path) -> Option<PathBuf> {
     let base = normalize_path(base);
     let target = normalize_path(target);

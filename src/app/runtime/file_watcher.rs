@@ -139,13 +139,13 @@ impl WatchedFileSet {
 
     pub fn classify_path(&self, path: impl AsRef<Path>) -> Option<AfkWatcherEvent> {
         let path = resolve_and_normalize_path(path.as_ref());
-        if path == self.selected_file {
+        if paths_match(&path, &self.selected_file) {
             return Some(AfkWatcherEvent::SelectedFile { path });
         }
-        if path == self.status_file {
+        if paths_match(&path, &self.status_file) {
             return Some(AfkWatcherEvent::StatusJson { path });
         }
-        if path == self.cargo_file {
+        if paths_match(&path, &self.cargo_file) {
             return Some(AfkWatcherEvent::CargoJson { path });
         }
         None
@@ -186,13 +186,7 @@ fn dispatch_notify_result(
 }
 
 pub(super) fn resolve_and_normalize_path(path: &Path) -> PathBuf {
-    let resolved = if path.is_absolute() {
-        path.to_path_buf()
-    } else if let Ok(current_dir) = std::env::current_dir() {
-        current_dir.join(path)
-    } else {
-        path.to_path_buf()
-    };
+    let resolved = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
     normalize_path(&resolved)
 }
 
@@ -211,7 +205,7 @@ pub(super) fn normalize_path(path: &Path) -> PathBuf {
                     normalized.pop();
                 } else if !matches!(
                     normalized.components().next_back(),
-                    Some(Component::RootDir | Component::Prefix(_))
+                    Some(Component::RootDir)
                 ) {
                     normalized.push(component.as_os_str());
                 }
@@ -220,6 +214,35 @@ pub(super) fn normalize_path(path: &Path) -> PathBuf {
         }
     }
     normalized
+}
+
+#[cfg(not(windows))]
+pub(super) fn paths_match(left: &Path, right: &Path) -> bool {
+    left == right
+}
+
+#[cfg(windows)]
+pub(super) fn paths_match(left: &Path, right: &Path) -> bool {
+    windows_path_comparison_key(left) == windows_path_comparison_key(right)
+}
+
+#[cfg(windows)]
+fn windows_path_comparison_key(path: &Path) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
+
+    let mut key = Vec::new();
+    for decoded in std::char::decode_utf16(path.as_os_str().encode_wide()) {
+        match decoded {
+            Ok(character) => {
+                for lower in character.to_lowercase() {
+                    let mut encoded = [0_u16; 2];
+                    key.extend_from_slice(lower.encode_utf16(&mut encoded));
+                }
+            }
+            Err(unpaired) => key.push(unpaired.unpaired_surrogate()),
+        }
+    }
+    key
 }
 
 #[cfg(test)]
